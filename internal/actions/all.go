@@ -28,4 +28,5 @@ func RegisterAll(r *Registry) {
 	registerFeedback(r)
 	registerModels(r)
 	registerChangelog(r)
+	registerAttachments(r)
 }

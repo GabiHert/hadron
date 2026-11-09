@@ -5,6 +5,22 @@
     "fields": null
   },
   {
+    "name": "attachment_save",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "name",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "data",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "card_archive",
     "mutates": true,
     "fields": [

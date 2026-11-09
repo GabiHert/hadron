@@ -236,3 +236,56 @@ textarea.in.grow-max{overflow-y:auto;scrollbar-width:thin}
 :root[data-theme="dark"] .logo-light { display: none; }
 :root[data-theme="light"] .logo-dark { display: none; }
 :root[data-theme="light"] .logo-light { display: inline; }
+/* Markdown in messages, reports, questions and prose blocks (components/Markdown.tsx). */
+.md{white-space:normal;min-width:0;overflow-wrap:anywhere;line-height:1.5}
+.md>:first-child{margin-top:0}.md>:last-child{margin-bottom:0}
+.md p{margin:0 0 .55em}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{font-family:var(--serif);font-weight:500;line-height:1.25;margin:.8em 0 .35em;color:var(--fg)}
+.md h1{font-size:19px}.md h2{font-size:17px}.md h3{font-size:15.5px}.md h4,.md h5,.md h6{font-size:14px}
+.md ul,.md ol{margin:0 0 .55em;padding-left:1.35em}.md li{margin:.12em 0}.md li>p{margin:0}
+.md li:has(>input[type=checkbox]){list-style:none;margin-left:-1.2em}
+.md li>input[type=checkbox]{margin:0 6px 0 0;vertical-align:-1px;accent-color:var(--acc)}
+.md blockquote{margin:0 0 .55em;padding:2px 0 2px 10px;border-left:3px solid var(--border);color:var(--fg2)}
+.md hr{border:0;border-top:1px solid var(--border);margin:.7em 0}
+.md a{color:var(--acc);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px;overflow-wrap:anywhere;word-break:break-word;cursor:pointer}
+.md a:hover{text-decoration-thickness:2px}
+.md .md-link-off{text-decoration:underline dotted;color:var(--fg2)}
+.md .md-img-off{color:var(--fg3);font-style:italic}
+.md strong{font-weight:600}
+.md code.md-code{font:0.92em var(--mono);background:color-mix(in srgb,var(--fg) 7%,transparent);border-radius:4px;padding:1px 4px;overflow-wrap:anywhere}
+.md-pre{margin:0 0 .55em;border:1px solid var(--row);border-radius:8px;background:var(--muted);overflow:hidden}
+.md-pre-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 6px 3px 10px;border-bottom:1px solid var(--row);font-size:10.5px;color:var(--fg3);text-transform:lowercase}
+.md-copy{border:1px solid var(--border);background:var(--card);color:var(--fg2);border-radius:5px;font-size:11px;padding:1px 8px}
+.md-copy:hover{color:var(--fg)}
+.md-pre pre{margin:0;padding:8px 10px;overflow-x:auto;font:11.5px/1.55 var(--mono);white-space:pre}
+.md-table{max-width:100%;overflow-x:auto;margin:0 0 .55em;border:1px solid var(--row);border-radius:8px;background:var(--card)}
+.md-table table{border-collapse:collapse;font-size:12.5px;min-width:100%}
+.md-table th{font-weight:600;text-align:left;background:var(--muted);color:var(--fg2);font-size:11.5px;letter-spacing:.01em}
+.md-table th,.md-table td{padding:5px 10px;border-bottom:1px solid var(--row);vertical-align:top;white-space:nowrap}
+.md-table td{white-space:normal;min-width:6em;overflow-wrap:normal;word-break:normal}
+.md-table td:has(>code:only-child),.md-table td code{white-space:nowrap}
+.md-table tr:last-child td{border-bottom:0}
+.md-table tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--muted) 70%,transparent)}
+.md-table td a{overflow-wrap:anywhere}
+.md-serif{font:15px/1.5 var(--serif)}
+.qtext.md p{margin:0 0 .3em}
+.hint.md{line-height:1.45}
+/* Attachments: chips in the composer, thumbnails under a message. */
+.att-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.composer .att-row{margin-top:0}
+.att-chip{display:inline-flex;align-items:center;gap:6px;max-width:220px;padding:3px 4px 3px 3px;border:1px solid var(--border);border-radius:8px;background:var(--card);font-size:11.5px;color:var(--fg2)}
+.att-chip img{width:28px;height:28px;object-fit:cover;border-radius:5px;background:var(--muted)}
+.att-chip .pdf{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:5px;background:var(--badb);color:var(--bad);font:600 9.5px var(--mono)}
+.att-chip.pdf{padding:3px 8px;font:11px var(--mono)}
+.att-chip .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.att-chip button{border:0;background:none;color:var(--fg3);font-size:14px;line-height:1;padding:0 4px}
+.att-chip button:hover{color:var(--bad)}
+.att-thumb{max-width:180px;max-height:140px;border-radius:8px;border:1px solid var(--border);object-fit:cover;background:var(--muted)}
+.composer.drop{outline:2px dashed var(--acc);outline-offset:-4px}
+.composer .row .ibtn{flex:none;align-self:flex-end;margin-bottom:3px}
+/* The terminal's tool row: Attach and the Option-as-Meta switch. */
+.ttools{display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--termbar);border-bottom:1px solid #2c2a27;font-size:11.5px;color:var(--tdim)}
+.tbtn{display:inline-flex;align-items:center;gap:5px;border:1px solid #3a3835;background:transparent;color:var(--tfg);border-radius:6px;padding:2px 8px;font-size:11.5px;cursor:pointer}
+.tbtn:hover{border-color:#57534d}
+label.tbtn input{margin:0;accent-color:var(--tb)}
+.tnote{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}

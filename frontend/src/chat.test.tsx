@@ -198,7 +198,7 @@ describe("lines and the typing indicator", () => {
       <ChatThread className="chat" scope="p" messages={[message({ author: "you", text: "status?" }), message({ id: "m2", author: "planner", text: "All **green**." })]} questions={[]} onAnswer={vi.fn()} empty={null} />,
     );
     expect(screen.queryByText("Planner is replying…")).toBeNull();
-    expect(screen.getByText("green").tagName).toBe("B");
+    expect(screen.getByText("green").tagName).toBe("STRONG");
   });
 
   it("an undelivered message carries a mark with the reason", () => {
@@ -237,7 +237,7 @@ describe("the chat in the app", () => {
     await openApp();
     const panel = screen.getByRole("complementary", { name: "Planner" });
     expect(await within(panel).findByText("start billing-fix")).toBeInTheDocument();
-    expect(within(panel).getByText("billing-fix").tagName).toBe("B");
+    expect(within(panel).getByText("billing-fix").tagName).toBe("STRONG");
     await user.type(within(panel).getByLabelText("Message the planner"), "what is blocked?{Enter}");
     await waitFor(() => expect(mocks.chat_send).toHaveBeenCalledWith({ workspace_id: "w1", channel: "planner", text: "what is blocked?" }));
     expect(await within(panel).findByText("what is blocked?")).toBeInTheDocument();

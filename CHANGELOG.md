@@ -7,6 +7,17 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Chat messages, reports, questions and text blocks on the dashboard are shown as Markdown: tables (scrolling sideways when wide), lists, headings, quotes, task lists, code with a Copy button, and links that open in your browser.
+- Attach images and PDFs to a chat message: paste, drop or use the clip button. Each shows as a chip before you send, the message carries its path for the session, and the conversation shows a thumbnail.
+- In the terminal, paste an image (Cmd+V) or drop files to type their paths, the way Claude Code attaches images, or use the new Attach button. Ctrl+V still goes to Claude Code.
+- An "Option as Meta" switch above the terminal, for Claude Code's Option shortcuts.
+
+### Fixed
+- Keys typed fast in the terminal could reach Claude Code out of order, garbling commands such as `/model`. Each keystroke now waits for the one before it.
+- Shift+Enter in the terminal adds a new line in Claude Code instead of sending the message.
+- Ctrl+K, Ctrl+N and Esc in the terminal always go to Claude Code, never to Hadron's shortcuts. Cmd+K and Cmd+N still work there.
+
 ## [0.2.10] - 2026-11-09
 
 ### Added

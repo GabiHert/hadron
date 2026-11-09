@@ -7,6 +7,7 @@ import type { Board as BoardState } from "../state/useBoard";
 import { useDash, useWidgetScripts } from "../state/useDash";
 import { Icon } from "./ui";
 import { Widget } from "./Widget";
+import { Markdown } from "./Markdown";
 
 const str = (v: unknown) => (v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
 
@@ -195,11 +196,11 @@ function BlockBody({ b, board, scripts, onRewrite }: { b: BlockView; board: Boar
       );
     }
     case "prose":
-      return <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{b.text}</p>;
+      return <Markdown text={b.text ?? ""} />;
     case "planner":
       return (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <p style={{ margin: 0, font: "15px/1.5 var(--serif)" }}>{b.text || "The planner has not written this yet. Use Rewrite now."}</p>
+          {b.text ? <Markdown className="md-serif" text={b.text} /> : <p style={{ margin: 0, font: "15px/1.5 var(--serif)" }}>The planner has not written this yet. Use Rewrite now.</p>}
           <div className="inline">
             <span className="pill">{b.schedule || "on demand"}</span>
             <span className="hint" style={{ flex: 1 }}>{b.text_at ? `Written by the planner at ${hm(b.text_at)}` : "Written by the planner"}</span>

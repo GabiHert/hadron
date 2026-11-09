@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/GabiHert/hadron/internal/attachments"
 	"github.com/GabiHert/hadron/internal/board"
 	"github.com/GabiHert/hadron/internal/run"
 	"github.com/GabiHert/hadron/internal/store"
@@ -60,10 +61,14 @@ func Run(assets embed.FS) error {
 		// ⌘W and the close button hide the app instead of quitting, so sessions keep running. ⌘Q quits.
 		HideWindowOnClose:  true,
 		SingleInstanceLock: &options.SingleInstanceLock{UniqueId: instanceID()},
-		AssetServer:        &assetserver.Options{Assets: assets},
-		OnStartup:          func(ctx context.Context) { a.startup(ctx) },
-		OnShutdown:         func(ctx context.Context) { a.shutdown() },
-		Bind:               []interface{}{a},
+		// /attachments/ serves the thumbnails of attached images, from ~/.hadron/attachments only.
+		AssetServer: &assetserver.Options{Assets: assets, Middleware: attachments.Middleware(run.Home())},
+		// Files dropped on the window reach the page as absolute paths (runtime.OnFileDrop), which
+		// the terminal types and the chat composer attaches. The page's own drag and drop still works.
+		DragAndDrop: &options.DragAndDrop{EnableFileDrop: true},
+		OnStartup:   func(ctx context.Context) { a.startup(ctx) },
+		OnShutdown:  func(ctx context.Context) { a.shutdown() },
+		Bind:        []interface{}{a},
 	})
 }
 

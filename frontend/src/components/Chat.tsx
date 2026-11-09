@@ -1,31 +1,19 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Message, Question } from "../api";
 import { hm } from "../lib";
 import { AutoText } from "./Composer";
 import { Widget } from "./Widget";
+import { Markdown } from "./Markdown";
 import { usePinnedIds, useWidgetScripts } from "../state/useDash";
 import * as api from "../api";
 
 /** How long "Planner is replying…" may show for one message. */
 export const TYPING_MAX_MS = 2 * 60 * 1000;
 
-/** **bold** and `code`, nothing else. */
+/** A message's text as markdown, with thumbnails of the files it attaches. */
 export function Md({ text }: { text: string }) {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
-  return (
-    <>
-      {parts.map((p, i) =>
-        p.startsWith("**") && p.endsWith("**") && p.length > 4 ? (
-          <b key={i} style={{ fontWeight: 600 }}>{p.slice(2, -2)}</b>
-        ) : p.startsWith("`") && p.endsWith("`") && p.length > 2 ? (
-          <span key={i} className="mono" style={{ fontSize: 12 }}>{p.slice(1, -1)}</span>
-        ) : (
-          <Fragment key={i}>{p}</Fragment>
-        ),
-      )}
-    </>
-  );
+  return <Markdown text={text} attachments />;
 }
 
 /** Why a message did not reach the planner, in words the user can act on. */
@@ -52,7 +40,7 @@ export function ChatLine({ m, onPin, pinnedIds, scripts = false }: { m: Message;
     return (
       <>
         <div className="who">session → planner · <span className={`pill ${REPORT_PILL[m.report_kind] ?? ""}`}>{m.report_kind}</span> · {when}</div>
-        <div className="b-rep">{m.text}</div>
+        <div className="b-rep"><Md text={m.text} /></div>
         {!m.delivered ? <div className="undelivered" role="note" title={m.reason}>The planner did not hear this report. {reasonText(m.reason)}</div> : null}
       </>
     );
@@ -66,7 +54,7 @@ export function ChatLine({ m, onPin, pinnedIds, scripts = false }: { m: Message;
   return (
     <>
       <div className="who r">you · {when}</div>
-      <div className="b-me">{m.text}</div>
+      <div className="b-me"><Md text={m.text} /></div>
       {!m.delivered ? <div className="undelivered" role="note" title={m.reason}>{reasonText(m.reason)}</div> : null}
     </>
   );
@@ -94,7 +82,7 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
     return (
       <div className="qdone" data-testid={`question-${q.status}`}>
         <span className="cap">{label} · {q.kind}</span>
-        <span className="qtext">{q.text}</span>
+        <Markdown className="qtext" text={q.text} />
         {q.status === "withdrawn" ? (
           <span className="hint">Withdrawn.</span>
         ) : a ? (
@@ -128,8 +116,8 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
   return (
     <div className={"qbox" + (q.kind === "approval" ? " appr" : "")} role="group" aria-label={`Question ${label}`}>
       <span className="cap">{label} · {q.kind}</span>
-      <span className="qtext">{q.text}</span>
-      {q.context ? <span className="hint">{q.context}</span> : null}
+      <Markdown className="qtext" text={q.text} />
+      {q.context ? <Markdown className="hint" text={q.context} attachments /> : null}
       {nonEmpty(q.meanwhile) ? <span className="hint" aria-label="Meanwhile">While you decide: {q.meanwhile}</span> : null}
       {ap ? (
         <>
