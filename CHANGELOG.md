@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.9] - 2026-11-09
+
 ### Changed
 
 - A script-defined dashboard query can declare `timeout_s` (1 to 180 seconds, default 10) under `ops.queries.<name>` in its manifest, so a query that pages through a large API has time to finish; a run that times out keeps the last good data and shows the error.
