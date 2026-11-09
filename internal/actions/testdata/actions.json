@@ -335,6 +335,27 @@
     "fields": null
   },
   {
+    "name": "client_log",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "level",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "message",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "stack",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "column_create",
     "mutates": true,
     "fields": [
@@ -758,6 +779,22 @@
         "type": "array"
       }
     ]
+  },
+  {
+    "name": "debug_logging_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "enabled",
+        "required": true,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "diagnostics_get",
+    "mutates": false,
+    "fields": null
   },
   {
     "name": "field_schema_get",
@@ -1371,6 +1408,27 @@
       {
         "name": "q",
         "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "logs_tail",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "lines",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "level",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "contains",
+        "required": false,
         "type": "string"
       }
     ]

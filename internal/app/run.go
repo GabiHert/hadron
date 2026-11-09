@@ -4,8 +4,11 @@ package app
 import (
 	"context"
 	"embed"
+	"github.com/GabiHert/hadron/internal/dlog"
+	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/GabiHert/hadron/internal/board"
 	"github.com/GabiHert/hadron/internal/run"
@@ -33,6 +36,14 @@ func Run(assets embed.FS) error {
 		log.Printf("launch profiles: %v", err)
 	}
 	a := New(st)
+	// Anything the app prints with the standard logger is an error worth keeping.
+	log.SetOutput(io.MultiWriter(os.Stderr, logWriter{a.log}))
+	defer func() {
+		if r := recover(); r != nil {
+			a.log.Panic("main", r)
+			panic(r)
+		}
+	}()
 	return wailsv2.Run(&options.App{
 		Title:            "Hadron",
 		Width:            1360,
@@ -59,4 +70,12 @@ func instanceID() string {
 		return "tech.bhlabs.hadron." + uuid.NewSHA1(uuid.NameSpaceURL, []byte(h)).String()[:8]
 	}
 	return "tech.bhlabs.hadron"
+}
+
+// logWriter sends the standard logger's lines to Hadron's log as errors.
+type logWriter struct{ l *dlog.Logger }
+
+func (w logWriter) Write(p []byte) (int, error) {
+	w.l.Error(strings.TrimSpace(string(p)))
+	return len(p), nil
 }

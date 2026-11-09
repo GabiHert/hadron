@@ -11,6 +11,7 @@ import (
 
 	"github.com/GabiHert/hadron/internal/board"
 	"github.com/GabiHert/hadron/internal/chat"
+	"github.com/GabiHert/hadron/internal/dlog"
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/fields"
 	"github.com/GabiHert/hadron/internal/store"
@@ -414,9 +415,19 @@ func runEvent(c *Call, ev board.Event) error {
 	}
 	if len(out.Firings) > 0 {
 		c.Touch("cards", "messages")
+		logFirings(c.Deps.Log, out.Firings)
 	}
 	dispatchEffects(c.Deps, c.Store, c.AfterCommit, out.Effects)
 	return nil
+}
+
+func logFirings(l *dlog.Logger, firings []board.Firing) {
+	if l == nil || !l.Debugging() {
+		return
+	}
+	for _, f := range firings {
+		l.Debug("rule", "rule", f.Rule, "card", f.Card, "action", f.Action, "skipped", f.Skipped, "reason", f.Reason)
+	}
 }
 
 // dispatchEffects schedules a run's effects through after, which defers them past the commit.
@@ -537,6 +548,7 @@ func (r *Registry) runTimed(ctx context.Context, workspaceID, ruleID string, ev 
 	if err != nil {
 		return err
 	}
+	logFirings(r.deps.Log, out.Firings)
 	if ev.Trigger == board.OnIdleFor {
 		// The rule's own change bumps the card's updated_at; remember the new one so it does not fire again.
 		if card, err := r.deps.Store.Cards.Get(ev.CardID); err == nil {

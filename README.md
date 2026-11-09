@@ -65,6 +65,10 @@ Hadron serves well over a hundred tools, one per action (the count is in `app_st
 | `prompt_*`, `launch_profile_*`, `worktree_*` | The planner and session prompts, how sessions start, and the git worktrees cards run in |
 | `config_history`, `config_diff`, `config_revert` | Who changed the config, what changed, and undo (Settings, History) |
 
+## Diagnostics
+
+Settings, Diagnostics turns on **debug logging**: JSON lines under `~/.hadron/logs` (one file a day, 7 days and 50 MB kept) with every action (name, who, how long, argument names only), session starts and exits, chat delivery, rule firings, script runs and update steps. Off, only errors and recovered crashes are kept. Secrets, tokens and message text are never logged. The tab shows a live tail and copies a diagnostics block for a bug report; the same is available over MCP as `logs_tail`, `diagnostics_get` and `debug_logging_set`.
+
 ## Worktrees
 
 A launch profile with **worktree** on starts each card in its own git worktree, `<root>/.hadron-worktrees/<nick>` on branch `hadron/<nick>`, when the workspace root is a git repository (otherwise the session starts in the root and the response says so). Deleting a card leaves its worktree on disk so no work is lost; `worktree_list` shows them and `worktree_remove` deletes one, refusing while it has uncommitted changes unless you pass `force`.

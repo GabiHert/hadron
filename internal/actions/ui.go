@@ -121,6 +121,15 @@ func registerUI(r *Registry) {
 						return nil, fmt.Errorf("widgets.scripts must be true or false, got %v", v)
 					}
 				}
+				if k == SettingDebugLogging {
+					on, ok := v.(bool)
+					if !ok {
+						return nil, fmt.Errorf("%s must be true or false, got %v", SettingDebugLogging, v)
+					}
+					if c.Deps.Log != nil {
+						c.AfterCommit(func() { c.Deps.Log.SetDebug(on) })
+					}
+				}
 				if k == "theme" && v != "light" && v != "dark" && v != "system" {
 					return nil, fmt.Errorf("theme must be light, dark or system, got %v", v)
 				}

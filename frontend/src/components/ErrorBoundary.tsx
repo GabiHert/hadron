@@ -1,5 +1,6 @@
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
+import * as api from "../api";
 
 interface Props {
   children: ReactNode;
@@ -15,6 +16,11 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("Hadron UI crashed:", error, info.componentStack);
+    try {
+      void Promise.resolve(api.client_log({ level: "error", message: error.message, stack: (error.stack ?? "") + "\n" + (info.componentStack ?? "") })).catch(() => undefined);
+    } catch {
+      /* logging must never break the fallback */
+    }
   }
 
   render() {

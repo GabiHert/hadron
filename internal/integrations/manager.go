@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/GabiHert/hadron/internal/board"
+	"github.com/GabiHert/hadron/internal/dlog"
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/fields"
 	"github.com/GabiHert/hadron/internal/script"
@@ -50,6 +51,8 @@ type Manager struct {
 	Notify func(workspaceID, title, body string)
 	// FieldChanged runs the rules that watch a field, for changes a poll finds. May be nil.
 	FieldChanged func(ctx context.Context, cardID, path string, old, now any) error
+	// Log is Hadron's own log. May be nil.
+	Log *dlog.Logger
 	// Changed tells the frontend what to refetch. May be nil.
 	Changed func(workspaceID string, entities ...string)
 
@@ -188,6 +191,7 @@ func (m *Manager) Op(ctx context.Context, st *store.Store, ws domain.Workspace, 
 	if len(res.Logs) > 0 {
 		msg = strings.TrimSpace(msg + "\n" + strings.Join(res.Logs, "\n"))
 	}
+	m.Log.Debug("script run", "script", sc.Name, "op", op, "ms", res.Duration, "ok", runErr == nil, "error", errString(runErr))
 	row := domain.ScriptLog{WorkspaceID: ws.ID, ScriptName: sc.Name, Op: op, OK: runErr == nil, DurationMS: int(res.Duration.Milliseconds()), Message: msg}
 	if lerr := st.ScriptLogs.Create(&row); lerr != nil {
 		log.Printf("script log: %v", lerr)
@@ -719,4 +723,11 @@ func (p *provider) Set(ctx context.Context, st *store.Store, card domain.Card, f
 	}
 	_, err = Apply(st, link, out.Title, out.URL, out.Fields)
 	return err
+}
+
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }

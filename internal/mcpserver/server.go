@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/GabiHert/hadron/internal/actions"
+	"github.com/GabiHert/hadron/internal/dlog"
 	"github.com/GabiHert/hadron/internal/run"
 	"github.com/GabiHert/hadron/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -46,6 +47,8 @@ type Options struct {
 	Port int
 	// Version is shown in the server info.
 	Version string
+	// Log is Hadron's own log. It may be nil.
+	Log *dlog.Logger
 }
 
 // Server is the MCP server.
@@ -284,7 +287,10 @@ func (s *Server) addTool(srv *mcp.Server, info actions.Info) {
 		if req.Params != nil && len(req.Params.Arguments) > 0 {
 			args = string(req.Params.Arguments)
 		}
-		out, err := s.opts.Registry.Invoke(ctx, s.actorFor(hdr), name, args)
+		actor := s.actorFor(hdr)
+		started := time.Now()
+		out, err := s.opts.Registry.Invoke(ctx, actor, name, args)
+		s.opts.Log.Debug("mcp request", "tool", name, "actor", actor.String(), "ok", err == nil, "ms", time.Since(started))
 		if err != nil {
 			var ie *actions.InputError
 			msg := err.Error()

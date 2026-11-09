@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/GabiHert/hadron/internal/actions"
 	"github.com/GabiHert/hadron/internal/chat"
+	"github.com/GabiHert/hadron/internal/dlog"
 	"github.com/GabiHert/hadron/internal/fields"
 	"github.com/GabiHert/hadron/internal/integrations"
 	"github.com/GabiHert/hadron/internal/mcpserver"
@@ -37,6 +39,7 @@ type App struct {
 	chat   *chat.Service
 	fields *fields.Registry
 	integ  *integrations.Manager
+	log    *dlog.Logger
 	feeds  *ptyFeeds
 	cancel context.CancelFunc
 
@@ -47,10 +50,17 @@ type App struct {
 // New builds an App over an open store.
 func New(st *store.Store) *App {
 	a := &App{st: st}
+	a.log = dlog.New(filepath.Join(run.Home(), "logs"))
+	if raw, err := st.Settings.Get(actions.SettingDebugLogging); err == nil {
+		var on bool
+		if json.Unmarshal(raw, &on) == nil {
+			a.log.SetDebug(on)
+		}
+	}
 	env := cachedEnv()
 	a.feeds = &ptyFeeds{emit: a.emit, byID: map[string]*ptyFeed{}}
 	a.sess = sessions.New(sessions.Config{
-		Store: st, Home: run.Home(), Env: env,
+		Store: st, Home: run.Home(), Env: env, Log: a.log,
 		Changed: func(workspaceID string, entities ...string) {
 			a.emit(actions.EventChanged, actions.ChangedEvent{WorkspaceID: workspaceID, Entities: entities})
 		},
@@ -77,20 +87,22 @@ func New(st *store.Store) *App {
 	a.upd.CleanLeftovers()
 	a.fields = fields.NewRegistry()
 	a.chat = chat.New(chat.SessionsPlanner{Sessions: a.sess}, st)
+	a.chat.Log = a.log
 	a.integ = integrations.New(st, a.fields, script.NewSecrets(run.Home()), script.Live{Env: env})
+	a.integ.Log = a.log
 	a.integ.Changed = func(workspaceID string, entities ...string) {
 		a.emit(actions.EventChanged, actions.ChangedEvent{WorkspaceID: workspaceID, Entities: entities})
 	}
 	a.integ.Notify = func(workspaceID, title, body string) {
 		a.emit(actions.EventNotify, actions.NotifyEvent{WorkspaceID: workspaceID, Title: title, Body: body})
 	}
-	a.reg = actions.NewRegistry(actions.Deps{Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ})
+	a.reg = actions.NewRegistry(actions.Deps{Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log})
 	a.integ.FieldChanged = a.reg.FieldChanged
 	if err := a.integ.Sync(); err != nil {
 		log.Printf("integrations: %v", err)
 	}
 	actions.RegisterAll(a.reg)
-	a.mcp = mcpserver.New(mcpserver.Options{Registry: a.reg, Store: st, Home: run.Home(), Version: run.Version})
+	a.mcp = mcpserver.New(mcpserver.Options{Registry: a.reg, Store: st, Home: run.Home(), Version: run.Version, Log: a.log})
 	return a
 }
 
@@ -113,6 +125,7 @@ func (a *App) startup(ctx context.Context) {
 	watchCtx, cancel := context.WithCancel(context.Background())
 	a.cancel = cancel
 	a.mu.Unlock()
+	a.log.Info("startup", "version", run.Version)
 	// The MCP server must be listening before any planner starts, so the config files it writes
 	// name the port the server really got.
 	if err := a.mcp.Start(); err != nil {
@@ -166,6 +179,7 @@ func (a *App) autostartPlanner(ctx context.Context) {
 }
 
 func (a *App) shutdown() {
+	a.log.Info("shutdown")
 	a.mu.Lock()
 	if a.cancel != nil {
 		a.cancel()
@@ -174,6 +188,7 @@ func (a *App) shutdown() {
 	a.mcp.Close()
 	a.sess.StopAll()
 	_ = a.st.Close()
+	a.log.Close()
 }
 
 func (a *App) context() context.Context {

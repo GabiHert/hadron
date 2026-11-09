@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/GabiHert/hadron/internal/dlog"
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/fields"
 	"github.com/GabiHert/hadron/internal/integrations"
@@ -72,6 +74,7 @@ type integHarness struct {
 	mgr  *integrations.Manager
 	jira *fakeJira
 	home string
+	lg   *dlog.Logger
 }
 
 func newIntegHarness(t *testing.T) *integHarness {
@@ -82,6 +85,9 @@ func newIntegHarness(t *testing.T) *integHarness {
 	fj := &fakeJira{status: "In progress"}
 	mgr := integrations.New(deps.Store, deps.Fields, script.NewSecrets(deps.Home), fj)
 	deps.Integrations = mgr
+	lg := dlog.New(filepath.Join(deps.Home, "logs"))
+	lg.SetDebug(true)
+	deps.Log, mgr.Log = lg, lg
 	r := NewRegistry(deps)
 	RegisterAll(r)
 	mgr.FieldChanged = r.FieldChanged
@@ -90,7 +96,7 @@ func newIntegHarness(t *testing.T) *integHarness {
 	cols := h.columns(h.ws.ID)
 	h.working, h.done, h.needs = colByRole(cols, domain.RoleActive), colByRole(cols, domain.RoleDone), colByRole(cols, domain.RoleNeedsYou)
 	h.do("card_create", m{"nick": "alpha", "key": "ACME-1", "column_id": h.working.ID, "start": false}, &h.a)
-	return &integHarness{rulesHarness: h, mgr: mgr, jira: fj, home: deps.Home}
+	return &integHarness{rulesHarness: h, mgr: mgr, jira: fj, home: deps.Home, lg: lg}
 }
 
 // jiraEnabled scaffolds the jira template, configures and approves it.
@@ -266,6 +272,30 @@ func TestASecretNeverReachesOutputLogsCallsOrChanges(t *testing.T) {
 	h.do("integration_logs", nil, &logs)
 	if len(logs) == 0 {
 		t.Fatal("the ops should have been logged")
+	}
+
+	// Hadron's own debug log has seen every one of those calls, and holds no secret.
+	lines := h.lg.Tail(2000, "", "")
+	if len(lines) == 0 {
+		t.Fatal("debug logging was on, so the actions should be in the log")
+	}
+	seenSecretSet, seenScript := false, false
+	for _, ln := range lines {
+		if strings.Contains(ln.Raw, jiraToken) || strings.Contains(ln.Raw, "base64") {
+			t.Errorf("the secret reached the log: %s", ln.Raw)
+		}
+		seenSecretSet = seenSecretSet || (ln.Msg == "action" && ln.Fields["action"] == "integration_secret_set")
+		seenScript = seenScript || ln.Msg == "script run"
+	}
+	if !seenSecretSet || !seenScript {
+		t.Errorf("the secret_set action and the script runs are logged by name: %v %v", seenSecretSet, seenScript)
+	}
+	files, _ := filepath.Glob(filepath.Join(h.home, "logs", "*"))
+	for _, f := range files {
+		raw, _ := os.ReadFile(f)
+		if strings.Contains(string(raw), jiraToken) {
+			t.Errorf("%s holds the secret", f)
+		}
 	}
 
 	dump := dumpDB(t, h.home)

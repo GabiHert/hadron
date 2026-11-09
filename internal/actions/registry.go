@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/GabiHert/hadron/internal/chat"
+	"github.com/GabiHert/hadron/internal/dlog"
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/fields"
 	"github.com/GabiHert/hadron/internal/integrations"
@@ -88,6 +89,8 @@ type Deps struct {
 	// Integrations runs integrations and scripts. It may be nil, as in most tests: integration
 	// actions then fail with a clear error and run_action rules are skipped.
 	Integrations *integrations.Manager
+	// Log is Hadron's own log. It may be nil, as in most tests.
+	Log *dlog.Logger
 }
 
 // Spec describes an action.
@@ -292,13 +295,21 @@ func (e *InputError) Error() string {
 
 // Invoke runs an action for an actor. argsJSON is a JSON object (empty means {}). The result is
 // the action's output as JSON.
-func (r *Registry) Invoke(ctx context.Context, actor Actor, name, argsJSON string) (string, error) {
+func (r *Registry) Invoke(ctx context.Context, actor Actor, name, argsJSON string) (result string, err error) {
 	e, ok := r.actions[name]
 	if !ok {
 		return "", &UnknownActionError{Name: name, Suggestions: r.suggest(name)}
 	}
 	raw := json.RawMessage(strings.TrimSpace(argsJSON))
 	started := time.Now()
+	// An action that panics must not take the app down: the panic goes to the log with its stack and
+	// the caller gets an error.
+	defer func() {
+		if rec := recover(); rec != nil {
+			r.deps.Log.Panic("action "+name, rec)
+			result, err = "", fmt.Errorf("%s failed with an internal error (it is in the log). Try again, and report it if it keeps happening", name)
+		}
+	}()
 	c := &Call{Actor: actor, Deps: r.deps, Store: r.deps.Store, sensitive: e.info.Sensitive}
 
 	var out any
@@ -323,6 +334,9 @@ func (r *Registry) Invoke(ctx context.Context, actor Actor, name, argsJSON strin
 	announce := actor.Kind != KindYou
 	if logged {
 		r.logCall(c, name, raw, runErr, time.Since(started))
+	}
+	if name != "client_log" && name != "logs_tail" {
+		r.logAction(name, actor, raw, runErr, time.Since(started))
 	}
 	if runErr != nil {
 		if announce {
@@ -357,6 +371,27 @@ func (r *Registry) emit(workspaceID string, entities ...string) {
 	if r.deps.Emit != nil {
 		r.deps.Emit(EventChanged, ChangedEvent{WorkspaceID: workspaceID, Entities: entities})
 	}
+}
+
+// logAction writes the action to Hadron's own log: its name, who, how long, whether it failed, and
+// the names of its arguments, never their values.
+func (r *Registry) logAction(name string, actor Actor, raw json.RawMessage, err error, d time.Duration) {
+	if r.deps.Log == nil || !r.deps.Log.Debugging() {
+		return
+	}
+	var keys []string
+	var obj map[string]json.RawMessage
+	if json.Unmarshal(raw, &obj) == nil {
+		for k := range obj {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+	}
+	if err != nil {
+		r.deps.Log.Warn("action failed", "action", name, "actor", actor.String(), "ms", d, "arg_keys", keys, "error", err.Error())
+		return
+	}
+	r.deps.Log.Debug("action", "action", name, "actor", actor.String(), "ms", d, "arg_keys", keys)
 }
 
 // loggedArgs is what the logs keep of the arguments.

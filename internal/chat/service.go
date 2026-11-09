@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/GabiHert/hadron/internal/dlog"
 	"github.com/GabiHert/hadron/internal/sessions"
 	"github.com/GabiHert/hadron/internal/store"
 )
@@ -43,6 +44,9 @@ func (p SessionsPlanner) Type(st *store.Store, workspaceID, line string) error {
 // Service types tagged lines into planners. Lines go through one queue, so they reach the planner
 // in the order the actions ran, and an action never waits for the terminal.
 type Service struct {
+	// Log is Hadron's own log. It may be nil.
+	Log *dlog.Logger
+
 	planner Planner
 	store   *store.Store
 
@@ -104,14 +108,20 @@ func (s *Service) drain() {
 		s.mu.Unlock()
 
 		if !s.planner.Running(s.store, j.workspaceID) {
+			s.Log.Debug("chat undelivered", "workspace", j.workspaceID, "reason", ReasonPlannerNotRunning, "line_chars", len(j.line))
 			if j.onFail != nil {
 				j.onFail(ReasonPlannerNotRunning)
 			}
 			continue
 		}
-		if err := s.planner.Type(s.store, j.workspaceID, j.line); err != nil && j.onFail != nil {
-			j.onFail(ReasonTypeFailedPrefix + err.Error())
+		if err := s.planner.Type(s.store, j.workspaceID, j.line); err != nil {
+			s.Log.Debug("chat undelivered", "workspace", j.workspaceID, "reason", ReasonTypeFailedPrefix+err.Error(), "line_chars", len(j.line))
+			if j.onFail != nil {
+				j.onFail(ReasonTypeFailedPrefix + err.Error())
+			}
+			continue
 		}
+		s.Log.Debug("chat delivered", "workspace", j.workspaceID, "line_chars", len(j.line))
 	}
 }
 

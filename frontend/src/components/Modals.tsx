@@ -5,6 +5,7 @@ import { McpPanel } from "./McpPanel";
 import { PromptsTab } from "./PromptsTab";
 import { RulesTab } from "./RulesTab";
 import { UpdatesCard } from "./UpdatesCard";
+import { DiagnosticsTab } from "./DiagnosticsTab";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import * as api from "../api";
@@ -204,6 +205,7 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "integrations", label: "Integrations", render: (b) => <IntegrationsTab board={b} /> },
   { id: "import", label: "Import", render: (b) => <ImportTab board={b} /> },
   { id: "widgets", label: "Widgets", render: () => <WidgetsTab /> },
+  { id: "diagnostics", label: "Diagnostics", render: (b) => <DiagnosticsTab toast={b.actions.toast} /> },
   { id: "history", label: "History", render: (b) => <HistoryTab board={b} /> },
   { id: "mcp", label: "MCP server", render: () => <McpPanel /> },
   { id: "updates", label: "Updates", render: () => <UpdatesCard /> },

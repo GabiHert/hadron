@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GabiHert/hadron/internal/dlog"
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/pty"
 	"github.com/GabiHert/hadron/internal/run"
@@ -56,6 +57,8 @@ type Config struct {
 	MCPPort func() int
 	// Window overrides the working window of new sessions. Tests shorten it.
 	Window time.Duration
+	// Log is Hadron's own log. It may be nil.
+	Log *dlog.Logger
 }
 
 // Service owns the live sessions.
@@ -227,8 +230,10 @@ func (s *Service) launch(row domain.Session, cardID string, old *pty.Session, op
 		case <-time.After(5 * time.Second):
 		}
 	}
+	s.cfg.Log.Debug("pty start", "session", row.ID, "kind", row.Kind, "command", opts.Command, "argv", RedactArgs(opts.Args), "cwd", opts.Cwd)
 	ps, err := s.pty.Start(row.ID, opts)
 	if err != nil {
+		s.cfg.Log.Error("pty could not start", "session", row.ID, "command", opts.Command, "error", err.Error())
 		s.mu.Lock()
 		s.failures[row.ID] = err.Error()
 		s.mu.Unlock()
@@ -311,6 +316,7 @@ func (s *Service) onExit(row domain.Session, cardID string, code int) {
 }
 
 func (s *Service) markExited(row domain.Session, cardID string, code int) {
+	s.cfg.Log.Debug("pty exit", "session", row.ID, "kind", row.Kind, "exit_code", code)
 	if cur, err := s.cfg.Store.Sessions.Get(row.ID); err == nil {
 		now := time.Now().UTC()
 		cur.Status, cur.ExitCode, cur.EndedAt = "exited", code, &now
@@ -547,3 +553,20 @@ func withEnv(env []string, set ...string) []string {
 	}
 	return append(out, set...)
 }
+
+// RedactArgs copies a command's arguments with the prompt text replaced by its length, so a log of
+// how a session started never holds the prompt.
+func RedactArgs(args []string) []string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		if i > 0 && args[i-1] == "--append-system-prompt" {
+			out[i] = fmt.Sprintf("<prompt %d chars>", len([]rune(a)))
+			continue
+		}
+		out[i] = a
+	}
+	return out
+}
+
+// SetLogForTest swaps the log. Tests use it.
+func (s *Service) SetLogForTest(l *dlog.Logger) { s.cfg.Log = l }

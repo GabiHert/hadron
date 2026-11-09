@@ -65,6 +65,7 @@ func registerUpdate(r *Registry) {
 				return UpdateStatus{Version: c.Deps.Version, State: "idle", Lines: []string{}}, errNoUpdater
 			}
 			s, err := c.Deps.Update.Check(ctx)
+			c.Deps.Log.Info("updater check", "state", s.State, "up_to_date", s.UpToDate, "error", errText(err))
 			return toUpdateStatus(s), err
 		})
 
@@ -74,7 +75,9 @@ func registerUpdate(r *Registry) {
 			if c.Deps.Update == nil {
 				return struct{}{}, errNoUpdater
 			}
-			return struct{}{}, c.Deps.Update.Start()
+			err := c.Deps.Update.Start()
+			c.Deps.Log.Info("updater start", "error", errText(err))
+			return struct{}{}, err
 		})
 
 	Register(r, Spec{Name: "set_update_token", Description: "Save a GitHub token in the login keychain, for checking a private repo. An empty token removes it.",
@@ -88,4 +91,11 @@ func registerUpdate(r *Registry) {
 			}
 			return toUpdateStatus(c.Deps.Update.Status()), nil
 		})
+}
+
+func errText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }

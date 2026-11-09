@@ -868,3 +868,28 @@ export interface ImportPlan {
 }
 export const workspace_import_planner_dir = (a: { workspace_id?: string; dir?: string; dry_run?: boolean } = {}) =>
   call<ImportPlan>("workspace_import_planner_dir", a);
+
+// ---- diagnostics ----
+
+export interface LogLine {
+  time: string;
+  level: "debug" | "info" | "warn" | "error";
+  msg: string;
+  fields?: Record<string, unknown>;
+  raw: string;
+}
+export interface Diagnostics {
+  version: string;
+  macos: string;
+  arch: string;
+  home: string;
+  log_dir: string;
+  debug_logging: boolean;
+  actions: number;
+  settings: Record<string, unknown>;
+  recent_log_lines: string[];
+}
+export const client_log = (a: { level: "error" | "warn" | "info" | "debug"; message: string; stack?: string }) => call<unknown>("client_log", a);
+export const logs_tail = (a: { lines?: number; level?: string; contains?: string } = {}) => call<LogLine[]>("logs_tail", a);
+export const diagnostics_get = () => call<Diagnostics>("diagnostics_get", {});
+export const debug_logging_set = (a: { enabled: boolean }) => call<{ enabled: boolean; log_dir: string }>("debug_logging_set", a);
