@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Changed
+- ⌘W and the window's close button now hide Hadron instead of quitting it, so your sessions keep running. Click Hadron in the Dock to bring it back. ⌘Q still quits.
+
 ## [0.2.6] - 2026-11-09
 
 ### Changed

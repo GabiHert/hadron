@@ -56,7 +56,9 @@ func Run(assets embed.FS) error {
 			TitleBar: mac.TitleBarHiddenInset(),
 			About:    &mac.AboutInfo{Title: "Hadron", Message: "Version " + run.Version},
 		},
-		Menu:               buildMenu(a),
+		Menu: buildMenu(a),
+		// ⌘W and the close button hide the app instead of quitting, so sessions keep running. ⌘Q quits.
+		HideWindowOnClose:  true,
 		SingleInstanceLock: &options.SingleInstanceLock{UniqueId: instanceID()},
 		AssetServer:        &assetserver.Options{Assets: assets},
 		OnStartup:          func(ctx context.Context) { a.startup(ctx) },
