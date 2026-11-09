@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-09
+
 ### Added
 - Bring in a Claude Code conversation you started elsewhere: New session, "Bring in a session", and "Adopt planner conversation" in the planner menu. Hadron resumes it with its prompt and tools attached and can type a short handoff message.
 - Import a planner run folder into cards, messages, questions and gates, with a dry run first (Settings, Import).
