@@ -984,7 +984,7 @@ Read the planner or session prompt of a workspace: the template in effect, the d
 | Argument | Type | Required | What it is |
 |---|---|---|---|
 | `workspace_id` | string | no | the workspace; defaults to the active one |
-| `kind` | string | yes | planner or session |
+| `kind` | string | yes | planner, session, handoff or handoff_planner |
 
 ### `prompt_render`
 
@@ -995,7 +995,7 @@ Show a prompt as a session would receive it, with the workspace's columns, rules
 | Argument | Type | Required | What it is |
 |---|---|---|---|
 | `workspace_id` | string | no | the workspace; defaults to the active one |
-| `kind` | string | yes | planner or session |
+| `kind` | string | yes | planner, session, handoff or handoff_planner |
 | `card` | string | no | render as this card's session sees it (id, nickname or key); default is a sample card for the session prompt |
 | `template` | string | no | render this text instead of the saved one, to preview an edit |
 
@@ -1008,7 +1008,7 @@ Go back to Hadron's default planner or session prompt.
 | Argument | Type | Required | What it is |
 |---|---|---|---|
 | `workspace_id` | string | no | the workspace; defaults to the active one |
-| `kind` | string | yes | planner or session |
+| `kind` | string | yes | planner, session, handoff or handoff_planner |
 
 ### `prompt_set`
 
@@ -1019,7 +1019,7 @@ Replace the planner or session prompt of a workspace. It applies to sessions tha
 | Argument | Type | Required | What it is |
 |---|---|---|---|
 | `workspace_id` | string | no | the workspace; defaults to the active one |
-| `kind` | string | yes | planner or session |
+| `kind` | string | yes | planner, session, handoff or handoff_planner |
 | `template` | string | yes | the prompt text; {{workspace.name}}, {{columns}} and the other variables are filled in when a session starts |
 
 ## question

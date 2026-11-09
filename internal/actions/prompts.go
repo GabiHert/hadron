@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/GabiHert/hadron/internal/domain"
@@ -18,20 +19,20 @@ const maxPromptBytes = 64 * 1024
 // PromptKindIn is the input of prompt_get and prompt_reset.
 type PromptKindIn struct {
 	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
-	Kind        string `json:"kind" jsonschema:"planner or session"`
+	Kind        string `json:"kind" jsonschema:"planner, session, handoff or handoff_planner"`
 }
 
 // PromptSetIn is the input of prompt_set.
 type PromptSetIn struct {
 	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
-	Kind        string `json:"kind" jsonschema:"planner or session"`
+	Kind        string `json:"kind" jsonschema:"planner, session, handoff or handoff_planner"`
 	Template    string `json:"template" jsonschema:"the prompt text; {{workspace.name}}, {{columns}} and the other variables are filled in when a session starts"`
 }
 
 // PromptRenderIn is the input of prompt_render.
 type PromptRenderIn struct {
 	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
-	Kind        string `json:"kind" jsonschema:"planner or session"`
+	Kind        string `json:"kind" jsonschema:"planner, session, handoff or handoff_planner"`
 	Card        string `json:"card,omitempty" jsonschema:"render as this card's session sees it (id, nickname or key); default is a sample card for the session prompt"`
 	Template    string `json:"template,omitempty" jsonschema:"render this text instead of the saved one, to preview an edit"`
 }
@@ -55,8 +56,8 @@ type PromptRenderOut struct {
 }
 
 func checkPromptKind(kind string) error {
-	if kind != prompts.KindPlanner && kind != prompts.KindSession {
-		return fmt.Errorf("prompt kind %q must be planner or session", kind)
+	if !slices.Contains(prompts.Kinds, kind) {
+		return fmt.Errorf("prompt kind %q must be one of %s", kind, strings.Join(prompts.Kinds, ", "))
 	}
 	return nil
 }
@@ -162,7 +163,7 @@ func registerPrompts(r *Registry) {
 				return PromptRenderOut{}, err
 			}
 			var card *domain.Card
-			if in.Kind == prompts.KindSession {
+			if prompts.UsesCard(in.Kind) {
 				if in.Card != "" {
 					cd, err := cardByRef(c, in.Card)
 					if err != nil {

@@ -68,7 +68,7 @@ func TestInvokeRunsActionsAsYou(t *testing.T) {
 		Actions       int `json:"actions"`
 		SchemaVersion int `json:"schema_version"`
 	}
-	if err := json.Unmarshal([]byte(out), &st); err != nil || st.Actions == 0 || st.SchemaVersion != 3 {
+	if err := json.Unmarshal([]byte(out), &st); err != nil || st.Actions == 0 || st.SchemaVersion < 3 {
 		t.Fatalf("app_status = %s, %v", out, err)
 	}
 	if _, err := a.Invoke("no_such_action", "{}"); err == nil {

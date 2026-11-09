@@ -93,6 +93,8 @@ export const defaultSchema = (): FieldEntry[] => [
 const defaultPrompts = (): Record<PromptKind, PromptInfo> => ({
   planner: { kind: "planner", template: "You are the planner of {{workspace.name}}.", default: "You are the planner of {{workspace.name}}.", custom: false, variables: ["workspace.name", "columns", "card.nick"], unknown: [] },
   session: { kind: "session", template: "You work on {{card.nick}}.", default: "You work on {{card.nick}}.", custom: false, variables: ["workspace.name", "columns", "card.nick"], unknown: [] },
+  handoff: { kind: "handoff", template: "Continue {{card.nick}} in {{workspace.name}}.", default: "Continue {{card.nick}} in {{workspace.name}}.", custom: false, variables: ["card.nick", "workspace.name"], unknown: [] },
+  handoff_planner: { kind: "handoff_planner", template: "Continue as the planner of {{workspace.name}}.", default: "Continue as the planner of {{workspace.name}}.", custom: false, variables: ["workspace.name"], unknown: [] },
 });
 
 export const dashBlock = (id: string, over: Partial<BlockView> = {}): BlockView => ({

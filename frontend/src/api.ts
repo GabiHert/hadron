@@ -439,7 +439,7 @@ export const view_apply = (a: { view_id: string }) => call<{ view: View; card_id
 export const view_delete = (a: { view_id: string }) => call<View>("view_delete", a);
 
 // ---- prompts ----
-export type PromptKind = "planner" | "session";
+export type PromptKind = "planner" | "session" | "handoff" | "handoff_planner";
 export interface PromptInfo {
   kind: PromptKind;
   template: string;

@@ -3,6 +3,7 @@ package sessions
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/GabiHert/hadron/internal/domain"
@@ -20,8 +21,8 @@ var policyText = map[string]string{
 // RenderPrompt fills in the planner or session prompt of a workspace. kind is prompts.KindPlanner
 // or prompts.KindSession; card is nil for the planner.
 func RenderPrompt(st *store.Store, ws domain.Workspace, card *domain.Card, kind string) (string, error) {
-	if kind != prompts.KindPlanner && kind != prompts.KindSession {
-		return "", fmt.Errorf("prompt kind %q must be planner or session", kind)
+	if !slices.Contains(prompts.Kinds, kind) {
+		return "", fmt.Errorf("prompt kind %q must be one of %s", kind, strings.Join(prompts.Kinds, ", "))
 	}
 	tpl := prompts.Default(kind)
 	if p, err := st.Prompts.Get(ws.ID, kind); err == nil && p.Template != nil {

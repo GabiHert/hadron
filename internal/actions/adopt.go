@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GabiHert/hadron/internal/chat"
 	"github.com/GabiHert/hadron/internal/domain"
+	"github.com/GabiHert/hadron/internal/prompts"
 	"github.com/GabiHert/hadron/internal/sessions"
 	"github.com/GabiHert/hadron/internal/store"
 )
@@ -196,7 +198,32 @@ func createCardFor(c *Call, w domain.Workspace, nick, key, columnID string) (dom
 	return card, nil
 }
 
-// handoffFor is the text typed into an adopted card's session. WI-23 fills it in.
-func handoffFor(c *Call, card domain.Card, on bool) string { return "" }
+// handoffFor renders the handoff typed into an adopted card's session once it resumes, and records
+// it on the card as an event. It is empty when the caller turned the handoff off.
+func handoffFor(c *Call, card domain.Card, on bool) string {
+	if !on {
+		return ""
+	}
+	w, err := c.Workspace(card.WorkspaceID)
+	if err != nil {
+		return ""
+	}
+	text, err := sessions.RenderPrompt(c.Store, w, &card, prompts.KindHandoff)
+	if err != nil || strings.TrimSpace(text) == "" {
+		return ""
+	}
+	ev := domain.Message{WorkspaceID: w.ID, Channel: chat.CardChannel(card.ID), Author: "system", Kind: "event", Text: "Handoff message sent to the session once it was ready: " + text, Delivered: true}
+	_ = c.Store.Messages.Create(&ev)
+	return text
+}
 
-func plannerHandoffFor(c *Call, w domain.Workspace, on bool) string { return "" }
+func plannerHandoffFor(c *Call, w domain.Workspace, on bool) string {
+	if !on {
+		return ""
+	}
+	text, err := sessions.RenderPrompt(c.Store, w, nil, prompts.KindHandoffPlanner)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(text)
+}

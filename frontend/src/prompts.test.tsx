@@ -56,7 +56,7 @@ describe("Settings → Prompts", () => {
   it("switches to the session prompt, previews it for the selected card, and resets to the default", async () => {
     state.prompts.session = { ...state.prompts.session, template: "Custom session {{card.nick}}", custom: true };
     const user = await openPrompts();
-    await user.click(screen.getByRole("tab", { name: "Sessions" }));
+    await user.click(screen.getByRole("tab", { name: "Session" }));
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Template" })).toHaveValue("Custom session {{card.nick}}"));
     expect(mocks.prompt_get).toHaveBeenLastCalledWith({ workspace_id: "w1", kind: "session" });
     expect(screen.getByText("custom for Acme")).toBeInTheDocument();
@@ -65,5 +65,23 @@ describe("Settings → Prompts", () => {
     await waitFor(() => expect(mocks.prompt_reset).toHaveBeenCalledWith({ workspace_id: "w1", kind: "session" }));
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Template" })).toHaveValue("You work on {{card.nick}}."));
     expect(screen.getByText("Hadron default")).toBeInTheDocument();
+  });
+
+  it("switches to the handoff prompt and saves it with kind handoff", async () => {
+    const user = await openPrompts();
+    await user.click(screen.getByRole("tab", { name: "Handoff (adopted session)" }));
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Template" })).toHaveValue("Continue {{card.nick}} in {{workspace.name}}."));
+    expect(mocks.prompt_get).toHaveBeenLastCalledWith({ workspace_id: "w1", kind: "handoff" });
+    expect(screen.getByText(/Typed once into a conversation you bring in/)).toBeInTheDocument();
+    await user.type(screen.getByRole("textbox", { name: "Template" }), " Go.");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(mocks.prompt_set).toHaveBeenCalledWith({ workspace_id: "w1", kind: "handoff", template: "Continue {{card.nick}} in {{workspace.name}}. Go." }));
+  });
+
+  it("has a planner handoff tab", async () => {
+    const user = await openPrompts();
+    await user.click(screen.getByRole("tab", { name: "Handoff (adopted planner)" }));
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Template" })).toHaveValue("Continue as the planner of {{workspace.name}}."));
+    expect(screen.getByText(/Typed once into a conversation you adopt as the planner/)).toBeInTheDocument();
   });
 });

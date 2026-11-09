@@ -58,8 +58,8 @@ func TestMigrationsApplyOnceAndSurviveReopen(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, err := s.SchemaVersion()
-	if err != nil || v != 3 {
-		t.Fatalf("SchemaVersion = %d, %v; want 3", v, err)
+	if err != nil || v != latestMigration(t) {
+		t.Fatalf("SchemaVersion = %d, %v; want %d", v, err, latestMigration(t))
 	}
 	w := mustWS(t, s, "keep")
 	var mode string
@@ -75,8 +75,8 @@ func TestMigrationsApplyOnceAndSurviveReopen(t *testing.T) {
 	defer s2.Close()
 	var n int
 	_ = s2.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&n)
-	if n != 3 {
-		t.Fatalf("schema_migrations rows = %d after reopen, want 3", n)
+	if n != latestMigration(t) {
+		t.Fatalf("schema_migrations rows = %d after reopen, want %d", n, latestMigration(t))
 	}
 	got, err := s2.Workspaces.Get(w.ID)
 	if err != nil || got.Name != "keep" {
@@ -554,4 +554,14 @@ func TestTxRollsBackOnErrorAndRefusesNesting(t *testing.T) {
 	if ws, _ := s.Workspaces.List(true); len(ws) != 1 {
 		t.Fatalf("committed workspace missing: %+v", ws)
 	}
+}
+
+// latestMigration is the number of embedded migrations, so adding one does not break this test.
+func latestMigration(t *testing.T) int {
+	t.Helper()
+	entries, err := migrationFiles.ReadDir("migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(entries)
 }

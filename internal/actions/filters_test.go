@@ -118,7 +118,7 @@ func TestPromptActions(t *testing.T) {
 	if p.Custom || p.Template != prompts.Default("planner") || p.Template != p.Default || len(p.Variables) != len(prompts.Variables) {
 		t.Fatalf("a new workspace uses the default: custom=%v", p.Custom)
 	}
-	h.fails("prompt_get", m{"kind": "robot"}, "planner or session")
+	h.fails("prompt_get", m{"kind": "robot"}, "must be one of planner, session")
 
 	tpl := "You run {{workspace.name}} with columns {{columns}}. Hello {{who}} and {{ card.nick }}."
 	h.do("prompt_set", m{"kind": "planner", "template": tpl}, &p)

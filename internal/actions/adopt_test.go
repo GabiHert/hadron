@@ -164,3 +164,68 @@ func TestPlannerAdoptResumesTheConversationAsThePlanner(t *testing.T) {
 	h.fails("planner_adopt", m{"workspace_id": w.ID, "claude_session_id": id}, "planner is running")
 	_ = fmt.Sprint()
 }
+
+func TestAdoptTypesTheHandoffOnceAndRecordsIt(t *testing.T) {
+	h, w, cfg := adoptHarness(t)
+	id := "55555555-aaaa-bbbb-cccc-000000000001"
+	writeConversation(t, cfg, w.Root, id, "Plan the migration", 3000, time.Hour)
+	h.do("prompt_set", m{"workspace_id": w.ID, "kind": "handoff", "template": "Welcome {{card.nick}} to {{workspace.name}}."}, nil)
+
+	var out AdoptOut
+	h.do("session_adopt", m{"workspace_id": w.ID, "claude_session_id": id, "nick": "migration"}, &out)
+	waitUntil(t, "the handoff", func() bool { return strings.Contains(h.file(".in"), "Welcome migration to W.") })
+	if n := strings.Count(h.file(".in"), "Welcome"); n != 1 {
+		t.Errorf("typed %d times", n)
+	}
+	var msgs []domain.Message
+	h.do("chat_read", m{"workspace_id": w.ID, "channel": "card:" + out.Card.ID}, &msgs)
+	found := false
+	for _, msg := range msgs {
+		found = found || (msg.Kind == "event" && strings.Contains(msg.Text, "Welcome migration to W."))
+	}
+	if !found {
+		t.Errorf("the handoff is recorded as an event on the card: %+v", msgs)
+	}
+}
+
+func TestAdoptWithoutHandoffTypesNothing(t *testing.T) {
+	h, w, cfg := adoptHarness(t)
+	id := "66666666-aaaa-bbbb-cccc-000000000001"
+	writeConversation(t, cfg, w.Root, id, "Hello", 3000, time.Hour)
+	var out AdoptOut
+	h.do("session_adopt", m{"workspace_id": w.ID, "claude_session_id": id, "nick": "quiet", "handoff": false}, &out)
+	waitUntil(t, "claude", func() bool { return h.file(".started") != "" })
+	time.Sleep(500 * time.Millisecond)
+	if h.file(".in") != "" {
+		t.Errorf("typed %q", h.file(".in"))
+	}
+	var msgs []domain.Message
+	h.do("chat_read", m{"workspace_id": w.ID, "channel": "card:" + out.Card.ID}, &msgs)
+	for _, msg := range msgs {
+		if strings.Contains(msg.Text, "Handoff") {
+			t.Errorf("no handoff, no event: %+v", msg)
+		}
+	}
+}
+
+func TestPlannerAdoptTypesThePlannerHandoffAndDefaultsAreEditable(t *testing.T) {
+	h, w, cfg := adoptHarness(t)
+	id := "77777777-aaaa-bbbb-cccc-000000000001"
+	writeConversation(t, cfg, w.Root, id, "Hello", 3000, time.Hour)
+	var p PromptOut
+	h.do("prompt_get", m{"workspace_id": w.ID, "kind": "handoff_planner"}, &p)
+	if p.Custom || !strings.Contains(p.Template, "planner of workspace {{workspace.name}}") || !strings.Contains(p.Template, "[KEY nick] or [planner]") {
+		t.Fatalf("default planner handoff = %+v", p)
+	}
+	h.do("prompt_get", m{"workspace_id": w.ID, "kind": "handoff"}, &p)
+	if !strings.Contains(p.Template, "card {{card.nick}} in workspace {{workspace.name}}") || !strings.Contains(p.Template, "question_ask") || !strings.Contains(p.Template, "gate_set") {
+		t.Fatalf("default handoff = %+v", p)
+	}
+	var r PromptRenderOut
+	h.do("prompt_render", m{"workspace_id": w.ID, "kind": "handoff"}, &r)
+	if !strings.Contains(r.Text, "card example-card in workspace W") {
+		t.Errorf("preview uses a sample card: %q", r.Text)
+	}
+	h.do("planner_adopt", m{"workspace_id": w.ID, "claude_session_id": id}, nil)
+	waitUntil(t, "the planner handoff", func() bool { return strings.Contains(h.file(".in"), "planner of workspace W") })
+}
