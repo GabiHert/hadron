@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-09
+
 ### Fixed
 - The collapse button of the card panel (the right-hand chat panel) did nothing while a card was open. It now collapses and stays collapsed.
 
