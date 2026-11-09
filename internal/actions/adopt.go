@@ -19,6 +19,8 @@ const exitElsewhere = "Exit that conversation in its terminal first: two process
 // AdoptableListIn is the input of session_adoptable_list.
 type AdoptableListIn struct {
 	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
+	Cwd         string `json:"cwd,omitempty" jsonschema:"list the conversations run in this folder instead of the workspace root: an absolute path to an existing folder, ~ is expanded"`
+	All         bool   `json:"all,omitempty" jsonschema:"list the conversations of every folder; each result's cwd is the folder it was run in, read from its transcript"`
 }
 
 // AdoptableOut is one conversation Hadron could take over.
@@ -38,6 +40,7 @@ type SessionAdoptIn struct {
 	Start           *bool  `json:"start,omitempty" jsonschema:"resume it right away (default true)"`
 	Handoff         *bool  `json:"handoff,omitempty" jsonschema:"type the handoff message once it is ready (default true)"`
 	LaunchProfile   string `json:"launch_profile,omitempty" jsonschema:"the card's launch profile (name or id): its arguments such as --dangerously-skip-permissions, model, environment and prompt apply to the resumed launch and to later restarts. Its first prompt is not sent"`
+	Cwd             string `json:"cwd,omitempty" jsonschema:"the folder the conversation was run in (its cwd in session_adoptable_list); the card runs there. Empty means the workspace root. ~ is expanded"`
 }
 
 // PlannerAdoptIn is the input of planner_adopt.
@@ -46,6 +49,7 @@ type PlannerAdoptIn struct {
 	ClaudeSessionID string `json:"claude_session_id" jsonschema:"the conversation's id from session_adoptable_list"`
 	Handoff         *bool  `json:"handoff,omitempty" jsonschema:"type the planner handoff message once it is ready (default true)"`
 	LaunchProfile   string `json:"launch_profile,omitempty" jsonschema:"the planner's launch profile (name or id), kept for the workspace: its arguments, model and environment apply to this and every later planner start"`
+	Cwd             string `json:"cwd,omitempty" jsonschema:"the folder the conversation was run in (its cwd in session_adoptable_list); it becomes the workspace's planner folder, used by every later planner start. Empty keeps the planner's folder (the root unless planner_cwd is set). ~ is expanded"`
 }
 
 // AdoptOut is the result of session_adopt and planner_adopt.
@@ -57,43 +61,65 @@ type AdoptOut struct {
 
 func claudeDir() string { return sessions.ClaudeConfigDir() }
 
-// holder says which Hadron card or planner already holds a Claude session id.
-func holder(st *store.Store, id string) (string, bool) {
+// holder says which Hadron card or planner, in any workspace, already holds a Claude session id.
+// One of another workspace than workspaceID is named with its workspace.
+func holder(st *store.Store, workspaceID, id string) (string, bool) {
 	rows, err := st.Sessions.ByClaudeID(id)
 	if err != nil || len(rows) == 0 {
 		return "", false
 	}
 	r := rows[0]
+	where := ""
+	if r.WorkspaceID != workspaceID {
+		if w, err := st.Workspaces.Get(r.WorkspaceID); err == nil {
+			where = fmt.Sprintf(" of workspace %q", w.Name)
+		}
+	}
 	if r.CardID == "" {
-		return "the planner", true
+		return "the planner" + where, true
 	}
 	if card, err := st.Cards.Get(r.CardID); err == nil {
-		return "card " + card.Nick, true
+		return "card " + card.Nick + where, true
 	}
 	return "a card that no longer exists", true
 }
 
 func registerAdopt(r *Registry) {
-	Register(r, Spec{Name: "session_adoptable_list", Description: "List the Claude Code conversations on this Mac that were run in the workspace's root folder and could be brought into Hadron (read from ~/.claude/projects, or CLAUDE_CONFIG_DIR), newest first: id, the first thing the user typed, when it was last active and its size. Conversations under 2 KB are skipped. " + exitElsewhere},
+	Register(r, Spec{Name: "session_adoptable_list", Description: "List the Claude Code conversations on this Mac that could be brought into Hadron (read from ~/.claude/projects, or CLAUDE_CONFIG_DIR), newest first: id, the first thing the user typed, when it was last active, its size and cwd, the folder it was run in. By default they are the ones run in the workspace's root folder; cwd lists another folder's, and all: true every folder's. Conversations under 2 KB are skipped. already_in_hadron and held_by look at every workspace. " + exitElsewhere},
 		func(ctx context.Context, c *Call, in AdoptableListIn) ([]AdoptableOut, error) {
 			w, err := c.Workspace(in.WorkspaceID)
 			if err != nil {
 				return nil, err
 			}
-			list, err := sessions.ListAdoptable(claudeDir(), w.Root)
+			folder, err := resolveFolder("cwd", in.Cwd)
+			if err != nil {
+				return nil, err
+			}
+			if in.All && folder != "" {
+				return nil, errors.New("pass cwd or all, not both: cwd lists one folder, all lists every folder")
+			}
+			var list []sessions.Adoptable
+			switch {
+			case in.All:
+				list, err = sessions.ListAllAdoptable(claudeDir())
+			case folder != "":
+				list, err = sessions.ListAdoptable(claudeDir(), folder)
+			default:
+				list, err = sessions.ListAdoptable(claudeDir(), w.Root)
+			}
 			if err != nil {
 				return nil, err
 			}
 			out := make([]AdoptableOut, 0, len(list))
 			for _, a := range list {
 				o := AdoptableOut{Adoptable: a}
-				o.HeldBy, o.AlreadyInHadron = holder(c.Store, a.ClaudeSessionID)
+				o.HeldBy, o.AlreadyInHadron = holder(c.Store, w.ID, a.ClaudeSessionID)
 				out = append(out, o)
 			}
 			return out, nil
 		})
 
-	Register(r, Spec{Name: "session_adopt", Description: "Bring an existing Claude Code conversation into Hadron as a new card and resume it with claude --resume, with Hadron's prompt and MCP server attached. Refused if another Hadron card already holds that conversation. " + exitElsewhere,
+	Register(r, Spec{Name: "session_adopt", Description: "Bring an existing Claude Code conversation into Hadron as a new card and resume it with claude --resume, with Hadron's prompt and MCP server attached. Pass cwd, the folder the conversation was run in, when it is not the workspace root: the transcript is looked up under that folder and the card runs there. Refused if another Hadron card already holds that conversation. " + exitElsewhere,
 		Mutates: true, Entities: []string{"cards", "sessions"}},
 		func(ctx context.Context, c *Call, in SessionAdoptIn) (AdoptOut, error) {
 			if err := userOrPlanner(c, "adopt sessions"); err != nil {
@@ -103,7 +129,14 @@ func registerAdopt(r *Registry) {
 			if err != nil {
 				return AdoptOut{}, err
 			}
-			if err := checkAdoptable(c, w, in.ClaudeSessionID); err != nil {
+			folder, cwdErr := resolveFolder("cwd", in.Cwd)
+			if err := joinErrs(checkNick(in.Nick), cwdErr, checkSessionID(in.ClaudeSessionID)); err != nil {
+				return AdoptOut{}, err
+			}
+			if folder == "" {
+				folder = w.Root
+			}
+			if err := checkAdoptable(c, w, folder, in.ClaudeSessionID); err != nil {
 				return AdoptOut{}, err
 			}
 			start := in.Start == nil || *in.Start
@@ -118,13 +151,14 @@ func registerAdopt(r *Registry) {
 			if err != nil {
 				return AdoptOut{}, err
 			}
-			if in.LaunchProfile != "" {
+			if in.LaunchProfile != "" || storedFolder(w, folder) != "" {
 				card.LaunchProfile = in.LaunchProfile
+				card.Cwd = storedFolder(w, folder)
 				if err := c.Store.Cards.Update(&card); err != nil {
 					return AdoptOut{}, err
 				}
 			}
-			row := domain.Session{WorkspaceID: w.ID, CardID: card.ID, Kind: "card", Command: "claude", Cwd: w.Root, Status: "exited", ClaudeSessionID: in.ClaudeSessionID}
+			row := domain.Session{WorkspaceID: w.ID, CardID: card.ID, Kind: "card", Command: "claude", Cwd: folder, Status: "exited", ClaudeSessionID: in.ClaudeSessionID}
 			if err := c.Store.Sessions.Create(&row); err != nil {
 				return AdoptOut{}, err
 			}
@@ -141,7 +175,7 @@ func registerAdopt(r *Registry) {
 			return out, nil
 		})
 
-	Register(r, Spec{Name: "planner_adopt", Description: "Make an existing Claude Code conversation the workspace's planner: Hadron resumes it with claude --resume, with the planner prompt and MCP server attached. Refused while the planner runs (stop it first) or if another Hadron card holds the conversation. " + exitElsewhere,
+	Register(r, Spec{Name: "planner_adopt", Description: "Make an existing Claude Code conversation the workspace's planner: Hadron resumes it with claude --resume, with the planner prompt and MCP server attached. Pass cwd, the folder the conversation was run in, when it is not the planner's folder: the transcript is looked up there and it becomes the planner's folder (planner_cwd) for every later start. Refused while the planner runs (stop it first) or if another Hadron card holds the conversation. " + exitElsewhere,
 		Mutates: true, Entities: []string{"sessions"}},
 		func(ctx context.Context, c *Call, in PlannerAdoptIn) (AdoptOut, error) {
 			if err := userOrPlanner(c, "adopt the planner"); err != nil {
@@ -158,7 +192,14 @@ func registerAdopt(r *Registry) {
 			if t, terr := sv.Find(c.Store, w.ID, ""); terr == nil && t.Live != nil {
 				return AdoptOut{}, errors.New("the planner is running. Stop it first (planner_restart starts a new one), then adopt")
 			}
-			if err := checkAdoptable(c, w, in.ClaudeSessionID); err != nil {
+			folder, cwdErr := resolveFolder("cwd", in.Cwd)
+			if err := joinErrs(cwdErr, checkSessionID(in.ClaudeSessionID)); err != nil {
+				return AdoptOut{}, err
+			}
+			if folder == "" {
+				folder = sessions.Folder(w, nil)
+			}
+			if err := checkAdoptable(c, w, folder, in.ClaudeSessionID); err != nil {
 				return AdoptOut{}, err
 			}
 			if in.LaunchProfile != "" {
@@ -166,7 +207,16 @@ func registerAdopt(r *Registry) {
 					return AdoptOut{}, err
 				}
 			}
-			row := domain.Session{WorkspaceID: w.ID, Kind: "planner", Command: "claude", Cwd: w.Root, Status: "exited", ClaudeSessionID: in.ClaudeSessionID}
+			if stored := storedFolder(w, folder); stored != w.PlannerCwd {
+				before := w
+				w.PlannerCwd = stored
+				if err := c.Store.Workspaces.Update(&w); err != nil {
+					return AdoptOut{}, err
+				}
+				c.RecordChange(w.ID, before, w)
+				c.Touch("workspaces")
+			}
+			row := domain.Session{WorkspaceID: w.ID, Kind: "planner", Command: "claude", Cwd: folder, Status: "exited", ClaudeSessionID: in.ClaudeSessionID}
 			if err := c.Store.Sessions.Create(&row); err != nil {
 				return AdoptOut{}, err
 			}
@@ -179,15 +229,24 @@ func registerAdopt(r *Registry) {
 		})
 }
 
-func checkAdoptable(c *Call, w domain.Workspace, id string) error {
-	id = strings.TrimSpace(id)
-	if id == "" {
+func checkSessionID(id string) error {
+	if strings.TrimSpace(id) == "" {
 		return errors.New("claude_session_id is required. session_adoptable_list shows the ids")
 	}
-	if !sessions.HasConversation(claudeDir(), w.Root, id) {
-		return fmt.Errorf("that conversation has no transcript in %s (looked for %s.jsonl). session_adoptable_list shows the conversations that were run in %s", filepath.Join(claudeDir(), "projects", sessions.EncodeProjectDir(w.Root)), id, w.Root)
+	return nil
+}
+
+// checkAdoptable checks that the conversation id was run in folder and that no card or planner
+// holds it yet.
+func checkAdoptable(c *Call, w domain.Workspace, folder, id string) error {
+	id = strings.TrimSpace(id)
+	if err := checkSessionID(id); err != nil {
+		return err
 	}
-	if who, held := holder(c.Store, id); held {
+	if !sessions.HasConversation(claudeDir(), folder, id) {
+		return fmt.Errorf("that conversation has no transcript in %s (looked for %s.jsonl). session_adoptable_list shows the conversations that were run in %s; with all: true it shows every folder's, with the cwd to pass", filepath.Join(claudeDir(), "projects", sessions.EncodeProjectDir(folder)), id, folder)
+	}
+	if who, held := holder(c.Store, w.ID, id); held {
 		return fmt.Errorf("that conversation is already in Hadron (%s). Open that card instead", who)
 	}
 	return nil

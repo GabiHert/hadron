@@ -41,6 +41,7 @@ type WorkspaceUpdateIn struct {
 	Integrations *[]string `json:"integrations,omitempty" jsonschema:"the enabled integration ids"`
 	FilterBar    *[]string `json:"filter_bar,omitempty" jsonschema:"the field paths pinned in the filter bar"`
 	DefaultModel *string   `json:"default_model,omitempty" jsonschema:"the Claude model cards use when neither the card nor its launch profile names one (opus, sonnet, haiku or a full model name); empty means claude's own default. Applies to sessions that start afterwards"`
+	PlannerCwd   *string   `json:"planner_cwd,omitempty" jsonschema:"the folder the planner's session runs in: an absolute path to an existing folder, ~ is expanded. Empty means the root. Applies when the planner next starts"`
 }
 
 // WorkspaceArchiveIn is the input of workspace_archive.
@@ -105,7 +106,7 @@ func registerWorkspaces(r *Registry) {
 			return w, nil
 		})
 
-	Register(r, Spec{Name: "workspace_update", Description: "Change a workspace's name, root folder, colour, enabled integrations or pinned filter fields. Only the fields you pass change.",
+	Register(r, Spec{Name: "workspace_update", Description: "Change a workspace's name, root folder, colour, enabled integrations, pinned filter fields or the planner's folder (planner_cwd, used from the planner's next start). Only the fields you pass change.",
 		Mutates: true, Entities: []string{"workspaces"}},
 		func(ctx context.Context, c *Call, in WorkspaceUpdateIn) (domain.Workspace, error) {
 			w, err := c.Workspace(in.WorkspaceID)
@@ -143,6 +144,13 @@ func registerWorkspaces(r *Registry) {
 				if err := sessions.CheckModelID(w.DefaultModel); err != nil {
 					return w, err
 				}
+			}
+			if in.PlannerCwd != nil {
+				folder, err := resolveFolder("planner_cwd", *in.PlannerCwd)
+				if err != nil {
+					return w, err
+				}
+				w.PlannerCwd = storedFolder(w, folder)
 			}
 			if err := c.Store.Workspaces.Update(&w); err != nil {
 				return w, err

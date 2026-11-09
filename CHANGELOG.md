@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Cards and the planner can run in their own folder, so you can adopt a conversation from any folder: pick a folder or "All folders" when you bring in a session, and set a card's folder when you create it or from its menu.
+
 ## [0.2.9] - 2026-11-09
 
 ### Changed

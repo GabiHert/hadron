@@ -40,6 +40,7 @@ type CardCreateIn struct {
 	Start         *bool  `json:"start,omitempty" jsonschema:"start the card's session (default true)"`
 	Model         string `json:"model,omitempty" jsonschema:"the Claude model for this card's session: opus, sonnet, haiku or a full model name. Empty uses the launch profile's, then the workspace default"`
 	Prompt        string `json:"prompt,omitempty" jsonschema:"extra instructions for this card's session, added to its system prompt after the workspace and launch profile prompts; may use {{variables}}"`
+	Cwd           string `json:"cwd,omitempty" jsonschema:"the folder the card's session runs in: an absolute path to an existing folder, ~ is expanded, such as ~/code/acme-web. Empty means the workspace root. A launch profile with worktree on makes the worktree from this folder's repository"`
 }
 
 // CardUpdateIn is the input of card_update. Only the fields you pass change.
@@ -53,6 +54,14 @@ type CardUpdateIn struct {
 	LaunchProfile *string `json:"launch_profile,omitempty" jsonschema:"new launch profile"`
 	Model         *string `json:"model,omitempty" jsonschema:"new Claude model; typed as /model into a running session. Empty goes back to the launch profile's or the workspace default"`
 	Prompt        *string `json:"prompt,omitempty" jsonschema:"new card prompt: extra instructions added to the session's system prompt. Applies when the session next starts. Empty removes it"`
+	Cwd           *string `json:"cwd,omitempty" jsonschema:"new folder for the card's session: an absolute path to an existing folder, ~ is expanded. Empty goes back to the workspace root. A running session keeps its folder until it next starts"`
+}
+
+// CardUpdateOut is the result of card_update: the card, and a note when a change waits for the
+// session's next start.
+type CardUpdateOut struct {
+	domain.Card
+	Note string `json:"note,omitempty"`
 }
 
 // CardMoveIn is the input of card_move.
@@ -109,7 +118,8 @@ func registerCards(r *Registry) {
 			if err != nil {
 				return domain.Card{}, err
 			}
-			if err := checkNick(in.Nick); err != nil {
+			cwd, cwdErr := resolveFolder("cwd", in.Cwd)
+			if err := joinErrs(checkNick(in.Nick), cwdErr, checkLayerPrompt("card prompt", in.Prompt), sessions.CheckModelID(strings.TrimSpace(in.Model))); err != nil {
 				return domain.Card{}, err
 			}
 			cols, err := c.Store.Columns.List(w.ID)
@@ -131,13 +141,7 @@ func registerCards(r *Registry) {
 			if assignee == "" {
 				assignee = "You"
 			}
-			if err := checkLayerPrompt("card prompt", in.Prompt); err != nil {
-				return domain.Card{}, err
-			}
-			if err := sessions.CheckModelID(strings.TrimSpace(in.Model)); err != nil {
-				return domain.Card{}, err
-			}
-			card := domain.Card{WorkspaceID: w.ID, ColumnID: colID, Nick: in.Nick, Key: strings.TrimSpace(in.Key), Title: strings.TrimSpace(in.Title),
+			card := domain.Card{Cwd: storedFolder(w, cwd), WorkspaceID: w.ID, ColumnID: colID, Nick: in.Nick, Key: strings.TrimSpace(in.Key), Title: strings.TrimSpace(in.Title),
 				Assignee: assignee, LaunchProfile: in.LaunchProfile, Prompt: strings.TrimSpace(in.Prompt), Model: strings.TrimSpace(in.Model), Liveness: domain.LivenessIdle}
 			if err := c.Store.Cards.Create(&card); err != nil {
 				return card, nickError(err, in.Nick, w.Name)
@@ -157,20 +161,38 @@ func registerCards(r *Registry) {
 			return card, nil
 		})
 
-	Register(r, Spec{Name: "card_update", Description: "Change a card's nickname, key, title, assignee, stage, launch profile, prompt or model. Use card_move to change its column.",
+	Register(r, Spec{Name: "card_update", Description: "Change a card's nickname, key, title, assignee, stage, launch profile, prompt, model or folder (cwd). Use card_move to change its column. A new folder applies when the session next starts; the result's note says so when the session is running.",
 		Mutates: true, Entities: []string{"cards"}},
-		func(ctx context.Context, c *Call, in CardUpdateIn) (domain.Card, error) {
+		func(ctx context.Context, c *Call, in CardUpdateIn) (CardUpdateOut, error) {
 			card, err := getCard(c, in.CardID)
 			if err != nil {
-				return card, err
+				return CardUpdateOut{Card: card}, err
 			}
+			var nickErr, cwdErr, promptErr, modelErr error
 			if in.Nick != nil {
-				if err := checkNick(*in.Nick); err != nil {
-					return card, err
-				}
-				card.Nick = *in.Nick
+				nickErr = checkNick(*in.Nick)
+			}
+			cwd := ""
+			if in.Cwd != nil {
+				cwd, cwdErr = resolveFolder("cwd", *in.Cwd)
+			}
+			if in.Prompt != nil {
+				promptErr = checkLayerPrompt("card prompt", *in.Prompt)
+			}
+			if in.Model != nil {
+				modelErr = sessions.CheckModelID(strings.TrimSpace(*in.Model))
+			}
+			if err := joinErrs(nickErr, cwdErr, promptErr, modelErr); err != nil {
+				return CardUpdateOut{Card: card}, err
+			}
+			w, err := c.Workspace(card.WorkspaceID)
+			if err != nil {
+				return CardUpdateOut{Card: card}, err
 			}
 			was := card
+			if in.Nick != nil {
+				card.Nick = *in.Nick
+			}
 			set := func(dst *string, src *string) {
 				if src != nil {
 					*dst = strings.TrimSpace(*src)
@@ -181,32 +203,25 @@ func registerCards(r *Registry) {
 			set(&card.Assignee, in.Assignee)
 			set(&card.Stage, in.Stage)
 			set(&card.LaunchProfile, in.LaunchProfile)
-			if in.Prompt != nil {
-				if err := checkLayerPrompt("card prompt", *in.Prompt); err != nil {
-					return card, err
-				}
-			}
 			set(&card.Prompt, in.Prompt)
+			if in.Cwd != nil {
+				card.Cwd = storedFolder(w, cwd)
+			}
 			if in.Model != nil {
 				model := strings.TrimSpace(*in.Model)
-				if err := sessions.CheckModelID(model); err != nil {
-					return card, err
-				}
 				if model != card.Model {
 					if err := mayChooseModel(c, card.WorkspaceID, &card); err != nil {
-						return card, err
+						return CardUpdateOut{Card: card}, err
 					}
 				}
 				card.Model = model
 			}
 			if err := c.Store.Cards.Update(&card); err != nil {
-				return card, nickError(err, card.Nick, "")
+				return CardUpdateOut{Card: card}, nickError(err, card.Nick, "")
 			}
 			if card.Model != was.Model {
-				if w, err := c.Workspace(card.WorkspaceID); err == nil {
-					c.RecordChange(w.ID, was, card)
-					announceModel(c, w, &was, &card)
-				}
+				c.RecordChange(w.ID, was, card)
+				announceModel(c, w, &was, &card)
 			}
 			for _, ch := range []struct{ path, old, now string }{
 				{"card.nick", was.Nick, card.Nick}, {"card.key", was.Key, card.Key},
@@ -214,11 +229,16 @@ func registerCards(r *Registry) {
 			} {
 				if ch.old != ch.now {
 					if err := runEvent(c, board.Event{Trigger: board.OnFieldChanged, CardID: card.ID, Field: ch.path, Old: ch.old, New: ch.now}); err != nil {
-						return card, err
+						return CardUpdateOut{Card: card}, err
 					}
 				}
 			}
-			return c.Store.Cards.Get(card.ID)
+			out := CardUpdateOut{}
+			if card.Cwd != was.Cwd {
+				out.Note = folderNote(c, w, was, card)
+			}
+			out.Card, err = c.Store.Cards.Get(card.ID)
+			return out, err
 		})
 
 	Register(r, Spec{Name: "card_move", Description: "Move a card to a column, at a position (0 is the top; default is the bottom). Also reorders within a column. A card that waits on a question or gate remembers where it should return to: moving it into a needs-you column remembers the column it left, and moving it out of one forgets the old return column, because you put it somewhere on purpose.",
@@ -276,7 +296,7 @@ func registerCards(r *Registry) {
 			out := CardDeleteOut{Card: card}
 			if w, err := c.Workspace(card.WorkspaceID); err == nil {
 				name := sessions.WorktreeName(c.Store, w, card.Nick)
-				path := sessions.WorktreePath(w.Root, name)
+				path := sessions.WorktreePath(sessions.Folder(w, &card), name)
 				if st, serr := os.Stat(path); serr == nil && st.IsDir() {
 					out.Worktree = &WorktreeKept{Path: path, Branch: "hadron/" + name, Note: "The card's worktree is still on disk so no work is lost. worktree_remove with card=" + card.Nick + " deletes it once it is clean."}
 				}
@@ -358,4 +378,20 @@ type WorktreeKept struct {
 type CardDeleteOut struct {
 	domain.Card
 	Worktree *WorktreeKept `json:"worktree,omitempty"`
+}
+
+// folderNote says when a card's new folder takes effect, and warns when its conversation stays
+// behind in the old folder.
+func folderNote(c *Call, w domain.Workspace, was, now domain.Card) string {
+	from, to := sessions.Folder(w, &was), sessions.Folder(w, &now)
+	note := "The card's session now runs in " + to + "."
+	if t, err := target(c, w.ID, &now); err == nil {
+		if t.Live != nil {
+			note = "The session is running in " + from + " and keeps that folder; the new folder " + to + " applies when it next starts (session_restart)."
+		}
+		if id := t.Row.ClaudeSessionID; id != "" && sessions.HasConversation(claudeDir(), from, id) && !sessions.HasConversation(claudeDir(), to, id) {
+			note += " Its conversation was run in " + from + ", so the next start in " + to + " begins a new conversation."
+		}
+	}
+	return note
 }

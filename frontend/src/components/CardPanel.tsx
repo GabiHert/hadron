@@ -11,6 +11,7 @@ import { Icon } from "./ui";
 import { AutoText } from "./PromptsTab";
 import { ModelOptions, useModels } from "./ModelsTab";
 import { effectiveModel } from "../state/useBoard";
+import { cardFolder, tildePath } from "../lib";
 
 export type CardTab = "conv" | "links" | "ctx";
 
@@ -31,6 +32,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   const [menu, setMenu] = useState(false);
   const [nick, setNick] = useState("");
   const [assignee, setAssignee] = useState("");
+  const [cwd, setCwd] = useState("");
   const cardId = c?.id ?? "";
   const status = useSessionStatus(() => (cardId ? api.session_status({ card: cardId }) : Promise.resolve(null)), [cardId]);
   const { info: modelInfo } = useModels(ws?.id ?? "", actions.toast);
@@ -39,7 +41,8 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
     setMenu(false);
     setNick(c?.nick ?? "");
     setAssignee(c?.assignee ?? "");
-  }, [c?.id, c?.nick, c?.assignee]);
+    setCwd(c?.cwd ?? "");
+  }, [c?.id, c?.nick, c?.assignee, c?.cwd]);
   if (!ws) return null;
   const isFull = ws.ui.full === "card";
   if (ws.ui.collapsed?.card && !mobileOpen && !isFull)
@@ -61,6 +64,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   const inherited = effectiveModel({ ...c, model: "" }, board.profiles, ws);
   const claudeId = status?.session?.claude_session_id ?? "";
   const canResume = !!claudeId && !status?.running;
+  const folder = cardFolder(c.cwd, ws.root);
   return (
     <aside className={"cpanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label={`Card ${c.nick}`}>
       <div className="cph">
@@ -83,13 +87,15 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
               <div className="menu">
                 <label>Nickname<input className="in" value={nick} onChange={(e) => setNick(e.target.value)} id="card-nick" /></label>
                 <label>Assignee<input className="in" value={assignee} onChange={(e) => setAssignee(e.target.value)} id="card-assignee" /></label>
+                <label>Folder<input className="in mono" value={cwd} placeholder={ws.root} onChange={(e) => setCwd(e.target.value)} id="card-cwd" aria-label="Card folder" /></label>
                 <button
                   className="btn sm pri"
                   onClick={() => {
-                    const patch: { nick?: string; assignee?: string } = {};
+                    const patch: { nick?: string; assignee?: string; cwd?: string } = {};
                     if (nick.trim() && nick.trim() !== c.nick) patch.nick = nick.trim();
                     if (assignee.trim() && assignee.trim() !== c.assignee) patch.assignee = assignee.trim();
-                    if (Object.keys(patch).length) void actions.updateCard(c.id, patch);
+                    if (cwd.trim() !== (c.cwd ?? "")) patch.cwd = cwd.trim();
+                    if (Object.keys(patch).length) void actions.updateCard(c.id, patch).then((out) => out?.note && actions.toast(out.note));
                     setMenu(false);
                   }}
                 >Save</button>
@@ -104,6 +110,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
           </div>
         </div>
         <h2>{c.nick}</h2>
+        {folder ? <div className="mono hint" aria-label="Card folder path" title={folder} style={{ fontSize: 11.5, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tildePath(folder)}</div> : null}
         <div className="inline" style={{ marginBottom: 6 }}>
           <select className="in" style={{ width: "auto" }} aria-label="Model" value={c.model} onChange={(e) => void actions.run(() => api.card_set_model({ card: c.id, model: e.target.value })).then((out) => out && actions.toast(out.note))}>
             <option value="">{`Use default (${inherited ? inherited.id : "Claude's own"})`}</option>
@@ -127,7 +134,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
         <SessionTerminal
           label={c.nick}
           status={status}
-          foot={`claude · ${c.nick} · ${ws.root}`}
+          foot={`claude · ${c.nick} · ${folder || ws.root}`}
           banner={
             <div className="tbanner">
               <span style={{ flex: 1 }}>Direct to the session. The planner sees this only through the next report.</span>

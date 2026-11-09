@@ -2,7 +2,6 @@ package actions
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -107,14 +106,18 @@ func registerWorktrees(r *Registry) {
 				}
 			}
 			env := gitEnv(c)
-			if !sessions.IsGitRepo(env, w.Root) {
-				return WorktreeRemoveOut{}, errors.New("the workspace root is not a git repository, so there are no worktrees")
+			base := w.Root
+			if card != nil {
+				base = sessions.Folder(w, card) // a card with its own folder has its worktree there
+			}
+			if !sessions.IsGitRepo(env, base) {
+				return WorktreeRemoveOut{}, fmt.Errorf("%s is not a git repository, so there are no worktrees", base)
 			}
 			name := sessions.WorktreeName(c.Store, w, nick)
-			if err := sessions.RemoveWorktree(env, w.Root, name, in.Force); err != nil {
+			if err := sessions.RemoveWorktree(env, base, name, in.Force); err != nil {
 				return WorktreeRemoveOut{}, err
 			}
-			return WorktreeRemoveOut{Removed: sessions.WorktreePath(w.Root, name), Branch: "hadron/" + name, Note: "The branch is still there; delete it with git branch -d once it is merged."}, nil
+			return WorktreeRemoveOut{Removed: sessions.WorktreePath(base, name), Branch: "hadron/" + name, Note: "The branch is still there; delete it with git branch -d once it is merged."}, nil
 		})
 }
 

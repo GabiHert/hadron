@@ -109,6 +109,7 @@ Create a card at the bottom of a column and start its Claude Code session, unles
 | `start` | boolean | no | start the card's session (default true) |
 | `model` | string | no | the Claude model for this card's session: opus, sonnet, haiku or a full model name. Empty uses the launch profile's, then the workspace default |
 | `prompt` | string | no | extra instructions for this card's session, added to its system prompt after the workspace and launch profile prompts; may use {{variables}} |
+| `cwd` | string | no | the folder the card's session runs in: an absolute path to an existing folder, ~ is expanded, such as ~/code/acme-web. Empty means the workspace root. A launch profile with worktree on makes the worktree from this folder's repository |
 
 ### `card_delete`
 
@@ -204,7 +205,7 @@ Choose the Claude model of a card's session. When the session is running, /model
 
 ### `card_update`
 
-Change a card's nickname, key, title, assignee, stage, launch profile, prompt or model. Use card_move to change its column.
+Change a card's nickname, key, title, assignee, stage, launch profile, prompt, model or folder (cwd). Use card_move to change its column. A new folder applies when the session next starts; the result's note says so when the session is running.
 
 *changes data*
 
@@ -219,6 +220,7 @@ Change a card's nickname, key, title, assignee, stage, launch profile, prompt or
 | `launch_profile` | string | no | new launch profile |
 | `model` | string | no | new Claude model; typed as /model into a running session. Empty goes back to the launch profile's or the workspace default |
 | `prompt` | string | no | new card prompt: extra instructions added to the session's system prompt. Applies when the session next starts. Empty removes it |
+| `cwd` | string | no | new folder for the card's session: an absolute path to an existing folder, ~ is expanded. Empty goes back to the workspace root. A running session keeps its folder until it next starts |
 
 ## changelog
 
@@ -1056,7 +1058,7 @@ Replace the list of models the pickers offer. Only the user can. A card may stil
 
 ### `planner_adopt`
 
-Make an existing Claude Code conversation the workspace's planner: Hadron resumes it with claude --resume, with the planner prompt and MCP server attached. Refused while the planner runs (stop it first) or if another Hadron card holds the conversation. Exit that conversation in its terminal first: two processes resuming one Claude Code conversation corrupt it.
+Make an existing Claude Code conversation the workspace's planner: Hadron resumes it with claude --resume, with the planner prompt and MCP server attached. Pass cwd, the folder the conversation was run in, when it is not the planner's folder: the transcript is looked up there and it becomes the planner's folder (planner_cwd) for every later start. Refused while the planner runs (stop it first) or if another Hadron card holds the conversation. Exit that conversation in its terminal first: two processes resuming one Claude Code conversation corrupt it.
 
 *changes data*
 
@@ -1066,6 +1068,7 @@ Make an existing Claude Code conversation the workspace's planner: Hadron resume
 | `claude_session_id` | string | yes | the conversation's id from session_adoptable_list |
 | `handoff` | boolean | no | type the planner handoff message once it is ready (default true) |
 | `launch_profile` | string | no | the planner's launch profile (name or id), kept for the workspace: its arguments, model and environment apply to this and every later planner start |
+| `cwd` | string | no | the folder the conversation was run in (its cwd in session_adoptable_list); it becomes the workspace's planner folder, used by every later planner start. Empty keeps the planner's folder (the root unless planner_cwd is set). ~ is expanded |
 
 ### `planner_get`
 
@@ -1580,7 +1583,7 @@ Replace manifest.json or index.js of a script. The manifest is checked against i
 
 ### `session_adopt`
 
-Bring an existing Claude Code conversation into Hadron as a new card and resume it with claude --resume, with Hadron's prompt and MCP server attached. Refused if another Hadron card already holds that conversation. Exit that conversation in its terminal first: two processes resuming one Claude Code conversation corrupt it.
+Bring an existing Claude Code conversation into Hadron as a new card and resume it with claude --resume, with Hadron's prompt and MCP server attached. Pass cwd, the folder the conversation was run in, when it is not the workspace root: the transcript is looked up under that folder and the card runs there. Refused if another Hadron card already holds that conversation. Exit that conversation in its terminal first: two processes resuming one Claude Code conversation corrupt it.
 
 *changes data*
 
@@ -1594,16 +1597,19 @@ Bring an existing Claude Code conversation into Hadron as a new card and resume 
 | `start` | boolean | no | resume it right away (default true) |
 | `handoff` | boolean | no | type the handoff message once it is ready (default true) |
 | `launch_profile` | string | no | the card's launch profile (name or id): its arguments such as --dangerously-skip-permissions, model, environment and prompt apply to the resumed launch and to later restarts. Its first prompt is not sent |
+| `cwd` | string | no | the folder the conversation was run in (its cwd in session_adoptable_list); the card runs there. Empty means the workspace root. ~ is expanded |
 
 ### `session_adoptable_list`
 
-List the Claude Code conversations on this Mac that were run in the workspace's root folder and could be brought into Hadron (read from ~/.claude/projects, or CLAUDE_CONFIG_DIR), newest first: id, the first thing the user typed, when it was last active and its size. Conversations under 2 KB are skipped. Exit that conversation in its terminal first: two processes resuming one Claude Code conversation corrupt it.
+List the Claude Code conversations on this Mac that could be brought into Hadron (read from ~/.claude/projects, or CLAUDE_CONFIG_DIR), newest first: id, the first thing the user typed, when it was last active, its size and cwd, the folder it was run in. By default they are the ones run in the workspace's root folder; cwd lists another folder's, and all: true every folder's. Conversations under 2 KB are skipped. already_in_hadron and held_by look at every workspace. Exit that conversation in its terminal first: two processes resuming one Claude Code conversation corrupt it.
 
 *reads*
 
 | Argument | Type | Required | What it is |
 |---|---|---|---|
 | `workspace_id` | string | no | the workspace; defaults to the active one |
+| `cwd` | string | no | list the conversations run in this folder instead of the workspace root: an absolute path to an existing folder, ~ is expanded |
+| `all` | boolean | no | list the conversations of every folder; each result's cwd is the folder it was run in, read from its transcript |
 
 ### `session_interrupt`
 
@@ -1929,7 +1935,7 @@ Make a workspace the active one. Actions that omit workspace_id then act on it.
 
 ### `workspace_update`
 
-Change a workspace's name, root folder, colour, enabled integrations or pinned filter fields. Only the fields you pass change.
+Change a workspace's name, root folder, colour, enabled integrations, pinned filter fields or the planner's folder (planner_cwd, used from the planner's next start). Only the fields you pass change.
 
 *changes data*
 
@@ -1942,6 +1948,7 @@ Change a workspace's name, root folder, colour, enabled integrations or pinned f
 | `integrations` | array | no | the enabled integration ids |
 | `filter_bar` | array | no | the field paths pinned in the filter bar |
 | `default_model` | string | no | the Claude model cards use when neither the card nor its launch profile names one (opus, sonnet, haiku or a full model name); empty means claude's own default. Applies to sessions that start afterwards |
+| `planner_cwd` | string | no | the folder the planner's session runs in: an absolute path to an existing folder, ~ is expanded. Empty means the root. Applies when the planner next starts |
 
 ## worktree
 

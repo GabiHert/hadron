@@ -214,12 +214,12 @@ export function useBoard() {
         if (out) toast(`Column deleted. Its cards moved to ${out.moved_to.name}.`);
         return out;
       },
-      createCard: async (a: { nick: string; key?: string; column_id?: string; launch_profile?: string; prompt?: string; model?: string }) => {
+      createCard: async (a: { nick: string; key?: string; column_id?: string; launch_profile?: string; prompt?: string; model?: string; cwd?: string }) => {
         const card = await run(() => api.card_create({ workspace_id: sRef.current.activeId, ...a }));
         if (card) setS((p) => ({ ...p, selected: { ...p.selected, [p.activeId]: card.id } }));
         return card;
       },
-      updateCard: (id: string, patch: { nick?: string; assignee?: string; prompt?: string }) => run(() => api.card_update({ card_id: id, ...patch })),
+      updateCard: (id: string, patch: { nick?: string; assignee?: string; prompt?: string; cwd?: string }) => run(() => api.card_update({ card_id: id, ...patch })),
       archiveCard: async (id: string) => {
         const out = await run(() => api.card_archive({ card_id: id }));
         if (out) setS((p) => ({ ...p, selected: { ...p.selected, [p.activeId]: null } }));

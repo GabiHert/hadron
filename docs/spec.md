@@ -50,9 +50,9 @@ Every table has `id TEXT PRIMARY KEY` (a ULID or UUID), `created_at` and `update
 
 | Table | Columns (besides the common ones) |
 |---|---|
-| `workspaces` | `name`, `color`, `root` (absolute folder), `position`, `archived`, `integrations` (JSON array of enabled integration ids), `filter_bar` (JSON array of field paths), `ui` (JSON: collapsed panels, main view), `default_model` and `planner_model` (empty means not chosen); several workspaces may share one `root`, and then every workspace after the oldest names its card worktrees `<nick>-<first 6 of its id>` |
+| `workspaces` | `name`, `color`, `root` (absolute folder), `position`, `archived`, `integrations` (JSON array of enabled integration ids), `filter_bar` (JSON array of field paths), `ui` (JSON: collapsed panels, main view), `default_model` and `planner_model` (empty means not chosen), `planner_cwd` (the planner's folder; empty means `root`); several workspaces may share one `root`, and then every workspace after the oldest names its card worktrees `<nick>-<first 6 of its id>` |
 | `columns` | `workspace_id`, `name`, `role` (`needs-you`, `active`, `blocked`, `done`, `backlog`), `position`, `wip` (int, 0 means no limit), `fold` (bool), `color` |
-| `cards` | `workspace_id`, `column_id`, `position`, `nick` (kebab-case, unique per workspace), `key` (optional, such as `ACME-508`), `title`, `assignee`, `stage`, `liveness` (`working`, `idle`, `waiting`, `ended`), `return_column_id`, `launch_profile`, `prompt` (the card's prompt layer), `model` (empty means not chosen), `fields` (JSON of custom fields), `archived` |
+| `cards` | `workspace_id`, `column_id`, `position`, `nick` (kebab-case, unique per workspace), `key` (optional, such as `ACME-508`), `title`, `assignee`, `stage`, `liveness` (`working`, `idle`, `waiting`, `ended`), `return_column_id`, `launch_profile`, `prompt` (the card's prompt layer), `model` (empty means not chosen), `cwd` (the folder its session runs in; empty means the workspace root), `fields` (JSON of custom fields), `archived` |
 | `sessions` | `card_id` (null for the planner), `workspace_id`, `kind` (`planner`, `card`), `command`, `cwd`, `pid`, `status` (`running`, `exited`), `exit_code`, `claude_session_id` (when known), `started_at`, `ended_at` |
 | `messages` | `workspace_id`, `channel` (`planner`, or `card:<cardId>`), `author` (`you`, `planner`, `session`, `rule`, `system`), `kind` (`text`, `report`, `widget`, `event`, `answer`), `report_kind` (`progress`, `question`, `blocked`, `done`), `text`, `widget_title`, `widget_html`, `delivered` (bool), `reason` |
 | `questions` | `workspace_id`, `card_id`, `seq` (Q-01, Q-02 per card), `kind` (`decision`, `unblock`, `approval`), `text`, `context`, `options` (JSON `[{label, description}]`), `multi` (bool), `approval` (JSON `{target, runs_as, reversible, command}`), `status` (`open`, `answered`, `withdrawn`), `answer` (JSON `{selections, notes, via}`), `answered_at` |
@@ -95,10 +95,11 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
 - **Columns:** `column_list`, `column_create`, `column_update` (name, role, wip, fold, color), `column_reorder`, `column_delete` (moves its cards to the first other column).
 - **Cards:**
   - `card_list` takes a filter `{column_id?, role?, liveness?, expr?}`.
-  - The rest: `card_get`, `card_create` (starts the session unless `start: false`), `card_update`, `card_move`, `card_archive`, `card_delete`.
+  - The rest: `card_get`, `card_create` (starts the session unless `start: false`), `card_update`, `card_move`, `card_archive`, `card_delete`. `card_create` and `card_update` take an optional `cwd` (§4, folders).
   - `card_report {kind, text}` may only be called by a card's own session (or `you`).
 - **Sessions:** `session_start`, `session_stop`, `session_restart`, `session_send {card, text, enter=true}`, `session_keys {card, keys}`, `session_read_screen {card, lines=60, scrollback=false}`, `session_interrupt`, `session_status`.
 - **Planner:** `planner_get`, `planner_start`, `planner_restart`, `planner_send`, `planner_read_screen`.
+- **Adoption:** `session_adoptable_list {cwd? | all?}`, `session_adopt {claude_session_id, nick, cwd?}`, `planner_adopt {claude_session_id, cwd?}` (§4, folders).
 - **Chat:**
   - `chat_list`, `chat_read {channel, since?}`;
   - `chat_send {channel, text}`, sent as you and routed (§5);
@@ -127,7 +128,7 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
 
 - **Spawning:**
   - One PTY per card session and one per workspace planner.
-  - Spawned with `creack/pty` in the workspace root (or the card's worktree), at 120×36 by default and resized by the frontend.
+  - Spawned with `creack/pty` in the session's folder (or the card's worktree), at 120×36 by default and resized by the frontend.
   - The login shell's environment is used, because GUI apps start with a minimal PATH. Read it once with `$SHELL -l -c env`, as Deputy does.
 - **Command** (from the launch profile, default `claude`):
 
@@ -157,6 +158,13 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
   - `idle`: neither;
   - `ended`: the process exited.
 - **Exit:** the session is marked `exited`. Cards keep their history, and `session_restart` starts again (with `claude --resume <id>`). Every claude launch has an id Hadron knows: a fresh start passes `--session-id <uuid>` and stores it on the session row, so a restart always resumes the same conversation unless `fresh: true`.
+- **Folders:**
+  - A card's session runs in its `cwd`, else the workspace root; the planner runs in the workspace's `planner_cwd`, else the root. Start, restart, resume and restore all use that folder, and so do the `--resume` check and `HasConversation`, because Claude keeps a conversation under `~/.claude/projects/<folder with every non-alphanumeric character replaced by ->/<id>.jsonl` (or under `CLAUDE_CONFIG_DIR`) and resumes it only in that folder.
+  - A launch profile with `worktree` makes the card's worktree from the card folder's repository, under `<folder>/.hadron-worktrees/<nick>`.
+  - `card_create`, `card_update`, `workspace_update {planner_cwd}`, `session_adopt` and `planner_adopt` take a folder: `~` is expanded, it must be an absolute path to an existing folder, and the workspace root is stored as empty. Validation errors of one call are reported together. Changing a running card's folder applies at its next start, and the result's `note` says so.
+- **Adoption:**
+  - `session_adoptable_list` lists conversations of 2 KB or more, newest first, with `cwd`, the folder each was run in. By default it reads the workspace root's project folder; `cwd` reads another folder's; `all: true` reads every folder under `projects/`. The `cwd` comes from the transcript's JSON lines, never from decoding the folder name, because the encoding is lossy; a transcript with no `cwd` is left out of `all`. `already_in_hadron` and `held_by` look at every workspace.
+  - `session_adopt` makes a card that runs in `cwd` (default the root) and resumes the conversation with `--resume`; `planner_adopt` does the same for the planner and stores `cwd` as `planner_cwd`. Both refuse when the transcript is not under that folder's project folder, or when a card or planner already holds the conversation.
 - **Planner:** one per workspace, started when the workspace opens if the setting `planner.autostart` is true (the default).
 - **Tests:** use a fake command (`/bin/cat`, or a small Go helper binary in `internal/pty/testdata`) instead of `claude`.
 
@@ -260,6 +268,7 @@ An integration is `manifest` + `source`. The manifest's JSON Schema lives in `in
 - **Shell:**
   - macOS hidden-inset titlebar (`--wails-draggable: drag`), with traffic lights over the header, as in Deputy and Notted.
   - The layout is the prototype's: header, collapsible planner panel, the main area (Board or Dashboard), the collapsible card panel, modals for New workspace, New session, Settings and the palette, and toasts.
+  - **Folders:** the New session form has an optional Folder field (placeholder: the root). The adopt pickers (Bring in a session, Adopt planner conversation) have a folder field, default the root, and an "All folders" switch; each row shows its folder in All folders, and adopting passes the chosen conversation's `cwd`. The card panel shows the card's folder under its name, in mono and shortened with `~`, when it is not the root, and the card menu edits it. A native folder dialog would need a second bound App method, which the parity rule (§3) forbids, so the folder is typed.
 - **State:** hooks plus a small store per workspace, refetched on `changed` events. No Redux.
 - **Terminal component:** xterm.js plus fit, its theme from tokens, and `PtyAttach` on mount. Typing goes through `PtyWrite`, and resizes through `PtyResize`.
 - **Tests:** Vitest and Testing Library for the board's column logic, the question card (with notes), the filter bar, and `api.ts` argument shaping.

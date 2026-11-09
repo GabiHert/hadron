@@ -32,7 +32,7 @@ func writeConversation(t *testing.T, cfg, root, id string, first any, pad int, a
 	line(map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": "<command-name>/clear</command-name>"}})
 	line(map[string]any{"type": "user", "isSidechain": true, "message": map[string]any{"role": "user", "content": "a sidechain prompt"}})
 	line(map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": []any{map[string]any{"type": "tool_result", "content": "x"}}}})
-	line(map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": first}})
+	line(map[string]any{"type": "user", "cwd": real, "message": map[string]any{"role": "user", "content": first}})
 	for b.Len() < pad {
 		line(map[string]any{"type": "assistant", "message": map[string]any{"role": "assistant", "content": strings.Repeat("filler ", 20)}})
 	}

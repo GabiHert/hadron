@@ -49,6 +49,8 @@ type Workspace struct {
 	// one. PlannerModel is the planner's. Empty means no --model flag.
 	DefaultModel string `json:"default_model"`
 	PlannerModel string `json:"planner_model"`
+	// PlannerCwd is the folder the planner's session runs in. Empty means Root.
+	PlannerCwd string `json:"planner_cwd"`
 }
 
 // Column is one board column.
@@ -84,6 +86,9 @@ type Card struct {
 	// Model is the Claude model this card's session runs; empty falls back to the launch profile's,
 	// then the workspace default.
 	Model string `json:"model"`
+	// Cwd is the folder the card's session runs in (a launch profile's worktree is made from it).
+	// Empty means the workspace root.
+	Cwd string `json:"cwd"`
 }
 
 // Session is one PTY process: a card's, or a workspace planner's (CardID empty).
