@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.18] - 2026-11-09
+
 ### Added
 - Settings → Keyboard lists every keyboard shortcut, grouped by where it works, with a search box. Choose Change and press new keys to rebind one; Hadron warns when the keys are taken (and can move them over), refuses macOS's own shortcuts, and resets one or all to the defaults. The planner can change them too, through the keys.bindings setting.
 - Hadron works with no mouse. Move between the planner, the board and the card panel with ⌘[ and ⌘] (or ⇧⌘P, ⇧⌘B, ⇧⌘C), switch workspaces with ⌘1–⌘9, collapse panels with ⌥⌘← and ⌥⌘→, switch Chat ⇄ Terminal with ⌘J, full screen with ⇧⌘F and Board ⇄ Dashboard with ⌘D. A focus ring shows where you are.
