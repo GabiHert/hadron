@@ -19,9 +19,10 @@ for its "What's new" window.
 - The `no_report_for` rule trigger fires when a running session goes quiet, with the last report in the message.
 - Questions can say what the session does meanwhile, and approvals say whether they can be undone (yes, no or partly), how, and show the command with its language.
 - Two workspaces can use the same root folder; their card worktrees no longer collide.
-- This changelog, and a "What's new" window: after an update, from the Help menu, and from Settings, Updates. The version pill in the header shows the highlights.
+- This changelog, and a "What's new" window: after an update, from the Help menu, and from Settings, Updates. The update-available pill in the header shows the highlights.
 
 ### Changed
+- The header no longer shows the Hadron name, mark or version. The version is in the Settings title and in Settings, Updates.
 - Notices Hadron types into the planner now carry a middle dot that nothing a user, session or rule types can contain: `[KEY nick · report]`, `[KEY nick · answer]`, `[rule · name]`. A line without the dot is you typing.
 - Every Claude session is launched with a conversation id Hadron stores, so a restart always resumes the same conversation.
 - A card session can read only its own screen and status; the planner drives card sessions but not itself.

@@ -159,7 +159,7 @@ describe("shell", () => {
     expect(within(tabs).getByRole("tab", { name: /Acme/ })).toHaveAttribute("aria-selected", "true");
     expect(within(tabs).getByRole("tab", { name: /Work/ })).toHaveTextContent("1");
     expect(screen.getByRole("button", { name: "Open search-console" })).toBeInTheDocument();
-    expect(screen.getByTestId("version")).toHaveTextContent("v0.0.1-test");
+    expect(screen.queryByTestId("version")).toBeNull();
   });
 
   it("opens the card panel when a card is clicked and switches workspaces", async () => {

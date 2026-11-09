@@ -87,14 +87,12 @@ test("the menu:whatsnew event opens it", async () => {
   expect(await screen.findByRole("dialog", { name: "What's new in Hadron" })).toBeInTheDocument();
 });
 
-test("the version pill's tooltip carries the highlights and clicking it opens the notes", async () => {
+test("the version is in the Settings title, not in the header", async () => {
   const user = userEvent.setup();
   await openApp();
-  const ver = screen.getByTestId("version");
-  await waitFor(() => expect(ver.getAttribute("title")).toContain("A board for your sessions"));
-  expect(ver.getAttribute("title")).toMatch(/^What's new in .+: A board for your sessions; Run `hadron --help` to see commands; Dark mode\. Click for the full notes\.$/);
-  await user.click(ver);
-  expect(await screen.findByRole("dialog", { name: "What's new in Hadron" })).toBeInTheDocument();
+  expect(screen.queryByTestId("version")).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  expect(await screen.findByRole("heading", { name: /Settings · .* · Hadron v0\.0\.1-test/ })).toBeInTheDocument();
 });
 
 test("the palette has a What's new command", async () => {

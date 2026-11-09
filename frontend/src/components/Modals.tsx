@@ -14,7 +14,7 @@ import * as api from "../api";
 import type { Adoptable, Column, LaunchProfile } from "../api";
 import { ROLES, SWATCHES, slug } from "../lib";
 import type { Board } from "../state/useBoard";
-import { isDark } from "./Header";
+import { formatVersion, isDark } from "./Header";
 import { Icon } from "./ui";
 import { AdoptList, nickFrom } from "./AdoptList";
 
@@ -238,7 +238,7 @@ export function Settings({ board, onClose, tabs = SETTINGS_TABS, initialTab = "c
   return (
     <Scrim onClose={onClose}>
       <div className="modal wide" role="dialog" aria-modal="true" aria-labelledby="st-t">
-        <ModalHead id="st-t" title={`Settings${board.ws ? ` · ${board.ws.name}` : ""}`} onClose={onClose} />
+        <ModalHead id="st-t" title={`Settings${board.ws ? ` · ${board.ws.name}` : ""}${board.version ? ` · Hadron ${formatVersion(board.version)}` : ""}`} onClose={onClose} />
         <div className="settings">
           <nav className="snav" aria-label="Settings sections">
             {tabs.map((t) => <button key={t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}

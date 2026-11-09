@@ -89,7 +89,6 @@ export default function App() {
         onNewWorkspace={() => setModal("newws")}
         onPalette={() => setModal("palette")}
         onFeedback={openFeedback}
-        onWhatsNew={() => setModal("whatsnew")}
         onSettings={() => {
           setSettingsTab("columns");
           setModal("settings");

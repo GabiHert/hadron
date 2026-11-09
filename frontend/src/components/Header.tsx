@@ -1,8 +1,6 @@
-import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import * as api from "../api";
 import type { Board } from "../state/useBoard";
-import { Icon, Logo } from "./ui";
+import { Icon } from "./ui";
 
 export function formatVersion(v: string): string {
   if (!v) return "";
@@ -19,20 +17,11 @@ interface Props {
   onFeedback: () => void;
   onSettings: () => void;
   onTogglePlanner: () => void;
-  onWhatsNew?: () => void;
   /** Room for the update pill (milestone WI-06). */
   updateSlot?: ReactNode;
 }
 
-export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSettings, onTogglePlanner, updateSlot, onWhatsNew }: Props) {
-  const [highlights, setHighlights] = useState<string[]>([]);
-  useEffect(() => {
-    let live = true;
-    Promise.resolve(api.changelog_get()).then((i) => live && setHighlights(i?.highlights ?? [])).catch(() => undefined);
-    return () => { live = false; };
-  }, []);
-  const ver = formatVersion(board.version);
-  const verTitle = highlights.length ? `What's new in ${ver}: ${highlights.slice(0, 3).join("; ")}. Click for the full notes.` : `Hadron ${ver}`;
+export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSettings, onTogglePlanner, updateSlot }: Props) {
   const { visible, activeId, data, actions } = board;
   const needs = (wsId: string) => {
     const d = data[wsId];
@@ -42,20 +31,6 @@ export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSetting
   };
   return (
     <header className="top">
-      <div className="brand">
-        <Logo />
-        <span className="wordmark">Hadron</span>
-        <span
-          className="ver mono"
-          data-testid="version"
-          role="button"
-          tabIndex={0}
-          title={verTitle}
-          style={{ cursor: "pointer" }}
-          onClick={() => onWhatsNew?.()}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onWhatsNew?.(); } }}
-        >{ver}</span>
-      </div>
       <button className="ibtn only-narrow" onClick={onTogglePlanner} aria-label="Open the planner chat"><Icon name="chat" /></button>
       <div className="wsbar" role="tablist" aria-label="Workspaces">
         {visible.map((w) => {
