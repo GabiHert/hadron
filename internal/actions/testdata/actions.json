@@ -2961,6 +2961,11 @@
         "name": "dry_run",
         "required": false,
         "type": "boolean"
+      },
+      {
+        "name": "timeout_seconds",
+        "required": false,
+        "type": "number"
       }
     ]
   },

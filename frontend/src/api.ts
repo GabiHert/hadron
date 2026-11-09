@@ -984,7 +984,7 @@ export interface ImportPlan {
   unmatched_log_lines: number;
   warnings: string[];
 }
-export const workspace_import_planner_dir = (a: { workspace_id?: string; dir?: string; dry_run?: boolean } = {}) =>
+export const workspace_import_planner_dir = (a: { workspace_id?: string; dir?: string; dry_run?: boolean; timeout_seconds?: number } = {}) =>
   call<ImportPlan>("workspace_import_planner_dir", a);
 
 // ---- diagnostics ----

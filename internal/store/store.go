@@ -68,11 +68,15 @@ func Open(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
 	}
-	db, err := sql.Open("sqlite3", "file:"+path+"?_journal_mode=WAL&_busy_timeout=5000&_foreign_keys=on&_synchronous=NORMAL")
+	db, err := sql.Open("sqlite3", "file:"+path+"?_journal_mode=WAL&_busy_timeout=5000&_foreign_keys=on&_synchronous=NORMAL&_txlock=immediate")
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1)
+	// WAL lets readers run while a transaction writes, so a pool keeps a slow or stuck write from
+	// freezing every read (app_status, the UI's refetches). Writers wait for each other for up to the
+	// busy timeout and then fail with an error, instead of hanging forever. Transactions begin
+	// immediately, so two writers queue instead of failing on a lock upgrade.
+	db.SetMaxOpenConns(8)
 	if err := migrate(db); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("could not update the database: %w", err)

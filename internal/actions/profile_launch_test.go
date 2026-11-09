@@ -44,7 +44,9 @@ func TestAdoptWithALaunchProfileResumesWithItsArgsAndNoFirstPrompt(t *testing.T)
 	if out.Card == nil || out.Card.LaunchProfile != "trusted" {
 		t.Fatalf("the card keeps the profile for restarts: %+v", out.Card)
 	}
-	waitUntil(t, "claude", func() bool { return strings.Contains(h.file(".argv"), "--dangerously-skip-permissions") && h.file(".started") != "" })
+	waitUntil(t, "claude", func() bool {
+		return strings.Contains(h.file(".argv"), "--dangerously-skip-permissions") && h.file(".started") != ""
+	})
 	argv := argvOf(h)
 	if !hasPair(argv, "--resume", id) || !hasPair(argv, "--model", "opus") || count(argv, "--model") != 1 || count(argv, "--dangerously-skip-permissions") != 1 || count(argv, "--mcp-config") != 1 || count(argv, "--append-system-prompt") != 1 {
 		t.Fatalf("argv = %q", argv)
@@ -134,7 +136,9 @@ func TestPlannerAdoptWithALaunchProfileKeepsItForTheWorkspace(t *testing.T) {
 	}
 	// A restart afterwards still carries the args.
 	h.do("planner_restart", m{"workspace_id": w.ID}, nil)
-	waitUntil(t, "restart", func() bool { return hasPair(argvOf(h), "--resume", id) && strings.Contains(h.file(".argv"), "--dangerously-skip-permissions") })
+	waitUntil(t, "restart", func() bool {
+		return hasPair(argvOf(h), "--resume", id) && strings.Contains(h.file(".argv"), "--dangerously-skip-permissions")
+	})
 }
 
 func TestTheModelSettingWinsOverAModelInProfileArgs(t *testing.T) {

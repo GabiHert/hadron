@@ -106,13 +106,18 @@ type Spec struct {
 	// Sensitive hides the arguments from mcp_calls and the config history, for actions that take a
 	// secret such as a token.
 	Sensitive bool
+	// NoTx runs a mutating handler without wrapping it in a transaction, for work that does file
+	// IO or takes long: it must read through c.Store (no lock is held) and make its own short
+	// transaction with c.Deps.Store.Tx for the writes. Without NoTx a mutating handler holds a
+	// write transaction for its whole run.
+	NoTx bool
 }
 
 // Call is what a handler receives besides its input.
 type Call struct {
 	Actor Actor
 	// Store runs inside a transaction for mutating actions, so a failed action changes nothing.
-	// Handlers must use it, never Deps.Store: the store holds one connection.
+	// Handlers must use it, never Deps.Store: a handler that wrote through Deps.Store would not see its own transaction.
 	Store *store.Store
 	Deps  Deps
 
@@ -316,7 +321,7 @@ func (r *Registry) Invoke(ctx context.Context, actor Actor, name, argsJSON strin
 
 	var out any
 	var runErr error
-	if e.info.Mutates {
+	if e.info.Mutates && !e.info.NoTx {
 		runErr = r.deps.Store.Tx(func(tx *store.Store) error {
 			c.Store = tx
 			var err error
@@ -327,6 +332,9 @@ func (r *Registry) Invoke(ctx context.Context, actor Actor, name, argsJSON strin
 		})
 	} else {
 		out, runErr = e.run(ctx, c, raw)
+		if runErr == nil && e.info.Mutates {
+			runErr = c.flushChanges(name, actor, raw)
+		}
 	}
 
 	// Every mutating call is logged. A read is logged only when it did not come from the UI, which
@@ -421,8 +429,21 @@ func (r *Registry) logCall(c *Call, name string, args json.RawMessage, err error
 	if err != nil {
 		row.Error = err.Error()
 	}
-	_ = r.deps.Store.MCPCalls.Create(&row)
+	// The log is best effort and must never hold up the answer: when another transaction is writing
+	// (a long import), the row is written as soon as it can be and the caller does not wait for it.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = r.deps.Store.MCPCalls.Create(&row)
+	}()
+	select {
+	case <-done:
+	case <-time.After(logWait):
+	}
 }
+
+// logWait is how long a call waits for its own log row before answering anyway.
+const logWait = 100 * time.Millisecond
 
 func (r *Registry) suggest(name string) []string {
 	var out []string

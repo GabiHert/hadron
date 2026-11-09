@@ -5,6 +5,7 @@ package planimport
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -113,7 +114,11 @@ func ValidNick(nick string) bool { return len(nick) <= 60 && nickRe.MatchString(
 
 // Parse reads the folder. A missing sessions folder is an error; everything else that cannot be
 // read is reported on the session it belongs to.
-func Parse(dir string) (Parsed, error) {
+func Parse(dir string) (Parsed, error) { return ParseContext(context.Background(), dir, nil) }
+
+// ParseContext is Parse with a time budget and progress. It stops with ctx's error when ctx ends,
+// and calls progress (when not nil) after each session file with how many are done of the total.
+func ParseContext(ctx context.Context, dir string, progress func(done, total int)) (Parsed, error) {
 	p := Parsed{Dir: dir}
 	st, err := os.Stat(dir)
 	if err != nil || !st.IsDir() {
@@ -128,7 +133,10 @@ func Parse(dir string) (Parsed, error) {
 	}
 	sort.Strings(files)
 	byNick := map[string]*Session{}
-	for _, f := range files {
+	for i, f := range files {
+		if err := ctx.Err(); err != nil {
+			return p, fmt.Errorf("reading the planner folder stopped after %d of %d sessions: %w", i, len(files), err)
+		}
 		nick := strings.TrimSuffix(filepath.Base(f), ".md")
 		s := &Session{Nick: nick}
 		parseSessionFile(f, s)
@@ -136,6 +144,12 @@ func Parse(dir string) (Parsed, error) {
 		parseGates(filepath.Join(dir, GatesDir, nick+".json"), s)
 		p.Sessions = append(p.Sessions, s)
 		byNick[nick] = s
+		if progress != nil {
+			progress(i+1, len(files))
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return p, fmt.Errorf("reading the planner folder stopped before log.md: %w", err)
 	}
 	p.UnmatchedLog = applyLog(filepath.Join(dir, LogFile), byNick)
 	return p, nil

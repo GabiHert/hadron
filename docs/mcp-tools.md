@@ -1876,7 +1876,7 @@ Get one workspace by id, with its integrations, filter bar and UI state.
 
 ### `workspace_import_planner_dir`
 
-Import an older planner's run folder into a workspace: sessions/<nick>.md become cards (with their reports and planner messages and the Claude session id to resume), log.md sets each card's column (planning and in-progress go to the first active column with that stage, backlog to backlog, done to done), questions/<nick>/Q-NN.json become questions and gates/<nick>.json become gates. Cards are created without starting; session_start resumes the conversation with claude --resume. Nicknames that already exist are skipped, so importing twice changes nothing. dry_run (the default) only returns the plan.
+Import an older planner's run folder into a workspace: sessions/<nick>.md become cards (with their reports and planner messages and the Claude session id to resume), log.md sets each card's column (planning and in-progress go to the first active column with that stage, backlog to backlog, done to done), questions/<nick>/Q-NN.json become questions and gates/<nick>.json become gates. Cards are created without starting; session_start resumes the conversation with claude --resume. Nicknames that already exist are skipped, so importing twice changes nothing. dry_run (the default) only returns the plan and writes nothing. Only the files under sessions/, questions/, gates/ and log.md are read; chat/ and inbox/ never are. Reading holds no database lock, so other actions run meanwhile; the writes are one short transaction at the end, and a time budget (timeout_seconds) applies.
 
 *changes data*
 
@@ -1885,6 +1885,7 @@ Import an older planner's run folder into a workspace: sessions/<nick>.md become
 | `workspace_id` | string | no | the workspace to import into; defaults to the active one |
 | `dir` | string | no | the planner run folder; default is <workspace root>/.ai/runs/planner |
 | `dry_run` | boolean | no | only report the plan and change nothing (default true). Pass false to import |
+| `timeout_seconds` | number | no | stop reading and importing after this many seconds (default 120, at most 900); nothing is written when it stops |
 
 ### `workspace_list`
 

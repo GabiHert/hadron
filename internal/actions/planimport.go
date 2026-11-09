@@ -8,17 +8,20 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/GabiHert/hadron/internal/chat"
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/planimport"
+	"github.com/GabiHert/hadron/internal/store"
 )
 
 // ImportPlannerIn is the input of workspace_import_planner_dir.
 type ImportPlannerIn struct {
-	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"the workspace to import into; defaults to the active one"`
-	Dir         string `json:"dir,omitempty" jsonschema:"the planner run folder; default is <workspace root>/.ai/runs/planner"`
-	DryRun      *bool  `json:"dry_run,omitempty" jsonschema:"only report the plan and change nothing (default true). Pass false to import"`
+	WorkspaceID    string `json:"workspace_id,omitempty" jsonschema:"the workspace to import into; defaults to the active one"`
+	Dir            string `json:"dir,omitempty" jsonschema:"the planner run folder; default is <workspace root>/.ai/runs/planner"`
+	DryRun         *bool  `json:"dry_run,omitempty" jsonschema:"only report the plan and change nothing (default true). Pass false to import"`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty" jsonschema:"stop reading and importing after this many seconds (default 120, at most 900); nothing is written when it stops"`
 }
 
 // ImportCard is what the import does with one session file.
@@ -61,8 +64,8 @@ func firstWithRole(cols []domain.Column, role string) (domain.Column, bool) {
 }
 
 func registerPlanImport(r *Registry) {
-	Register(r, Spec{Name: "workspace_import_planner_dir", Description: "Import an older planner's run folder into a workspace: sessions/<nick>.md become cards (with their reports and planner messages and the Claude session id to resume), log.md sets each card's column (planning and in-progress go to the first active column with that stage, backlog to backlog, done to done), questions/<nick>/Q-NN.json become questions and gates/<nick>.json become gates. Cards are created without starting; session_start resumes the conversation with claude --resume. Nicknames that already exist are skipped, so importing twice changes nothing. dry_run (the default) only returns the plan.",
-		Mutates: true, Entities: []string{"cards", "sessions", "messages", "questions", "gates"}},
+	Register(r, Spec{Name: "workspace_import_planner_dir", Description: "Import an older planner's run folder into a workspace: sessions/<nick>.md become cards (with their reports and planner messages and the Claude session id to resume), log.md sets each card's column (planning and in-progress go to the first active column with that stage, backlog to backlog, done to done), questions/<nick>/Q-NN.json become questions and gates/<nick>.json become gates. Cards are created without starting; session_start resumes the conversation with claude --resume. Nicknames that already exist are skipped, so importing twice changes nothing. dry_run (the default) only returns the plan and writes nothing. Only the files under sessions/, questions/, gates/ and log.md are read; chat/ and inbox/ never are. Reading holds no database lock, so other actions run meanwhile; the writes are one short transaction at the end, and a time budget (timeout_seconds) applies.",
+		Mutates: true, NoTx: true, Entities: []string{"cards", "sessions", "messages", "questions", "gates"}},
 		func(ctx context.Context, c *Call, in ImportPlannerIn) (ImportOut, error) {
 			if err := userOrPlanner(c, "import a planner folder"); err != nil {
 				return ImportOut{}, err
@@ -80,10 +83,24 @@ func registerPlanImport(r *Registry) {
 				home, _ := os.UserHomeDir()
 				dir = filepath.Join(home, dir[2:])
 			}
-			parsed, err := planimport.Parse(dir)
+			budget := 120
+			if in.TimeoutSeconds > 0 {
+				budget = min(in.TimeoutSeconds, 900)
+			}
+			ctx, cancel := context.WithTimeout(ctx, time.Duration(budget)*time.Second)
+			defer cancel()
+			log := c.Deps.Log
+			started := time.Now()
+			log.Debug("planner import: reading", "dir", dir, "dry_run", dry, "budget_s", budget)
+			parsed, err := planimport.ParseContext(ctx, dir, func(done, total int) {
+				if done%10 == 0 || done == total {
+					log.Debug("planner import: read sessions", "done", done, "total", total, "ms", time.Since(started).Milliseconds())
+				}
+			})
 			if err != nil {
 				return ImportOut{}, err
 			}
+			log.Debug("planner import: read", "sessions", len(parsed.Sessions), "ms", time.Since(started).Milliseconds())
 			cols, err := c.Store.Columns.List(w.ID)
 			if err != nil {
 				return ImportOut{}, err
@@ -103,6 +120,12 @@ func registerPlanImport(r *Registry) {
 				warn(fmt.Sprintf("this workspace has no column with the role %s, so those cards go to %s", role, cols[0].Name))
 				return cols[0]
 			}
+			type pending struct {
+				s       *planimport.Session
+				pc      ImportCard
+				col, rc string
+			}
+			var todo []pending
 			sort.Slice(parsed.Sessions, func(i, j int) bool { return parsed.Sessions[i].Nick < parsed.Sessions[j].Nick })
 			for _, s := range parsed.Sessions {
 				pc := ImportCard{Nick: s.Nick, Key: s.Key, ClaudeSessionID: s.ClaudeSessionID, Messages: len(s.Messages), Questions: len(s.Questions), Gates: len(s.Gates)}
@@ -159,10 +182,33 @@ func registerPlanImport(r *Registry) {
 				if dry {
 					continue
 				}
-				if err := applyImported(c, w, s, pc, col.ID, returnCol); err != nil {
-					return ImportOut{}, fmt.Errorf("importing %s: %w", s.Nick, err)
-				}
+				todo = append(todo, pending{s, pc, col.ID, returnCol})
 			}
+			if dry || len(todo) == 0 {
+				log.Debug("planner import: done", "dry_run", dry, "created", out.Created, "skipped", out.Skipped, "ms", time.Since(started).Milliseconds())
+				return out, nil
+			}
+			// Everything is read and planned. The writes are one short transaction, with no file IO.
+			if err := ctx.Err(); err != nil {
+				return ImportOut{}, fmt.Errorf("the import ran out of time before writing anything: %w", err)
+			}
+			err = c.Deps.Store.Tx(func(tx *store.Store) error {
+				cc := *c
+				cc.Store = tx
+				for i, p := range todo {
+					if err := applyImported(&cc, w, p.s, p.pc, p.col, p.rc); err != nil {
+						return fmt.Errorf("importing %s: %w", p.s.Nick, err)
+					}
+					if (i+1)%10 == 0 || i+1 == len(todo) {
+						log.Debug("planner import: wrote cards", "done", i+1, "total", len(todo), "ms", time.Since(started).Milliseconds())
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				return ImportOut{}, err
+			}
+			log.Debug("planner import: done", "dry_run", false, "created", out.Created, "skipped", out.Skipped, "ms", time.Since(started).Milliseconds())
 			return out, nil
 		})
 }
