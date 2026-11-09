@@ -20,8 +20,8 @@ const DefaultQueryTTL = 10 * time.Minute
 // queryRetry is how soon a query that has never succeeded is tried again.
 const queryRetry = 30 * time.Second
 
-// queryBudget caps one background refresh, on top of the sandbox's own time limit.
-const queryBudget = 2 * time.Minute
+// queryBudget caps one background refresh, on top of the query's own time limit (at most 180 s).
+const queryBudget = 4 * time.Minute
 
 type queryEntry struct {
 	res        []dash.Group

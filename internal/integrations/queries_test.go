@@ -2,6 +2,7 @@ package integrations
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -42,6 +43,7 @@ type fakeAPI struct {
 	hits   atomic.Int32
 	fail   atomic.Bool
 	delay  atomic.Int64 // nanoseconds
+	spin   atomic.Int64 // milliseconds the spin script burns CPU
 	server *httptest.Server
 }
 
@@ -54,7 +56,7 @@ func newFakeAPI(t *testing.T) *fakeAPI {
 			http.Error(w, "boom", 500)
 			return
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"workflow_runs": []map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]any{"spin_ms": f.spin.Load(), "workflow_runs": []map[string]string{
 			{"created_at": "2026-11-03T09:00:00Z"}, {"created_at": "2026-11-03T15:30:00Z"},
 			{"created_at": "2026-11-03T18:00:00Z"}, {"created_at": "2026-11-04T08:00:00Z"},
 		}})
@@ -74,6 +76,12 @@ type queryFixture struct {
 
 func newQueryFixture(t *testing.T) *queryFixture {
 	t.Helper()
+	return newQueryFixtureWith(t, map[string]any{"description": "Successful workflow runs per day"}, deploysScript)
+}
+
+// newQueryFixtureWith registers the deploys_per_day query with the given manifest entry and source.
+func newQueryFixtureWith(t *testing.T, queryEntry map[string]any, source string) *queryFixture {
+	t.Helper()
 	t.Setenv("HADRON_SECRETS", "file")
 	st, err := store.Open(filepath.Join(t.TempDir(), "hadron.db"))
 	if err != nil {
@@ -89,10 +97,10 @@ func newQueryFixture(t *testing.T) *queryFixture {
 	}
 	manifest, _ := json.Marshal(map[string]any{
 		"name": "ci", "version": "1",
-		"ops":         map[string]any{"queries": map[string]any{"deploys_per_day": map[string]any{"description": "Successful workflow runs per day"}}},
+		"ops":         map[string]any{"queries": map[string]any{"deploys_per_day": queryEntry}},
 		"permissions": map[string]any{"network": []string{api.server.URL + "/*"}},
 	})
-	sc := domain.Script{Name: "ci", Kind: KindIntegration, Manifest: manifest, Source: deploysScript, Status: StatusEnabled}
+	sc := domain.Script{Name: "ci", Kind: KindIntegration, Manifest: manifest, Source: source, Status: StatusEnabled}
 	if err := st.Scripts.Create(&sc); err != nil {
 		t.Fatal(err)
 	}
@@ -291,3 +299,85 @@ func TestSyncForgetsCachedAnswers(t *testing.T) {
 }
 
 func contains2(s, sub string) bool { return strings.Contains(s, sub) }
+
+// A query that burns CPU for args.spin_ms, then answers; host calls do not count against the budget.
+const spinScript = `
+var ops = {
+  queries: {
+    deploys_per_day: function (args) {
+      var r = host.http.request({ method: "GET", url: args.base + "/spin" });
+      var end = Date.now() + (r.json.spin_ms || 0);
+      while (Date.now() < end) {}
+      return { groups: [{ key: "2026-11-03", label: "2026-11-03", count: 3 }] };
+    }
+  }
+};
+`
+
+func TestAQueryHasTheDefaultTimeBudgetUnlessItAsksForMore(t *testing.T) {
+	f := newQueryFixtureWith(t, map[string]any{"description": "slow"}, spinScript)
+	f.m.Timeout = 150 * time.Millisecond
+	f.api.spin.Store(600)
+	f.query(t)
+	f.m.WaitQueries()
+	if res := f.query(t); !contains2(res.Error, "longer than 150ms") {
+		t.Fatalf("a 600 ms run exceeds the default budget: %+v", res)
+	}
+
+	g := newQueryFixtureWith(t, map[string]any{"description": "slow", "timeout_s": 5}, spinScript)
+	g.m.Timeout = 150 * time.Millisecond
+	g.api.spin.Store(600)
+	g.query(t)
+	g.m.WaitQueries()
+	if res := g.query(t); res.Error != "" || len(res.Groups) != 1 {
+		t.Fatalf("timeout_s 5 gives the run room to finish: %+v", res)
+	}
+}
+
+func TestAQueryThatTimesOutKeepsTheLastGoodData(t *testing.T) {
+	f := newQueryFixtureWith(t, map[string]any{"description": "slow", "timeout_s": 1}, spinScript)
+	f.query(t)
+	f.m.WaitQueries()
+	f.advance(11 * time.Minute)
+	f.api.spin.Store(3000)
+	f.query(t)
+	f.m.WaitQueries()
+	res := f.query(t)
+	if res.Error == "" || len(res.Groups) != 1 || !res.Stale {
+		t.Fatalf("the timeout shows next to the last good data: %+v", res)
+	}
+}
+
+func TestALongRefreshNeitherBlocksOthersNorRunsTwice(t *testing.T) {
+	f := newQueryFixtureWith(t, map[string]any{"description": "slow", "timeout_s": 5}, spinScript)
+	f.api.spin.Store(700)
+	start := time.Now()
+	for i := 0; i < 5; i++ {
+		if res := f.query(t); !res.Pending {
+			t.Fatalf("call %d should answer at once, pending: %+v", i, res)
+		}
+	}
+	if d := time.Since(start); d > 600*time.Millisecond {
+		t.Errorf("the calls took %v: a long refresh must not block them", d)
+	}
+	f.m.WaitQueries()
+	if res := f.query(t); res.Pending || len(res.Groups) != 1 {
+		t.Errorf("after the refresh: %+v", res)
+	}
+}
+
+func TestTimeoutSIsValidated(t *testing.T) {
+	for _, tc := range []struct {
+		n  int
+		ok bool
+	}{{1, true}, {180, true}, {-1, false}, {181, false}} {
+		raw := fmt.Sprintf(`{"name":"ci","version":"1","ops":{"queries":{"q":{"timeout_s":%d}}}}`, tc.n)
+		_, problems := script.ParseManifest([]byte(raw))
+		if (len(problems) == 0) != tc.ok {
+			t.Errorf("timeout_s %d: problems = %v, want ok=%v", tc.n, problems, tc.ok)
+		}
+		if len(problems) > 0 && !strings.Contains(strings.Join(problems, "\n"), "timeout_s") {
+			t.Errorf("timeout_s %d: a problem should name the field: %v", tc.n, problems)
+		}
+	}
+}

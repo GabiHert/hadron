@@ -36,7 +36,7 @@
         "update": {"$ref": "#/$defs/op"},
         "poll": {"$ref": "#/$defs/op"},
         "actions": {"type": "object", "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"}, "additionalProperties": {"$ref": "#/$defs/op"}},
-        "queries": {"type": "object", "description": "Named dashboard queries. ops.queries.<name> takes the block's args and returns {groups: [{key, label, count}], ttl_s?}; the app registers <integration>.<name> and caches the result.", "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"}, "additionalProperties": {"$ref": "#/$defs/op"}},
+        "queries": {"type": "object", "description": "Named dashboard queries. ops.queries.<name> takes the block's args and returns {groups: [{key, label, count}], ttl_s?}; the app registers <integration>.<name> and caches the result.", "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"}, "additionalProperties": {"$ref": "#/$defs/query"}},
         "sessions": {
           "type": "object",
           "additionalProperties": false,
@@ -135,6 +135,16 @@
     }
   },
   "$defs": {
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {"type": "string"},
+        "input": {"type": ["object", "boolean"]},
+        "output": {"type": ["object", "boolean"]},
+        "timeout_s": {"type": "integer", "minimum": 1, "maximum": 180, "description": "How long one run of the query may take, in seconds (default 10). Queries run in the background and are cached, so they may take longer than other ops. Each exec (20 s) and HTTP call (30 s) keeps its own limit."}
+      }
+    },
     "op": {
       "type": "object",
       "additionalProperties": false,

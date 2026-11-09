@@ -51,7 +51,13 @@ type OpSpec struct {
 	Description string          `json:"description,omitempty"`
 	Input       json.RawMessage `json:"input,omitempty"`
 	Output      json.RawMessage `json:"output,omitempty"`
+	// TimeoutS is how long one run of a query may take, 1 to 180 seconds (queries only; default
+	// DefaultTimeout). Queries run in the background and are cached, so they may take longer.
+	TimeoutS int `json:"timeout_s,omitempty"`
 }
+
+// Query time budget limits.
+const MaxQueryTimeoutS = 180
 
 // Ops lists the ops an integration implements.
 type Ops struct {
@@ -179,7 +185,10 @@ func ParseManifest(raw []byte) (Manifest, []string) {
 func (m Manifest) check() []string {
 	var p []string
 	seen := map[string]bool{}
-	for qn := range m.Ops.Queries {
+	for qn, q := range m.Ops.Queries {
+		if q.TimeoutS != 0 && (q.TimeoutS < 1 || q.TimeoutS > MaxQueryTimeoutS) {
+			p = append(p, fmt.Sprintf("manifest: ops.queries.%s.timeout_s must be between 1 and %d seconds, got %d", qn, MaxQueryTimeoutS, q.TimeoutS))
+		}
 		if qn == "links" || qn == "count" {
 			p = append(p, fmt.Sprintf("manifest: ops.queries.%s is a reserved name: every integration already has <integration>.%s. Pick another name", qn, qn))
 		}

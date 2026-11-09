@@ -7,6 +7,10 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Changed
+
+- A script-defined dashboard query can declare `timeout_s` (1 to 180 seconds, default 10) under `ops.queries.<name>` in its manifest, so a query that pages through a large API has time to finish; a run that times out keeps the last good data and shows the error.
+
 ### Fixed
 - The planner panel title was cut to "P..." when the panel was narrow. "Planner" now always fits: the Chat and Terminal switch drops its icons, and the buttons wrap to a second row when there is still no room.
 

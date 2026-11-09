@@ -102,6 +102,14 @@ type Call struct {
 	App      App
 }
 
+// Timeout is the time one run may take. For a query it is the manifest's timeout_s when set.
+func (c Call) timeoutOr(def time.Duration) time.Duration {
+	if spec, ok := c.Manifest.OpSpec(c.Op); ok && strings.HasPrefix(c.Op, "queries.") && spec.TimeoutS > 0 {
+		return time.Duration(spec.TimeoutS) * time.Second
+	}
+	return def
+}
+
 // Result is what a run produced.
 type Result struct {
 	Output   json.RawMessage
@@ -160,6 +168,7 @@ func (r *Runner) Run(ctx context.Context, c Call) (res Result, err error) {
 	if timeout == 0 {
 		timeout = DefaultTimeout
 	}
+	timeout = c.timeoutOr(timeout)
 	if limit == 0 {
 		limit = DefaultMemoryLimit
 	}
