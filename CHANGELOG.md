@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.12] - 2026-11-09
+
 ### Fixed
 - Opening Hadron a second time, or building it while it runs, no longer marks the running app's sessions as stopped. Only the first instance opens the database and reconciles sessions, and a session whose process is still alive is never marked exited.
 - Integrations that run a command-line tool (such as gh from Homebrew) failed inside the installed app with "executable file not found in $PATH": the tool is now found on your login shell's PATH.
