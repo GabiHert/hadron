@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.14] - 2026-11-09
+
 ### Added
 - Chat messages, reports, questions and text blocks on the dashboard are shown as Markdown: tables (scrolling sideways when wide), lists, headings, quotes, task lists, code with a Copy button, and links that open in your browser.
 - Attach images and PDFs to a chat message: paste, drop or use the clip button. Each shows as a chip before you send, the message carries its path for the session, and the conversation shows a thumbnail.
