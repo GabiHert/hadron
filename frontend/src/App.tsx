@@ -15,6 +15,11 @@ import { useBoard } from "./state/useBoard";
 
 type Modal = null | "newws" | "newsession" | "settings" | "palette" | "feedback" | "whatsnew";
 
+/** True when the window is narrow enough (960px, as in app.css) for the panels to be overlays. */
+function isNarrowWindow(): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia("(max-width: 960px)").matches;
+}
+
 /** The tooltip of the "<tag> available" pill: the first highlights of the release's notes. */
 function updateTitle(tag: string, notes: string): string {
   const h = releaseHighlights(notes ?? "", 3);
@@ -76,10 +81,11 @@ export default function App() {
   // A rule's notify action shows as a toast.
   useEffect(() => api.onNotify((e) => actions.toast(e.body ? `${e.title}: ${e.body}` : e.title)), [actions]);
 
-  // Picking a card on a narrow window opens the card overlay.
+  // Picking a card opens the card overlay, but only on a narrow window, where the panels are
+  // overlays. On a wide window "open" would also keep a collapsed card panel from collapsing.
   const selectedId = board.selected?.id;
   useEffect(() => {
-    if (selectedId) setMobile("card");
+    if (selectedId && isNarrowWindow()) setMobile("card");
   }, [selectedId]);
 
   return (

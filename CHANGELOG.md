@@ -14,6 +14,7 @@ for its "What's new" window.
 - `planner_stop` stops the planner's session.
 
 ### Fixed
+- The collapse button of the card panel (the right-hand chat panel) did nothing while a card was open. It now collapses and stays collapsed.
 - Importing a large planner folder could freeze the whole app, including every MCP call. The import now reads the folder without holding any database lock, writes in one short transaction, stops at a time budget (`timeout_seconds`, default 120), and logs its progress when debug logging is on. A slow or stuck write no longer blocks reads: the database uses a small connection pool, and the call log never delays an answer.
 
 ## [0.2.1] - 2026-11-09
