@@ -837,3 +837,34 @@ export const session_adopt = (a: { workspace_id?: string; claude_session_id: str
   call<AdoptResult>("session_adopt", a);
 export const planner_adopt = (a: { workspace_id?: string; claude_session_id: string; handoff?: boolean }) =>
   call<AdoptResult>("planner_adopt", a);
+
+// ---- importing a planner folder ----
+
+export interface ImportCard {
+  nick: string;
+  key: string;
+  action: "create" | "skip";
+  reason?: string;
+  column: string;
+  stage: string;
+  liveness: string;
+  claude_session_id: string;
+  messages: number;
+  questions: number;
+  open_questions: number;
+  gates: number;
+}
+export interface ImportPlan {
+  dir: string;
+  dry_run: boolean;
+  cards: ImportCard[];
+  created: number;
+  skipped: number;
+  messages: number;
+  questions: number;
+  gates: number;
+  unmatched_log_lines: number;
+  warnings: string[];
+}
+export const workspace_import_planner_dir = (a: { workspace_id?: string; dir?: string; dry_run?: boolean } = {}) =>
+  call<ImportPlan>("workspace_import_planner_dir", a);

@@ -54,6 +54,8 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   const col = columns.find((x) => x.id === c.column_id);
   const openQ = board.openQuestions.find((q) => q.card_id === c.id);
   const live = LIVE[c.liveness] ?? ["", c.liveness];
+  const claudeId = status?.session?.claude_session_id ?? "";
+  const canResume = !!claudeId && !status?.running;
   return (
     <aside className={"cpanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label={`Card ${c.nick}`}>
       <div className="cph">
@@ -66,6 +68,9 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
           {c.key ? <span className="mono" style={{ fontSize: 12, color: "var(--fg3)" }}>{c.key}</span> : null}
           <span className="pill">{col?.name ?? ""}</span>
           <span className={"pill " + live[0]}><span className={`dot ${c.liveness}`} />{live[1]}</span>
+          {canResume && view === "chat" ? (
+            <button className="btn sm" aria-label="Resume the Claude conversation" title={`claude --resume ${claudeId.slice(0, 8)}`} onClick={() => void actions.run(() => api.session_start({ card: c.id }))}>Resume</button>
+          ) : null}
           <div className="spacer" />
           <div style={{ position: "relative" }}>
             <button className="ibtn" style={{ width: 26, height: 26 }} onClick={() => setMenu(!menu)} aria-label="Card actions" aria-expanded={menu}><Icon name="dots" size={14} /></button>
@@ -118,6 +123,8 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
             </div>
           }
           onStart={() => void actions.run(() => api.session_start({ card: c.id }))}
+          startLabel={canResume ? "Resume" : undefined}
+          startTitle={canResume ? `claude --resume ${claudeId.slice(0, 8)}` : undefined}
           onRestart={() => void actions.run(() => api.session_restart({ card: c.id }))}
           onShiftEscape={isFull ? () => void actions.setFullscreen("") : undefined}
         />

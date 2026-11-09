@@ -23,4 +23,5 @@ func RegisterAll(r *Registry) {
 	registerHistory(r)
 	registerWorktrees(r)
 	registerAdopt(r)
+	registerPlanImport(r)
 }

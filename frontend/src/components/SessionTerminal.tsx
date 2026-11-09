@@ -9,12 +9,15 @@ interface Props {
   /** Shown above the terminal; the card terminal warns that typing goes straight to the session. */
   banner?: React.ReactNode;
   onStart: () => void;
+  /** The start button's text; the card terminal says "Resume" when a Claude conversation is stored. */
+  startLabel?: string;
+  startTitle?: string;
   onRestart: () => void;
   onShiftEscape?: () => void;
 }
 
 /** A session's terminal with its state: not started, never started, ended, or running. */
-export function SessionTerminal({ label, status, foot, banner, onStart, onRestart, onShiftEscape }: Props) {
+export function SessionTerminal({ label, status, foot, banner, onStart, startLabel = "Start session", startTitle, onRestart, onShiftEscape }: Props) {
   if (!status) return <div className="placeholder">Loading the {label} terminal…</div>;
   const row = status.session;
   if (!row)
@@ -22,7 +25,7 @@ export function SessionTerminal({ label, status, foot, banner, onStart, onRestar
       <div className="termwrap">
         <div className="tnone">
           <p>The {label} has no session yet.</p>
-          <button className="btn pri" onClick={onStart}>Start session</button>
+          <button className="btn pri" onClick={onStart} title={startTitle}>{startLabel}</button>
         </div>
       </div>
     );
@@ -37,7 +40,11 @@ export function SessionTerminal({ label, status, foot, banner, onStart, onRestar
       ) : !status.running ? (
         <div className="tbanner" role="status">
           <span style={{ flex: 1 }}>The session has ended{row.status === "exited" ? ` (exit code ${row.exit_code})` : ""}.</span>
-          <button className="btn sm" onClick={onRestart}>Restart session</button>
+          {row.claude_session_id && startLabel === "Resume" ? (
+            <button className="btn sm pri" onClick={onStart} title={startTitle}>{startLabel}</button>
+          ) : (
+            <button className="btn sm" onClick={onRestart}>Restart session</button>
+          )}
         </div>
       ) : null}
       <Terminal sessionId={row.id} label={label} onShiftEscape={onShiftEscape} />

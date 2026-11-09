@@ -417,6 +417,9 @@ const fns = {
   config_revert: vi.fn(async () => ({ reverted: {}, summary: "restored the column to its earlier state" })),
   session_adoptable_list: vi.fn(async (): Promise<unknown[]> => []),
   session_adopt: vi.fn(async (): Promise<unknown> => ({ card: card("adopted", "w1", "working", "adopted", 0), status: {}, warning: "Exit that conversation in its terminal first." })),
+  workspace_import_planner_dir: vi.fn(async (a: { dir?: string; dry_run?: boolean } = {}): Promise<unknown> => ({
+    dir: a.dir ?? "", dry_run: a.dry_run !== false, cards: [], created: 0, skipped: 0, messages: 0, questions: 0, gates: 0, unmatched_log_lines: 0, warnings: [],
+  })),
   planner_adopt: vi.fn(async (): Promise<unknown> => ({ status: {}, warning: "Exit that conversation in its terminal first." })),
   onChanged: vi.fn(() => () => {}),
   onEvent: vi.fn(() => () => {}),

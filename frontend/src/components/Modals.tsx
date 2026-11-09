@@ -1,4 +1,5 @@
 import { IntegrationsTab } from "./IntegrationsTab";
+import { ImportTab } from "./ImportTab";
 import { HistoryTab } from "./HistoryTab";
 import { McpPanel } from "./McpPanel";
 import { PromptsTab } from "./PromptsTab";
@@ -201,6 +202,7 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "columns", label: "Columns", render: (b) => <ColumnsTab board={b} /> },
   { id: "rules", label: "Rules", render: (b) => <RulesTab board={b} /> },
   { id: "integrations", label: "Integrations", render: (b) => <IntegrationsTab board={b} /> },
+  { id: "import", label: "Import", render: (b) => <ImportTab board={b} /> },
   { id: "widgets", label: "Widgets", render: () => <WidgetsTab /> },
   { id: "history", label: "History", render: (b) => <HistoryTab board={b} /> },
   { id: "mcp", label: "MCP server", render: () => <McpPanel /> },

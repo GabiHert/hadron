@@ -2608,6 +2608,27 @@
     ]
   },
   {
+    "name": "workspace_import_planner_dir",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "dir",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "dry_run",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
     "name": "workspace_list",
     "mutates": false,
     "fields": [
