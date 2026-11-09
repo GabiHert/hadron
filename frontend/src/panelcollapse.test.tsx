@@ -40,14 +40,36 @@ test("the card panel collapses with a card selected, and stays collapsed across 
   expect(await screen.findByRole("complementary", { name: /Card search-console/ })).toBeInTheDocument();
 });
 
-test("selecting another card does not re-expand a collapsed card panel", async () => {
+test("collapse, then clicking another card expands the panel and shows that card", async () => {
   const { user } = await openWithCard();
   await user.click(screen.getByRole("button", { name: "Collapse the card panel" }));
   await screen.findByRole("navigation", { name: "Card panel, collapsed" });
-  const other = screen.getAllByRole("button", { name: /^Open / }).find((b) => !/search-console/.test(b.getAttribute("aria-label") ?? ""));
-  expect(other).toBeTruthy();
-  await user.click(other!);
+  const other = screen.getAllByRole("button", { name: /^Open [a-z0-9-]+$/ }).find((b) => !/search-console/.test(b.getAttribute("aria-label") ?? ""))!;
+  const nick = (other.getAttribute("aria-label") ?? "").replace(/^Open /, "");
+  await user.click(other);
+  await waitFor(() => expect(mocks.ui_panel_collapse).toHaveBeenLastCalledWith({ workspace_id: "w1", panel: "card", collapsed: false }));
+  expect(await screen.findByRole("complementary", { name: `Card ${nick}` })).toBeInTheDocument();
+  expect(screen.queryByRole("navigation", { name: "Card panel, collapsed" })).toBeNull();
+});
+
+test("collapse, then clicking the already-selected card expands the panel", async () => {
+  const { user } = await openWithCard();
+  await user.click(screen.getByRole("button", { name: "Collapse the card panel" }));
+  await screen.findByRole("navigation", { name: "Card panel, collapsed" });
+  await user.click(screen.getByRole("button", { name: "Open search-console" }));
+  expect(await screen.findByRole("complementary", { name: /Card search-console/ })).toBeInTheDocument();
+});
+
+test("collapse, then a changed event and a re-render leave it collapsed; so does selecting programmatically", async () => {
+  const { user, view, fire } = await openWithCard();
+  await user.click(screen.getByRole("button", { name: "Collapse the card panel" }));
+  await screen.findByRole("navigation", { name: "Card panel, collapsed" });
+  mocks.ui_panel_collapse.mockClear();
+  fire();
+  view.rerender(<App />);
+  await waitFor(() => expect(mocks.workspace_list).toHaveBeenCalled());
   expect(screen.getByRole("navigation", { name: "Card panel, collapsed" })).toBeInTheDocument();
+  expect(mocks.ui_panel_collapse).not.toHaveBeenCalled();
 });
 
 test("the planner panel collapses and stays collapsed across a changed event", async () => {

@@ -180,6 +180,13 @@ export function useBoard() {
         return w;
       },
       select: (id: string | null) => setS((p) => (p.activeId ? { ...p, selected: { ...p.selected, [p.activeId]: id } } : p)),
+      /** The user picked a card (a click, the palette, a keyboard select): show it, expanding a collapsed card panel. */
+      open: (id: string) => {
+        setS((p) => (p.activeId ? { ...p, selected: { ...p.selected, [p.activeId]: id } } : p));
+        const cur = sRef.current;
+        const w = cur.workspaces.find((x) => x.id === cur.activeId);
+        if (w?.ui.collapsed?.card) void run(() => api.ui_panel_collapse({ workspace_id: cur.activeId, panel: "card", collapsed: false }));
+      },
       setTheme: (theme: Theme) => {
         setS((p) => ({ ...p, theme }));
         return run(() => api.settings_update({ values: { theme } }));

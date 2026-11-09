@@ -235,7 +235,7 @@ export function ColumnView(p: ColProps) {
             model={effectiveModel(c, board.profiles, board.ws)}
             selected={selectedId === c.id}
             dragging={dragId === c.id}
-            onOpen={() => board.actions.select(c.id)}
+            onOpen={() => board.actions.open(c.id)}
             onDragStart={() => p.setDragId(c.id)}
             onDragEnd={() => {
               p.setDragId(null);

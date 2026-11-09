@@ -348,7 +348,7 @@ export function Palette({ board, onClose, openModal, setPlannerView }: PalettePr
   useEffect(() => ref.current?.focus(), []);
   const items = [
     ...board.visible.map((w) => ({ label: `Switch to ${w.name}`, hint: "workspace", run: () => void actions.switchWorkspace(w.id) })),
-    ...cards.map((c) => ({ label: `Open ${c.nick}`, hint: c.key || "card", run: () => actions.select(c.id) })),
+    ...cards.map((c) => ({ label: `Open ${c.nick}`, hint: c.key || "card", run: () => actions.open(c.id) })),
     { label: "New session", hint: "⌘N", run: () => openModal("newsession") },
     { label: "New workspace", hint: "", run: () => openModal("newws") },
     { label: "Send feedback", hint: "", run: () => openModal("feedback") },

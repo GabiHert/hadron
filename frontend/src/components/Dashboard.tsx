@@ -218,7 +218,7 @@ function TableBody({ b, board }: { b: BlockView; board: BoardState }) {
       <div>
         {d.rows.map((r) => (
           <div key={str(r.id)} className="rrow" style={{ padding: "6px 0" }}>
-            <button className="btn sm" type="button" onClick={() => board.actions.select(str(r.card_id))}>{str(r.card)}</button>
+            <button className="btn sm" type="button" onClick={() => board.actions.open(str(r.card_id))}>{str(r.card)}</button>
             <span className="mono hint">{str(r.label)}</span>
             <span className={"pill " + (r.kind === "approval" ? "bad" : "warn")}>{str(r.kind)}</span>
             <span className="hint" style={{ flex: 1, minWidth: 0 }}>{short(str(r.text), 70)}</span>
