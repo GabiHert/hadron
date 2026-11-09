@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.11] - 2026-11-09
+
 ### Added
 
 - Every action can be done over MCP, including the user-only ones. The new setting `mcp.user_actions` (Settings, MCP server) chooses who may call them: `external` (default) lets your own MCP clients, `all` also the planner and card sessions, `off` only the app. Each such call is written to the config history with the actor. New action `planner_keys` presses keys in the planner's terminal.
