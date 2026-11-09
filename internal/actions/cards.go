@@ -275,9 +275,10 @@ func registerCards(r *Registry) {
 			}
 			out := CardDeleteOut{Card: card}
 			if w, err := c.Workspace(card.WorkspaceID); err == nil {
-				path := sessions.WorktreePath(w.Root, card.Nick)
+				name := sessions.WorktreeName(c.Store, w, card.Nick)
+				path := sessions.WorktreePath(w.Root, name)
 				if st, serr := os.Stat(path); serr == nil && st.IsDir() {
-					out.Worktree = &WorktreeKept{Path: path, Branch: "hadron/" + card.Nick, Note: "The card's worktree is still on disk so no work is lost. worktree_remove with card=" + card.Nick + " deletes it once it is clean."}
+					out.Worktree = &WorktreeKept{Path: path, Branch: "hadron/" + name, Note: "The card's worktree is still on disk so no work is lost. worktree_remove with card=" + card.Nick + " deletes it once it is clean."}
 				}
 			}
 			return out, c.Store.Cards.Delete(card.ID)

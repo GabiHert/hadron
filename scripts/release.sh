@@ -6,10 +6,14 @@
 # Steps, stopping at the first failure:
 #   1. Checks: on $BRANCH, nothing uncommitted, not behind origin, the tag and release are new,
 #      gh is signed in as $GH_ACCOUNT.
-#   2. Tests: $TEST_CMD.
-#   3. Build: scripts/build-release.sh (zip + SHA256SUMS; signing from the environment).
-#   4. Tag, push the branch and the tag, then create the GitHub Release with both files.
-# A failure before step 4 leaves no tag, push or release behind.
+#   2. Changelog: CHANGELOG.md must have entries under [Unreleased] (or a section for the version).
+#      The release is refused without them.
+#   3. Tests: $TEST_CMD.
+#   4. Changelog promoted: [Unreleased] moves under "## [X.Y.Z] - date", so the build embeds it.
+#   5. Build: scripts/build-release.sh (zip + SHA256SUMS; signing from the environment).
+#   6. Commit the changelog, tag, push the branch and the tag, then create the GitHub Release with
+#      both files, using the changelog section as the release notes.
+# A failure before step 6 leaves no tag, push or release behind, and CHANGELOG.md is put back.
 # From the release-updater skill (~/.claude/skills/release-updater).
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -43,14 +47,38 @@ git merge-base --is-ancestor "origin/$BRANCH" HEAD || die "$BRANCH is behind ori
 ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null || die "tag $tag already exists"
 ! gh release view "$tag" --repo "$REPO" >/dev/null 2>&1 || die "release $tag already exists on GitHub"
 
+bash scripts/changelog.sh check "$tag" || die "CHANGELOG.md is not ready for $tag (see above)"
+
 if [ -n "${TEST_CMD:-}" ]; then
   log "testing"
   eval "$TEST_CMD"
 fi
 
+# Move [Unreleased] under the new version before the build, so the app embeds its own notes. Put
+# the file back if anything fails before the commit.
+cl_backup="$(mktemp)"
+cp CHANGELOG.md "$cl_backup"
+restore_changelog() {
+  if [ -n "${cl_backup:-}" ]; then
+    cp "$cl_backup" CHANGELOG.md
+    rm -f "$cl_backup"
+  fi
+}
+trap restore_changelog EXIT
+bash scripts/changelog.sh promote "$tag" "$(date +%Y-%m-%d)"
+notes_file="$(mktemp)"
+bash scripts/changelog.sh notes "$tag" >"$notes_file"
+[ -s "$notes_file" ] || die "CHANGELOG.md has no notes for $tag after promoting [Unreleased]"
+
 bash scripts/build-release.sh "$tag"
 
-log "tagging and pushing $tag"
+log "committing the changelog, tagging and pushing $tag"
+if ! git diff --quiet -- CHANGELOG.md; then
+  git add CHANGELOG.md
+  git commit -q -m "docs: changelog for $tag"
+fi
+rm -f "$cl_backup"
+cl_backup=""
 git tag -a "$tag" -m "$APP_NAME $tag"
 git push -q origin "$BRANCH"
 git push -q origin "$tag"
@@ -61,6 +89,11 @@ if ! codesign -dvv "$APP_PATH" 2>&1 | grep -q '^TeamIdentifier=[A-Z0-9]'; then
 fi
 prerelease=()
 case "$tag" in *-*) prerelease=(--prerelease) ;; esac
+{
+  cat "$notes_file"
+  printf '\n---\n%s\n' "$notes"
+} >"$notes_file.full"
 gh release create "$tag" build/release/* --repo "$REPO" --title "$APP_NAME $tag" --verify-tag \
-  --generate-notes --notes "$notes" ${prerelease[@]+"${prerelease[@]}"}
+  --notes-file "$notes_file.full" ${prerelease[@]+"${prerelease[@]}"}
+rm -f "$notes_file" "$notes_file.full"
 log "published https://github.com/$REPO/releases/tag/$tag"

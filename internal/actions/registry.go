@@ -91,6 +91,8 @@ type Deps struct {
 	Integrations *integrations.Manager
 	// Log is Hadron's own log. It may be nil, as in most tests.
 	Log *dlog.Logger
+	// Changelog is the CHANGELOG.md text. Empty means the one embedded in the app.
+	Changelog string
 }
 
 // Spec describes an action.

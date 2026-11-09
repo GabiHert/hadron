@@ -19,6 +19,7 @@ interface Props {
     setToken: (token: string) => Promise<UpdateStatus>;
   };
   on?: (event: string, cb: (data: any) => void) => () => void;
+  onWhatsNew?: () => void;
 }
 
 const defaultClient = {
@@ -28,7 +29,7 @@ const defaultClient = {
   setToken: (token: string) => api.set_update_token({ token }),
 };
 
-export function UpdatesCard({ appName = "Hadron", client = defaultClient, on = api.onEvent }: Props) {
+export function UpdatesCard({ appName = "Hadron", client = defaultClient, on = api.onEvent, onWhatsNew }: Props) {
   const [u, setU] = useState<UpdateStatus | null>(null);
   const [lines, setLines] = useState<string[]>([]);
   const [busy, setBusy] = useState("");
@@ -131,6 +132,7 @@ export function UpdatesCard({ appName = "Hadron", client = defaultClient, on = a
               {running ? "Updating…" : `Update to ${latest.tag}`}
             </button>
           ) : null}
+          {onWhatsNew ? <button className="btn" type="button" onClick={onWhatsNew}>What&apos;s new</button> : null}
           {latest && u?.upToDate && !running && state !== "failed" ? <span className="pill ok">{appName} is up to date</span> : null}
         </div>
       </div>

@@ -17,6 +17,7 @@ import (
 
 	"github.com/GabiHert/hadron/internal/run"
 	"github.com/GabiHert/hadron/internal/store"
+	"github.com/wailsapp/wails/v2/pkg/menu"
 )
 
 func newTestApp(t *testing.T) *App {
@@ -263,5 +264,29 @@ func TestSessionMCPConfigNamesThePortTheServerReallyGot(t *testing.T) {
 	b, _ := os.ReadFile(files[0])
 	if want := "http://127.0.0.1:" + strconv.Itoa(port) + "/mcp"; !strings.Contains(string(b), want) {
 		t.Errorf("config = %s, want url %s", b, want)
+	}
+}
+
+func TestTheMenuHasHelpWithWhatsNew(t *testing.T) {
+	a := newTestApp(t)
+	m := buildMenu(a)
+	var labels []string
+	var whatsNew *menu.MenuItem
+	for _, it := range m.Items {
+		labels = append(labels, it.Label)
+		if it.Label == "Help" && it.SubMenu != nil {
+			for _, sub := range it.SubMenu.Items {
+				if sub.Label == "What's New in Hadron" {
+					whatsNew = sub
+				}
+			}
+		}
+	}
+	if whatsNew == nil || whatsNew.Click == nil {
+		t.Fatalf("the Help menu needs a clickable What's New in Hadron; menu = %v", labels)
+	}
+	whatsNew.Click(&menu.CallbackData{}) // before the window exists this must be harmless
+	if EventWhatsNew != "menu:whatsnew" {
+		t.Error("the frontend listens for menu:whatsnew")
 	}
 }

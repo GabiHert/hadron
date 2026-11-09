@@ -5,13 +5,21 @@ import type { CardTab } from "./components/CardPanel";
 import { FeedbackModal } from "./components/FeedbackModal";
 import { Header } from "./components/Header";
 import { NewSession, NewWorkspace, Palette, Settings } from "./components/Modals";
+import { WhatsNew } from "./components/WhatsNew";
 import { PlannerPanel } from "./components/PlannerPanel";
 import { Icon } from "./components/ui";
 import { useUpdateAvailable } from "./components/UpdatesCard";
 import * as api from "./api";
+import { releaseHighlights } from "./lib";
 import { useBoard } from "./state/useBoard";
 
-type Modal = null | "newws" | "newsession" | "settings" | "palette" | "feedback";
+type Modal = null | "newws" | "newsession" | "settings" | "palette" | "feedback" | "whatsnew";
+
+/** The tooltip of the "<tag> available" pill: the first highlights of the release's notes. */
+function updateTitle(tag: string, notes: string): string {
+  const h = releaseHighlights(notes ?? "", 3);
+  return h.length ? `${tag} is available. What's new: ${h.join("; ")}. Open Settings, Updates to install it.` : `${tag} is available. Open Settings, Updates to install it.`;
+}
 
 export default function App() {
   const board = useBoard();
@@ -26,6 +34,14 @@ export default function App() {
   const trackTab = useCallback((id: string) => { settingsTabNow.current = id; }, []);
   const [feedbackArea, setFeedbackArea] = useState("board");
   const update = useUpdateAvailable();
+  const checkedChangelog = useRef(false);
+  // Once after the board loads: open What's new when a release nobody has seen is running.
+  useEffect(() => {
+    if (!ws || checkedChangelog.current) return;
+    checkedChangelog.current = true;
+    Promise.resolve(api.changelog_get()).then((i) => { if (i?.show) setModal((m) => m ?? "whatsnew"); }).catch(() => undefined);
+  }, [ws]);
+  useEffect(() => api.onEvent("menu:whatsnew", () => setModal("whatsnew")), []);
   const openFeedback = () => {
     const nick = board.selected?.nick;
     setFeedbackArea(modal === "settings" ? `settings:${settingsTabNow.current}` : ws?.ui.main_view === "dashboard" ? "dashboard" : "board" + (nick ? `:card:${nick}` : ""));
@@ -73,6 +89,7 @@ export default function App() {
         onNewWorkspace={() => setModal("newws")}
         onPalette={() => setModal("palette")}
         onFeedback={openFeedback}
+        onWhatsNew={() => setModal("whatsnew")}
         onSettings={() => {
           setSettingsTab("columns");
           setModal("settings");
@@ -81,6 +98,7 @@ export default function App() {
           update?.latest ? (
             <button
               className="pill acc hide-narrow"
+              title={updateTitle(update.latest.tag, update.latest.notes)}
               onClick={() => {
                 setSettingsTab("updates");
                 setModal("settings");
@@ -100,10 +118,11 @@ export default function App() {
       </div>
       {modal === "newws" ? <NewWorkspace board={board} onClose={() => setModal(null)} /> : null}
       {modal === "newsession" ? <NewSession board={board} onClose={() => setModal(null)} /> : null}
-      {modal === "settings" ? <Settings board={board} initialTab={settingsTab} onTab={trackTab} onClose={() => setModal(null)} /> : null}
+      {modal === "settings" ? <Settings board={board} initialTab={settingsTab} onTab={trackTab} onWhatsNew={() => setModal("whatsnew")} onClose={() => setModal(null)} /> : null}
       {modal === "palette" ? (
         <Palette board={board} onClose={() => setModal(null)} openModal={(m) => (m === "feedback" ? openFeedback() : setModal(m))} setPlannerView={setPlannerView} />
       ) : null}
+      {modal === "whatsnew" ? <WhatsNew onClose={() => setModal(null)} /> : null}
       {modal === "feedback" ? <FeedbackModal board={board} area={feedbackArea} onClose={() => setModal(null)} /> : null}
       {toast ? <div className="toast" role="status">{toast.text}</div> : null}
     </div>

@@ -50,7 +50,7 @@ Every table has `id TEXT PRIMARY KEY` (a ULID or UUID), `created_at` and `update
 
 | Table | Columns (besides the common ones) |
 |---|---|
-| `workspaces` | `name`, `color`, `root` (absolute folder), `position`, `archived`, `integrations` (JSON array of enabled integration ids), `filter_bar` (JSON array of field paths), `ui` (JSON: collapsed panels, main view), `default_model` and `planner_model` (empty means not chosen) |
+| `workspaces` | `name`, `color`, `root` (absolute folder), `position`, `archived`, `integrations` (JSON array of enabled integration ids), `filter_bar` (JSON array of field paths), `ui` (JSON: collapsed panels, main view), `default_model` and `planner_model` (empty means not chosen); several workspaces may share one `root`, and then every workspace after the oldest names its card worktrees `<nick>-<first 6 of its id>` |
 | `columns` | `workspace_id`, `name`, `role` (`needs-you`, `active`, `blocked`, `done`, `backlog`), `position`, `wip` (int, 0 means no limit), `fold` (bool), `color` |
 | `cards` | `workspace_id`, `column_id`, `position`, `nick` (kebab-case, unique per workspace), `key` (optional, such as `ACME-508`), `title`, `assignee`, `stage`, `liveness` (`working`, `idle`, `waiting`, `ended`), `return_column_id`, `launch_profile`, `prompt` (the card's prompt layer), `model` (empty means not chosen), `fields` (JSON of custom fields), `archived` |
 | `sessions` | `card_id` (null for the planner), `workspace_id`, `kind` (`planner`, `card`), `command`, `cwd`, `pid`, `status` (`running`, `exited`), `exit_code`, `claude_session_id` (when known), `started_at`, `ended_at` |
@@ -179,7 +179,7 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
   - stores the answer and a `kind: answer` message;
   - the built-in rule moves the card back;
   - types to the planner: `[<KEY> <nick> · answer] Q-NN: <labels>; notes: <notes>`.
-  - **Policy:** the planner may answer approvals only when the planner policy allows it. The default policy, set in v1 settings, is `allow_all`; the other values are `decisions_only`, `ask_for_prd` and `user_only` (the planner answers and clears nothing itself). A session may never answer its own question.
+  - **Policy:** the planner may answer approvals only when the planner policy allows it. The default policy, set in v1 settings, is `allow_all`; the other values are `decisions_only`, `ask_for_prd` and `user_only` (the planner answers and clears nothing itself). A session may never answer its own question. The policy is global (`planner.policy`) with an optional per-workspace override (`planner.policy.workspace.<id>`, set with `planner_policy_set {workspace_id}`, removed with `inherit`); the workspace's own wins.
   - **Relay:** the planner may pass `on_behalf_of: user` and `source_message_id` to record an answer the user already gave in chat. The message must be the user's own, in the card's channel or the planner channel, newer than the question. It works under every policy and is stored `via: planner-relay`.
   - **Question fields:** `meanwhile` (what the session does while it waits) and, for approvals, `approval.reversible` (`yes`, `no` or `partial`), `reversible_note` (required for `partial`) and `command_lang`.
 - **`gate_withdraw`:** takes back a gate that no longer applies; the session that set it, the planner and the user may. `gate_clear` still means the user did or declined it.
@@ -268,7 +268,8 @@ An integration is `manifest` + `source`. The manifest's JSON Schema lives in `in
   - `make dev`;
   - `make build`: `wails build -platform darwin/arm64 -ldflags "-X github.com/GabiHert/hadron/internal/run.Version=$(VERSION)"`, then ad hoc signing;
   - `make test`: `go vet`, `go test -race ./...`, then frontend `npm ci && npm run typecheck && npm test`;
-  - `make release V=vX.Y.Z`.
+  - `make release V=vX.Y.Z`: refuses unless `CHANGELOG.md` has entries under `[Unreleased]` (or a section for the version); after the tests it moves `[Unreleased]` under `## [X.Y.Z] - date`, builds (so the app embeds it), commits `docs: changelog for vX.Y.Z`, tags, pushes, and uses that section as the GitHub release notes. A failed build puts the file back.
 - **`release.conf`:** `REPO=GabiHert/hadron`, `GH_ACCOUNT=GabiHert`, `APP_NAME=Hadron`, `BUNDLE_ID=tech.bhlabs.hadron`.
 - **Updater:** `internal/update` is wired as in the release-updater skill's `reference.md` → "Wiring (Wails)". Updates appear in Settings → Updates, and the running version shows in the header.
+- **Changelog:** `CHANGELOG.md` (Keep a Changelog format) is embedded in the app (`internal/changelog`, set from `main.go`). `changelog_get {version?}` returns the running version's notes (a dev build shows Unreleased), the release list, the highlights and whether the user has seen them (`changelog.seen` setting). The "What's new" window opens once after an update, from Help, the ⌘K palette and Settings → Updates; the version in the header and the update-available pill show highlights in their tooltips. The repository's `CLAUDE.md` makes a changelog line part of every user-visible change.
 - **Wails gotchas:** don't run `wails dev` from a folder synced by iCloud. If you hit Wails' known `~/Documents` problem, run `wails build` only. Run `wails generate module` after changing App methods.

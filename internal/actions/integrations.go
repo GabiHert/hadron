@@ -682,7 +682,7 @@ func registerScriptFamily(r *Registry, prefix, kind string) {
 				return ScriptView{}, fmt.Errorf("cannot approve: %d of %d tests fail.\n- %s", res.Failed, res.Passed+res.Failed, strings.Join(bad, "\n- "))
 			}
 			if c.Actor.Kind != KindYou {
-				if p := plannerPolicy(c.Store); p != PolicyAllowAll {
+				if p := plannerPolicy(c.Store, w.ID); p != PolicyAllowAll {
 					if grants := newGrants(c.Store, w, sc, man.Permissions); len(grants) > 0 {
 						return ScriptView{}, fmt.Errorf("the planner policy is %s, so the planner cannot approve new network access, MCP servers or binaries (%s). Ask the user to approve %s in Settings, Integrations", p, strings.Join(grants, ", "), sc.Name)
 					}

@@ -8,6 +8,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/GabiHert/hadron/internal/domain"
+	"github.com/GabiHert/hadron/internal/store"
 )
 
 // WorktreeDir is the folder under a workspace root that holds the card worktrees.
@@ -134,4 +137,56 @@ func RemoveWorktree(env []string, root, nick string, force bool) error {
 	}
 	_, err := git(env, root, args...)
 	return err
+}
+
+// WorktreeSuffix keeps two workspaces that share a root folder from sharing worktrees. The oldest
+// workspace on a root uses plain card nicknames; every later one adds "-<first 6 of its id>", so
+// the same nickname in two workspaces gets two folders and two branches.
+func WorktreeSuffix(st *store.Store, ws domain.Workspace) string {
+	all, err := st.Workspaces.List(true)
+	if err != nil {
+		return ""
+	}
+	root := cleanRoot(ws.Root)
+	for _, other := range all {
+		if other.ID == ws.ID || cleanRoot(other.Root) != root {
+			continue
+		}
+		if other.CreatedAt.Before(ws.CreatedAt) || (other.CreatedAt.Equal(ws.CreatedAt) && other.ID < ws.ID) {
+			id := ws.ID
+			if len(id) > 6 {
+				id = id[:6]
+			}
+			return "-" + id
+		}
+	}
+	return ""
+}
+
+// WorktreeName is the folder (and, after hadron/, the branch) of a card's worktree in ws.
+func WorktreeName(st *store.Store, ws domain.Workspace, nick string) string {
+	return nick + WorktreeSuffix(st, ws)
+}
+
+// SharesRoot lists the other workspaces that use the same root folder as ws.
+func SharesRoot(st *store.Store, ws domain.Workspace) []domain.Workspace {
+	all, err := st.Workspaces.List(true)
+	if err != nil {
+		return nil
+	}
+	var out []domain.Workspace
+	for _, other := range all {
+		if other.ID != ws.ID && cleanRoot(other.Root) == cleanRoot(ws.Root) {
+			out = append(out, other)
+		}
+	}
+	return out
+}
+
+func cleanRoot(root string) string {
+	root = filepath.Clean(root)
+	if r, err := filepath.EvalSymlinks(root); err == nil {
+		return r
+	}
+	return root
 }

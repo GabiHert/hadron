@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/sessions"
@@ -57,8 +58,23 @@ func registerWorktrees(r *Registry) {
 			if err != nil {
 				return nil, err
 			}
+			// Workspaces on the same root keep their worktrees side by side; list only this one's.
+			suffix := sessions.WorktreeSuffix(c.Store, w)
+			var others []string
+			for _, o := range sessions.SharesRoot(c.Store, w) {
+				if s := sessions.WorktreeSuffix(c.Store, o); s != "" {
+					others = append(others, s)
+				}
+			}
 			out := []WorktreeInfo{}
 			for _, wt := range list {
+				if suffix != "" && !strings.HasSuffix(wt.Nick, suffix) {
+					continue
+				}
+				if suffix == "" && hasAnySuffix(wt.Nick, others) {
+					continue
+				}
+				wt.Nick = strings.TrimSuffix(wt.Nick, suffix)
 				info := WorktreeInfo{Worktree: wt}
 				if card, err := c.Store.Cards.ByNick(w.ID, wt.Nick); err == nil {
 					info.CardID = card.ID
@@ -94,9 +110,19 @@ func registerWorktrees(r *Registry) {
 			if !sessions.IsGitRepo(env, w.Root) {
 				return WorktreeRemoveOut{}, errors.New("the workspace root is not a git repository, so there are no worktrees")
 			}
-			if err := sessions.RemoveWorktree(env, w.Root, nick, in.Force); err != nil {
+			name := sessions.WorktreeName(c.Store, w, nick)
+			if err := sessions.RemoveWorktree(env, w.Root, name, in.Force); err != nil {
 				return WorktreeRemoveOut{}, err
 			}
-			return WorktreeRemoveOut{Removed: sessions.WorktreePath(w.Root, nick), Branch: "hadron/" + nick, Note: "The branch is still there; delete it with git branch -d once it is merged."}, nil
+			return WorktreeRemoveOut{Removed: sessions.WorktreePath(w.Root, name), Branch: "hadron/" + name, Note: "The branch is still there; delete it with git branch -d once it is merged."}, nil
 		})
+}
+
+func hasAnySuffix(s string, suffixes []string) bool {
+	for _, x := range suffixes {
+		if strings.HasSuffix(s, x) {
+			return true
+		}
+	}
+	return false
 }

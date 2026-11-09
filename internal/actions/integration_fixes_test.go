@@ -2,6 +2,8 @@ package actions
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -324,4 +326,118 @@ func TestACardSessionSetsItsOwnStageAndCustomFieldsOnly(t *testing.T) {
 		t.Errorf("the planner: %v", err)
 	}
 	h.fails("card_field_set", m{"path": "card.stage", "value": "x"}, "pass card")
+}
+
+// ---- workspaces that share a root folder ----
+
+func TestWorkspacesMaySeeTheSameRootAndKeepTheirWorktreesApart(t *testing.T) {
+	h := newSessionHarness(t, false)
+	a, root := worktreeWorkspace(t, h, true)
+	var b domain.Workspace
+	h.do("workspace_create", m{"name": "Beta", "root": root}, &b)
+	if b.Root != root || b.ID == a.ID {
+		t.Fatalf("two workspaces may share a root: %+v", b)
+	}
+	h.do("launch_profile_create", m{"workspace_id": b.ID, "name": "wt", "worktree": true}, nil)
+	var ca, cb domain.Card
+	h.do("card_create", m{"workspace_id": a.ID, "nick": "billing-fix", "launch_profile": "wt", "start": false}, &ca)
+	h.do("card_create", m{"workspace_id": b.ID, "nick": "billing-fix", "launch_profile": "wt", "start": false}, &cb)
+
+	h.do("session_start", m{"card": ca.ID}, nil)
+	h.do("session_start", m{"card": cb.ID}, nil)
+	pathA := h.latest(a.ID, ca.ID).Cwd
+	pathB := h.latest(b.ID, cb.ID).Cwd
+	if pathA != filepath.Join(root, ".hadron-worktrees", "billing-fix") {
+		t.Errorf("the oldest workspace keeps plain nicknames: %s", pathA)
+	}
+	if pathB == pathA || !strings.HasPrefix(filepath.Base(pathB), "billing-fix-"+b.ID[:6]) {
+		t.Errorf("the second workspace's worktree is its own: %s", pathB)
+	}
+	if got := gitIn(t, pathB, "rev-parse", "--abbrev-ref", "HEAD"); got != "hadron/billing-fix-"+b.ID[:6] {
+		t.Errorf("branch of the second = %s", got)
+	}
+
+	// Each lists only its own worktree, under the card's nickname.
+	for _, ws := range []domain.Workspace{a, b} {
+		var list []WorktreeInfo
+		h.do("worktree_list", m{"workspace_id": ws.ID}, &list)
+		if len(list) != 1 || list[0].Nick != "billing-fix" {
+			t.Errorf("%s lists %+v", ws.Name, list)
+		}
+	}
+	// Removing one leaves the other.
+	h.do("session_stop", m{"card": cb.ID}, nil)
+	waitUntil(t, "stopped", func() bool { return !h.status(cb.ID).Running })
+	h.do("worktree_remove", m{"workspace_id": b.ID, "card": cb.ID}, nil)
+	if _, err := os.Stat(pathB); err == nil {
+		t.Error("the second workspace's worktree is gone")
+	}
+	if _, err := os.Stat(pathA); err != nil {
+		t.Error("the first workspace's worktree stays")
+	}
+}
+
+// ---- per-workspace planner policy ----
+
+func TestPlannerPolicyPerWorkspaceWithGlobalFallback(t *testing.T) {
+	h := newQHarness(t)
+	var other domain.Workspace
+	h.do("workspace_create", m{"name": "Beta", "root": t.TempDir()}, &other)
+
+	var p PlannerPolicyOut
+	h.do("planner_policy_get", m{}, &p)
+	if p.Policy != "allow_all" || p.Source != "default" {
+		t.Fatalf("fresh install = %+v", p)
+	}
+	h.do("planner_policy_set", m{"policy": "decisions_only"}, &p)
+	if p.Policy != "decisions_only" || p.Global != "decisions_only" {
+		t.Fatalf("global set = %+v", p)
+	}
+	// Both workspaces follow the global policy.
+	h.do("planner_policy_get", m{"workspace_id": h.ws.ID}, &p)
+	if p.Policy != "decisions_only" || p.Source != "global" || p.Override != "" {
+		t.Fatalf("follows global = %+v", p)
+	}
+	// One workspace gets its own, stricter policy; the other is untouched.
+	h.do("planner_policy_set", m{"policy": "user_only", "workspace_id": h.ws.ID}, &p)
+	if p.Policy != "user_only" || p.Source != "workspace" || p.Override != "user_only" || p.Global != "decisions_only" || p.WorkspaceID != h.ws.ID {
+		t.Fatalf("workspace set = %+v", p)
+	}
+	h.do("planner_policy_get", m{"workspace_id": other.ID}, &p)
+	if p.Policy != "decisions_only" || p.Source != "global" {
+		t.Fatalf("the other workspace = %+v", p)
+	}
+	// The planner of the strict workspace may not answer even a decision; its own workspace shows through its actor.
+	dec := h.ask(decision)
+	if err := h.as(h.plannerActor(), "question_answer", m{"question_id": dec.ID, "selections": []string{"Nearest"}}, nil); err == nil || !strings.Contains(err.Error(), "user_only") {
+		t.Fatalf("workspace policy applies to answers: %v", err)
+	}
+	h.do("planner_policy_get", m{}, &p)
+	_ = p
+	var asPlanner PlannerPolicyOut
+	if err := h.as(h.plannerActor(), "planner_policy_get", m{}, &asPlanner); err != nil || asPlanner.Policy != "user_only" || asPlanner.WorkspaceID != h.ws.ID {
+		t.Fatalf("a planner sees its own workspace's policy: %+v %v", asPlanner, err)
+	}
+	// The prompt says it too.
+	var r PromptRenderOut
+	h.do("prompt_render", m{"workspace_id": h.ws.ID, "kind": "planner"}, &r)
+	if !strings.Contains(r.Text, "answers and clears nothing itself") {
+		t.Errorf("the planner prompt shows the workspace policy:\n%s", r.Text)
+	}
+	h.do("prompt_render", m{"workspace_id": other.ID, "kind": "planner"}, &r)
+	if !strings.Contains(r.Text, "may answer decisions; brings approvals to the user") {
+		t.Errorf("the other workspace's prompt shows the global policy:\n%s", r.Text)
+	}
+	// Inherit removes the override; only the user sets any of it; bad values are refused.
+	p = PlannerPolicyOut{}
+	h.do("planner_policy_set", m{"policy": "inherit", "workspace_id": h.ws.ID}, &p)
+	if p.Policy != "decisions_only" || p.Source != "global" || p.Override != "" {
+		t.Fatalf("inherit = %+v", p)
+	}
+	if err := h.as(h.plannerActor(), "planner_policy_set", m{"policy": "allow_all", "workspace_id": h.ws.ID}, nil); err == nil || !strings.Contains(err.Error(), "only the user") {
+		t.Errorf("the planner widening its own permissions: %v", err)
+	}
+	h.fails("planner_policy_set", m{"policy": "inherit"}, "must be one of")
+	h.fails("planner_policy_set", m{"policy": "yolo", "workspace_id": h.ws.ID}, "must be one of")
+	h.fails("planner_policy_set", m{"policy": "allow_all", "workspace_id": "nope"}, "does not exist")
 }

@@ -120,6 +120,8 @@ go run ./cmd/toolsdoc        # regenerate docs/mcp-tools.md after adding an acti
 `make release V=v0.1.0` tests, builds, signs, tags and publishes a zip plus `SHA256SUMS` to
 `GabiHert/hadron` on GitHub (`release.conf`, publishing as the `GabiHert` gh account). See the release-updater skill.
 
+Every user-visible change adds a line under `[Unreleased]` in `CHANGELOG.md`; the release refuses without one, moves it under the new version and publishes it as the release notes. The app shows it in **What's new** (after an update, in the Help menu and in Settings, Updates).
+
 ## Credits
 
 See `NOTICE.md`.

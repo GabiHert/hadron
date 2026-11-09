@@ -22,7 +22,9 @@ func modelFlag(argv []string) string {
 
 func waitArgv(t *testing.T, h *sessionHarness) []string {
 	t.Helper()
-	waitUntil(t, "argv", func() bool { return strings.Contains(h.file(".argv"), "--mcp-config") && strings.HasSuffix(h.file(".argv"), "\x00") })
+	waitUntil(t, "argv", func() bool {
+		return strings.Contains(h.file(".argv"), "--mcp-config") && strings.HasSuffix(h.file(".argv"), "\x00")
+	})
 	return argvOf(h)
 }
 

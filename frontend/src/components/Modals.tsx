@@ -212,7 +212,8 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
   );
 }
 
-type SettingsTab = { id: string; label: string; render: (board: Board) => ReactNode };
+type SettingsCtx = { onWhatsNew?: () => void };
+type SettingsTab = { id: string; label: string; render: (board: Board, ctx: SettingsCtx) => ReactNode };
 
 /** Add a tab by adding an entry. */
 export const SETTINGS_TABS: SettingsTab[] = [
@@ -227,10 +228,10 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "feedback", label: "Feedback", render: (b) => <FeedbackTab toast={b.actions.toast} /> },
   { id: "history", label: "History", render: (b) => <HistoryTab board={b} /> },
   { id: "mcp", label: "MCP server", render: () => <McpPanel /> },
-  { id: "updates", label: "Updates", render: () => <UpdatesCard /> },
+  { id: "updates", label: "Updates", render: (_b, ctx) => <UpdatesCard onWhatsNew={ctx.onWhatsNew} /> },
 ];
 
-export function Settings({ board, onClose, tabs = SETTINGS_TABS, initialTab = "columns", onTab }: { board: Board; onClose: () => void; tabs?: SettingsTab[]; initialTab?: string; onTab?: (id: string) => void }) {
+export function Settings({ board, onClose, tabs = SETTINGS_TABS, initialTab = "columns", onTab, onWhatsNew }: { board: Board; onClose: () => void; tabs?: SettingsTab[]; initialTab?: string; onTab?: (id: string) => void; onWhatsNew?: () => void }) {
   const [tab, setTab] = useState(initialTab);
   useEffect(() => onTab?.(tab), [tab, onTab]);
   const cur = tabs.find((t) => t.id === tab) ?? tabs[0];
@@ -242,7 +243,7 @@ export function Settings({ board, onClose, tabs = SETTINGS_TABS, initialTab = "c
           <nav className="snav" aria-label="Settings sections">
             {tabs.map((t) => <button key={t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}
           </nav>
-          <div className="sbody">{cur.render(board)}</div>
+          <div className="sbody">{cur.render(board, { onWhatsNew })}</div>
         </div>
       </div>
     </Scrim>
@@ -323,7 +324,7 @@ function ColumnsTab({ board }: { board: Board }) {
 interface PaletteProps {
   board: Board;
   onClose: () => void;
-  openModal: (m: "newws" | "newsession" | "settings" | "feedback") => void;
+  openModal: (m: "newws" | "newsession" | "settings" | "feedback" | "whatsnew") => void;
   setPlannerView: (v: "chat" | "terminal") => void;
 }
 
@@ -340,6 +341,7 @@ export function Palette({ board, onClose, openModal, setPlannerView }: PalettePr
     { label: "New session", hint: "⌘N", run: () => openModal("newsession") },
     { label: "New workspace", hint: "", run: () => openModal("newws") },
     { label: "Send feedback", hint: "", run: () => openModal("feedback") },
+    { label: "What's new", hint: "", run: () => openModal("whatsnew") },
     { label: "Settings: columns", hint: "", run: () => openModal("settings") },
     { label: "Switch light or dark", hint: "", run: () => void actions.setTheme(isDark(board.theme) ? "light" : "dark") },
     { label: "Planner: chat", hint: "", run: () => setPlannerView("chat") },

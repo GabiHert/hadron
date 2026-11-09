@@ -251,6 +251,32 @@ export const launch_profile_update = (a: {
 }) => call<LaunchProfile>("launch_profile_update", a);
 export const launch_profile_delete = (a: { profile_id: string }) => call<LaunchProfile>("launch_profile_delete", a);
 
+// ---- changelog ----
+export interface ChangelogSection {
+  title: string;
+  items: string[];
+}
+export interface ChangelogRelease {
+  /** 0.2.0, or Unreleased */
+  version: string;
+  date: string;
+  sections: ChangelogSection[];
+  /** The section as markdown. */
+  body: string;
+}
+export interface ChangelogInfo {
+  running: string;
+  found: boolean;
+  release: ChangelogRelease;
+  highlights: string[];
+  releases: { version: string; date: string; summary: string }[];
+  /** The version whose notes the user already saw. */
+  seen: string;
+  /** True when What's new should open now: a new release nobody has seen, never a dev build. */
+  show: boolean;
+}
+export const changelog_get = (a: { version?: string } = {}) => call<ChangelogInfo>("changelog_get", a);
+
 // ---- models ----
 export interface ModelOption {
   id: string;
@@ -400,8 +426,20 @@ export const gate_set = (a: { card?: string; kind: GateKind; summary: string }) 
 export const gate_list = (a: { workspace_id?: string; card?: string } = {}) => call<Gate[]>("gate_list", a);
 export const gate_withdraw = (a: { gate_id?: string; card?: string; kind?: GateKind; reason?: string }) => call<Gate>("gate_withdraw", a);
 export const gate_clear = (a: { gate_id?: string; card?: string; kind?: GateKind }) => call<Gate>("gate_clear", a);
-export const planner_policy_get = () => call<{ policy: PlannerPolicy; options: PlannerPolicy[] }>("planner_policy_get", {});
-export const planner_policy_set = (a: { policy: PlannerPolicy }) => call<{ policy: PlannerPolicy; options: PlannerPolicy[] }>("planner_policy_set", a);
+export interface PlannerPolicyInfo {
+  /** The policy in force. */
+  policy: PlannerPolicy;
+  /** workspace, global or default */
+  source: "workspace" | "global" | "default";
+  global: PlannerPolicy;
+  workspace_id?: string;
+  /** The workspace's own policy, when it has one. */
+  override?: PlannerPolicy;
+  options: PlannerPolicy[];
+}
+export const planner_policy_get = (a: { workspace_id?: string } = {}) => call<PlannerPolicyInfo>("planner_policy_get", a);
+/** Without workspace_id it sets the global policy; with it, that workspace's own ("inherit" removes it). */
+export const planner_policy_set = (a: { policy: PlannerPolicy | "inherit"; workspace_id?: string }) => call<PlannerPolicyInfo>("planner_policy_set", a);
 
 // ---- MCP server ----
 export interface McpInfo {

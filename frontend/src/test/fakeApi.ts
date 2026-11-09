@@ -121,6 +121,8 @@ export const state: {
   /** what filter_eval answers; null means "every card matching the vals and q" */
   filterError: string;
   update: ReturnType<typeof idleUpdate>;
+  /** what changelog_get answers as `show` */
+  changelogShow: boolean;
   profiles: LaunchProfile[];
   /** session_status by card id; planner_get reads "planner". A card with no entry has never run. */
   sessions: Record<string, SessionStatus>;
@@ -135,7 +137,7 @@ export const state: {
   links: Link[];
   remoteSessions: RemoteSession[];
   models: ModelOption[];
-} = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), profiles: defaultProfiles(), sessions: {},
+} = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), sessions: {},
   mcp: { running: true, url: "http://127.0.0.1:47820/mcp", port: 47820, token: "tok-0123456789abcdef", tool_count: 61, connect_command: "" },
   mcpCalls: [],
   messages: [],
@@ -149,6 +151,7 @@ export const state: {
 };
 export const reset = (fx: Fixture = defaultFixture()) => {
   state.update = idleUpdate();
+  state.changelogShow = false;
   state.dash = defaultDash();
   state.schema = defaultSchema();
   state.views = [];
@@ -467,6 +470,27 @@ const fns = {
   feedback_list: vi.fn(async (_a: { status?: string } = {}): Promise<Feedback[]> => []),
   feedback_create: vi.fn(async (a: { kind: string; text: string; area?: string; attach_diagnostics?: boolean }) => ({ id: "f1", created_at: ts, kind: a.kind, text: a.text, area: a.area ?? "", version: "v0.0.1-test", diagnostics: null, status: "new", note: "", github_url: "", issue_url: "" }) as Feedback),
   feedback_update: vi.fn(async (a: { id: string }) => ({ id: a.id }) as Feedback),
+  changelog_get: vi.fn(async (a: { version?: string } = {}) => {
+    const releases = [
+      { version: "0.1.1", date: "2026-10-20", summary: "Fixes to the board." },
+      { version: "0.1.0", date: "2026-10-01", summary: "First release." },
+    ];
+    const cur = {
+      version: "0.2.0", date: "2026-11-08",
+      sections: [
+        { title: "Added", items: ["A board for your sessions", "Run `hadron --help` to see commands", "Dark mode"] },
+        { title: "Changed", items: ["Faster startup"] },
+      ],
+      body: "",
+    };
+    const older = a.version && a.version !== "0.2.0" ? releases.find((r) => r.version === a.version) : undefined;
+    const release = older ? { version: older.version, date: older.date, sections: [{ title: "Fixed", items: [older.summary] }], body: "" } : cur;
+    return {
+      running: "0.2.0", found: true, release,
+      highlights: ["A board for your sessions", "Run `hadron --help` to see commands", "Dark mode"],
+      releases, seen: "", show: state.changelogShow,
+    };
+  }),
   client_log: vi.fn(async () => ({})),
   onChanged: vi.fn(() => () => {}),
   onEvent: vi.fn(() => () => {}),

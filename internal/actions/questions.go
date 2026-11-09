@@ -148,13 +148,26 @@ type GateListIn struct {
 
 // PlannerPolicyOut is the result of the planner policy actions.
 type PlannerPolicyOut struct {
-	Policy  string   `json:"policy"`
-	Options []string `json:"options"`
+	// Policy is the one in force, and Source says whether it is the workspace's own, the global one
+	// or the built-in default.
+	Policy string `json:"policy"`
+	Source string `json:"source"`
+	// Global is the global policy; Override is the workspace's own, when it has one.
+	Global      string   `json:"global"`
+	WorkspaceID string   `json:"workspace_id,omitempty"`
+	Override    string   `json:"override,omitempty"`
+	Options     []string `json:"options"`
+}
+
+// PlannerPolicyGetIn is the input of planner_policy_get.
+type PlannerPolicyGetIn struct {
+	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"the workspace; omit for the global policy"`
 }
 
 // PlannerPolicySetIn is the input of planner_policy_set.
 type PlannerPolicySetIn struct {
-	Policy string `json:"policy" jsonschema:"allow_all, decisions_only, ask_for_prd or user_only"`
+	Policy      string `json:"policy" jsonschema:"allow_all, decisions_only, ask_for_prd or user_only; with workspace_id also inherit, which removes the workspace's own policy"`
+	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"set this workspace's own policy instead of the global one"`
 }
 
 var gateKinds = []string{"merge", "promote", "deploy-confirm", "close"}
@@ -441,7 +454,7 @@ func registerQuestions(r *Registry) {
 				if err := sameWorkspace(c, g.WorkspaceID); err != nil {
 					return g, err
 				}
-				if p := plannerPolicy(c.Store); p != PolicyAllowAll {
+				if p := plannerPolicy(c.Store, g.WorkspaceID); p != PolicyAllowAll {
 					return g, fmt.Errorf("the planner policy is %s, so only the user clears a %s gate. Bring it to the user in the card's chat", p, g.Kind)
 				}
 			default:
@@ -457,37 +470,78 @@ func registerQuestions(r *Registry) {
 			return g, reconcile(c, card)
 		})
 
-	Register(r, Spec{Name: "planner_policy_get", Description: "Report the planner policy: allow_all (the planner may answer everything), decisions_only (it may answer decisions and unblocks, not approvals), ask_for_prd (it may answer approvals that target DEV, not PRD) or user_only (it answers and clears nothing itself, and only relays what the user said in chat)."},
-		func(ctx context.Context, c *Call, in struct{}) (PlannerPolicyOut, error) {
-			return PlannerPolicyOut{Policy: plannerPolicy(c.Store), Options: PlannerPolicies}, nil
+	Register(r, Spec{Name: "planner_policy_get", Description: "Report the planner policy in force: allow_all (the planner may answer everything), decisions_only (it may answer decisions and unblocks, not approvals), ask_for_prd (it may answer approvals that target DEV, not PRD) or user_only (it answers and clears nothing itself, and only relays what the user said in chat). Each workspace may have its own; without one it follows the global policy. Pass workspace_id to see that workspace's (a planner or session sees its own workspace's)."},
+		func(ctx context.Context, c *Call, in PlannerPolicyGetIn) (PlannerPolicyOut, error) {
+			id := in.WorkspaceID
+			if id == "" {
+				id = c.Actor.WorkspaceID
+			}
+			return policyOut(c, id)
 		})
 
-	Register(r, Spec{Name: "planner_policy_set", Description: "Set the planner policy. Only the user can: the planner cannot widen its own permissions.",
+	Register(r, Spec{Name: "planner_policy_set", Description: "Set the planner policy. Without workspace_id it sets the global policy that every workspace follows unless it has its own; with workspace_id it sets that workspace's own, and policy inherit removes it again. Only the user can: the planner cannot widen its own permissions.",
 		Mutates: true, Entities: []string{"settings"}},
 		func(ctx context.Context, c *Call, in PlannerPolicySetIn) (PlannerPolicyOut, error) {
 			if c.Actor.Kind != KindYou {
 				return PlannerPolicyOut{}, errors.New("only the user sets the planner policy")
 			}
-			if !contains(PlannerPolicies, in.Policy) {
-				return PlannerPolicyOut{}, fmt.Errorf("policy %q must be one of %s", in.Policy, strings.Join(PlannerPolicies, ", "))
+			if in.WorkspaceID == "" {
+				if !contains(PlannerPolicies, in.Policy) {
+					return PlannerPolicyOut{}, fmt.Errorf("policy %q must be one of %s", in.Policy, strings.Join(PlannerPolicies, ", "))
+				}
+				before, _ := sessions.PlannerPolicy(c.Store, "")
+				if err := c.Store.Settings.Set(sessions.SettingPlannerPolicy, json.RawMessage(toJSON(in.Policy))); err != nil {
+					return PlannerPolicyOut{}, err
+				}
+				c.RecordChange("", map[string]any{"name": "planner policy", "policy": before}, map[string]any{"name": "planner policy", "policy": in.Policy})
+				return policyOut(c, "")
 			}
-			if err := c.Store.Settings.Set(sessions.SettingPlannerPolicy, json.RawMessage(toJSON(in.Policy))); err != nil {
+			w, err := c.Workspace(in.WorkspaceID)
+			if err != nil {
 				return PlannerPolicyOut{}, err
 			}
-			return PlannerPolicyOut{Policy: in.Policy, Options: PlannerPolicies}, nil
+			if in.Policy != PolicyInherit && !contains(PlannerPolicies, in.Policy) {
+				return PlannerPolicyOut{}, fmt.Errorf("policy %q must be one of %s, or %s to follow the global policy", in.Policy, strings.Join(PlannerPolicies, ", "), PolicyInherit)
+			}
+			before, _ := sessions.PlannerPolicy(c.Store, w.ID)
+			stored := in.Policy
+			if stored == PolicyInherit {
+				stored = ""
+			}
+			if err := c.Store.Settings.Set(sessions.SettingWorkspacePolicyPrefix+w.ID, json.RawMessage(toJSON(stored))); err != nil {
+				return PlannerPolicyOut{}, err
+			}
+			after, _ := sessions.PlannerPolicy(c.Store, w.ID)
+			c.RecordChange(w.ID, map[string]any{"name": "planner policy", "policy": before}, map[string]any{"name": "planner policy", "policy": after})
+			return policyOut(c, w.ID)
 		})
 }
 
-// plannerPolicy reads planner.policy; allow_all is the default.
-func plannerPolicy(st *store.Store) string {
-	raw, err := st.Settings.Get(sessions.SettingPlannerPolicy)
-	if err != nil {
-		return PolicyAllowAll
+// PolicyInherit, passed to planner_policy_set with a workspace, removes the workspace's own policy.
+const PolicyInherit = "inherit"
+
+// policyOut describes the policy in force for a workspace ("" means the global one).
+func policyOut(c *Call, workspaceID string) (PlannerPolicyOut, error) {
+	out := PlannerPolicyOut{Options: PlannerPolicies}
+	out.Policy, out.Source = sessions.PlannerPolicy(c.Store, workspaceID)
+	out.Global, _ = sessions.PlannerPolicy(c.Store, "")
+	if workspaceID != "" {
+		w, err := c.Store.Workspaces.Get(workspaceID)
+		if err != nil {
+			return out, fmt.Errorf("workspace %q does not exist. Call workspace_list for the ids", workspaceID)
+		}
+		out.WorkspaceID = w.ID
+		if out.Source == sessions.PolicyFromWorkspace {
+			out.Override = out.Policy
+		}
 	}
-	var p string
-	if json.Unmarshal(raw, &p) != nil || !contains(PlannerPolicies, p) {
-		return PolicyAllowAll
-	}
+	return out, nil
+}
+
+// plannerPolicy is the policy in force for a workspace: its own, else the global one, else
+// allow_all.
+func plannerPolicy(st *store.Store, workspaceID string) string {
+	p, _ := sessions.PlannerPolicy(st, workspaceID)
 	return p
 }
 
@@ -542,7 +596,7 @@ func mayAnswer(c *Call, q domain.Question) error {
 	if err := sameWorkspace(c, q.WorkspaceID); err != nil {
 		return err
 	}
-	policy := plannerPolicy(c.Store)
+	policy := plannerPolicy(c.Store, q.WorkspaceID)
 	if policy == PolicyUserOnly {
 		return errors.New("the planner policy is user_only, so the planner answers nothing itself. Bring the question to the user in the card's chat, then relay their answer with on_behalf_of and source_message_id")
 	}

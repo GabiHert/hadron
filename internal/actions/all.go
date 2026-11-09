@@ -27,4 +27,5 @@ func RegisterAll(r *Registry) {
 	registerDiagnostics(r)
 	registerFeedback(r)
 	registerModels(r)
+	registerChangelog(r)
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/GabiHert/hadron/internal/store"
 	"github.com/google/uuid"
 	wailsv2 "github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
@@ -55,12 +56,28 @@ func Run(assets embed.FS) error {
 			TitleBar: mac.TitleBarHiddenInset(),
 			About:    &mac.AboutInfo{Title: "Hadron", Message: "Version " + run.Version},
 		},
+		Menu:               buildMenu(a),
 		SingleInstanceLock: &options.SingleInstanceLock{UniqueId: instanceID()},
 		AssetServer:        &assetserver.Options{Assets: assets},
 		OnStartup:          func(ctx context.Context) { a.startup(ctx) },
 		OnShutdown:         func(ctx context.Context) { a.shutdown() },
 		Bind:               []interface{}{a},
 	})
+}
+
+// EventWhatsNew asks the frontend to open the "What's new" window.
+const EventWhatsNew = "menu:whatsnew"
+
+// buildMenu is the standard Mac menu (the app menu, Edit and Window) plus Help, whose "What's New in
+// Hadron" opens the changelog window.
+func buildMenu(a *App) *menu.Menu {
+	m := menu.NewMenu()
+	m.Append(menu.AppMenu())
+	m.Append(menu.EditMenu())
+	m.Append(menu.WindowMenu())
+	help := m.AddSubmenu("Help")
+	help.AddText("What's New in Hadron", nil, func(*menu.CallbackData) { a.emit(EventWhatsNew, nil) })
+	return m
 }
 
 // instanceID is the single-instance lock. A separate HADRON_HOME is a separate Hadron, so it gets

@@ -287,6 +287,17 @@
     ]
   },
   {
+    "name": "changelog_get",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "version",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "chat_list",
     "mutates": false,
     "fields": [
@@ -1683,7 +1694,13 @@
   {
     "name": "planner_policy_get",
     "mutates": false,
-    "fields": null
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
   },
   {
     "name": "planner_policy_set",
@@ -1692,6 +1709,11 @@
       {
         "name": "policy",
         "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
         "type": "string"
       }
     ]

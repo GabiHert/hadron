@@ -113,13 +113,7 @@ func RenderTemplate(st *store.Store, ws domain.Workspace, card *domain.Card, tpl
 			ruleNames = append(ruleNames, r.Name)
 		}
 	}
-	policy := "allow_all"
-	if raw, err := st.Settings.Get(SettingPlannerPolicy); err == nil {
-		var v string
-		if jsonString(raw, &v) && v != "" {
-			policy = v
-		}
-	}
+	policy, _ := PlannerPolicy(st, ws.ID)
 	vars := map[string]string{
 		"workspace.name": ws.Name,
 		"workspace.root": ws.Root,

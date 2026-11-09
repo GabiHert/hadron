@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/GabiHert/hadron/internal/actions"
+	"github.com/GabiHert/hadron/internal/changelog"
 	"github.com/GabiHert/hadron/internal/chat"
 	"github.com/GabiHert/hadron/internal/dlog"
 	"github.com/GabiHert/hadron/internal/fields"
@@ -96,7 +97,7 @@ func New(st *store.Store) *App {
 	a.integ.Notify = func(workspaceID, title, body string) {
 		a.emit(actions.EventNotify, actions.NotifyEvent{WorkspaceID: workspaceID, Title: title, Body: body})
 	}
-	a.reg = actions.NewRegistry(actions.Deps{Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log})
+	a.reg = actions.NewRegistry(actions.Deps{Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
 	a.integ.FieldChanged = a.reg.FieldChanged
 	if err := a.integ.Sync(); err != nil {
 		log.Printf("integrations: %v", err)

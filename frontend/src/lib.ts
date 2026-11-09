@@ -33,3 +33,14 @@ export const short = (text: string, n: number) => {
   const t = text.replace(/\s+/g, " ").trim();
   return t.length > n ? t.slice(0, n - 1) + "…" : t;
 };
+
+/** The first n bullets of release notes written as markdown lists, without the bullet. */
+export function releaseHighlights(notes: string, n = 3): string[] {
+  const out: string[] = [];
+  for (const line of notes.split("\n")) {
+    const m = /^\s*[-*]\s+(.*\S)\s*$/.exec(line);
+    if (m) out.push(m[1].replace(/`/g, ""));
+    if (out.length === n) break;
+  }
+  return out;
+}
