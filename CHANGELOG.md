@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.15] - 2026-11-09
+
 ### Added
 - In the card chat and the planner chat, typing `/` at the start opens the session's slash commands: Claude Code's own, the project's and yours in `.claude/commands`, and skills, with descriptions. Arrows, Enter or Tab pick; Esc closes.
 - A chat message that starts with `/` (such as `/compact`) goes straight to that session's terminal, not to the planner, and shows in the chat as a "you → terminal" line. If the session is not running, the chat says so and offers Start. Start with `//` to send a literal slash message to the planner.
