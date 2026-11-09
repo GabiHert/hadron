@@ -421,7 +421,7 @@ func TestOtherTriggersAndActions(t *testing.T) {
 	h.chat.Wait()
 
 	typed := strings.Join(h.planner.typed(), "\n")
-	if !strings.Contains(typed, `[gamma] rule "Done report tells the planner": gamma says done, jira is In progress`) {
+	if !strings.Contains(typed, `[rule · Done report tells the planner] [gamma] gamma says done, jira is In progress`) {
 		t.Fatalf("tell_planner line missing:\n%s", typed)
 	}
 	if strings.Count(typed, "says done") != 1 {
@@ -499,5 +499,53 @@ func TestIdleAndCronTimers(t *testing.T) {
 	}
 	if h.card(h.b).Assignee != "Ana" || h.card(h.a).Assignee != "You" {
 		t.Fatalf("cron + condition: %q %q", h.card(h.a).Assignee, h.card(h.b).Assignee)
+	}
+}
+
+func TestNoReportForFiresOncePerQuietSpellWithVariables(t *testing.T) {
+	h := newRulesHarness(t)
+	h.do("rule_create", m{"name": "Quiet session", "trigger": m{"on": "no_report_for", "minutes": 20},
+		"actions": []m{{"type": "tell_planner", "text": "{{card.nick}} has been quiet for {{quiet.minutes}} min; last report ({{report.last_kind}}, {{report.last_ago}}): {{report.last}}"}}}, nil)
+	h.fails("rule_create", m{"name": "x", "trigger": m{"on": "no_report_for"}, "actions": []m{{"type": "notify", "text": "hi"}}}, "minutes")
+
+	ctx := t.Context()
+	base := time.Now().UTC()
+	// alpha's session started now and never reported; beta has no running session.
+	if err := h.reg.deps.Store.Sessions.Create(&domain.Session{WorkspaceID: h.ws.ID, CardID: h.a.ID, Kind: "card", Command: "claude", Cwd: "/", Status: "running", StartedAt: base}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.reg.TickRules(ctx, base.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	h.chat.Wait()
+	if len(h.planner.typed()) != 0 {
+		t.Fatalf("not quiet long enough: %q", h.planner.typed())
+	}
+	if err := h.reg.TickRules(ctx, base.Add(21*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	h.chat.Wait()
+	got := h.planner.typed()
+	want := "[rule · Quiet session] [ACME-1 alpha] alpha has been quiet for 21 min; last report (none, never): no report yet"
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("typed = %q\nwant %q", got, want)
+	}
+	// Once per quiet spell.
+	if err := h.reg.TickRules(ctx, base.Add(30*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	h.chat.Wait()
+	if len(h.planner.typed()) != 1 {
+		t.Fatalf("fired again in the same spell: %q", h.planner.typed())
+	}
+	// A report starts a new spell, and the next quiet one tells what the last report said.
+	h.as(Actor{Kind: KindSession, Name: "alpha", WorkspaceID: h.ws.ID, CardID: h.a.ID}, "card_report", m{"kind": "progress", "text": "migrating the invoices"}, nil)
+	if err := h.reg.TickRules(ctx, time.Now().UTC().Add(25*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	h.chat.Wait()
+	got = h.planner.typed()
+	if len(got) < 2 || !strings.Contains(got[len(got)-1], "last report (progress, 25 minutes ago): migrating the invoices") {
+		t.Fatalf("typed = %q", got)
 	}
 }

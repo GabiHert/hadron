@@ -37,6 +37,12 @@ func (r *Messages) Get(id string) (domain.Message, error) {
 	return m, mapErr(err)
 }
 
+// LastReport returns the newest report message of a channel, or ErrNotFound.
+func (r *Messages) LastReport(workspaceID, channel string) (domain.Message, error) {
+	m, err := scanMessage(r.s.q.QueryRow(`SELECT `+msgCols+` FROM messages WHERE workspace_id = ? AND channel = ? AND kind = 'report' ORDER BY created_at DESC, rowid DESC LIMIT 1`, workspaceID, channel))
+	return m, mapErr(err)
+}
+
 // List returns a channel's messages, oldest first. since (RFC 3339, may be empty) skips older ones.
 func (r *Messages) List(workspaceID, channel, since string) ([]domain.Message, error) {
 	rows, err := r.s.q.Query(`SELECT `+msgCols+` FROM messages WHERE workspace_id = ? AND channel = ? AND created_at > ? ORDER BY created_at, rowid`, workspaceID, channel, since)

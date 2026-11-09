@@ -8,6 +8,7 @@ export const TRIGGERS: { on: TriggerOn; label: string }[] = [
   { on: "question_opened", label: "a question opens" },
   { on: "question_answered", label: "the last question is answered" },
   { on: "idle_for", label: "a session stays idle" },
+  { on: "no_report_for", label: "a session stops reporting" },
   { on: "cron", label: "the clock says" },
 ];
 
@@ -27,7 +28,7 @@ export interface RuleDraft {
   field: string; // field_changed
   column: string; // column_entered: a column id
   kind: string; // report
-  minutes: string; // idle_for
+  minutes: string; // idle_for, no_report_for
   spec: string; // cron
   ifField: string; // "" means no condition
   ifOp: "is" | "not";
@@ -81,7 +82,7 @@ export function buildRule(d: RuleDraft, columns: Column[]): RulePayload {
   if (d.on === "field_changed") trigger.field = d.field;
   if (d.on === "column_entered") trigger.column = d.column;
   if (d.on === "report" && d.kind) trigger.kind = d.kind;
-  if (d.on === "idle_for") trigger.minutes = Math.max(1, parseInt(d.minutes || "0", 10) || 1);
+  if (d.on === "idle_for" || d.on === "no_report_for") trigger.minutes = Math.max(1, parseInt(d.minutes || "0", 10) || 1);
   if (d.on === "cron") trigger.spec = d.spec.trim();
 
   let action: RuleAction;
@@ -128,6 +129,8 @@ function triggerCel(t: RuleTrigger, columns: Column[]): string {
       return `report(${t.kind || "any"})`;
     case "idle_for":
       return `idle_for(${t.minutes} min)`;
+    case "no_report_for":
+      return `no_report_for(${t.minutes} min)`;
     case "cron":
       return `cron(${q(t.spec ?? "")})`;
   }

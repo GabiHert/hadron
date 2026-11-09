@@ -72,7 +72,7 @@ export function ChatLine({ m, onPin, pinnedIds, scripts = false }: { m: Message;
   );
 }
 
-const nonEmpty = (s: string) => s.trim().length > 0;
+const nonEmpty = (s?: string) => !!s && s.trim().length > 0;
 
 interface QCProps {
   q: Question;
@@ -99,7 +99,8 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
           <span className="hint">Withdrawn.</span>
         ) : a ? (
           <span className="hint">
-            Answered{a.via && a.via !== "you" ? ` by the ${a.via}` : ""}: <b style={{ fontWeight: 500 }}>{a.selections.length ? a.selections.join(", ") : "see notes"}</b>
+            Answered{a.via && a.via !== "you" && a.via !== "planner-relay" ? ` by the ${a.via}` : ""}: <b style={{ fontWeight: 500 }}>{a.selections.length ? a.selections.join(", ") : "see notes"}</b>
+            {a.via === "planner-relay" ? <> · relayed by the planner from your chat message</> : null}
             {nonEmpty(a.notes) ? <> · notes: {a.notes}</> : null}
           </span>
         ) : null}
@@ -123,19 +124,28 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
     }
   };
   const ap = q.approval;
+  const rev = ap ? (ap.reversible === true || ap.reversible === "yes" ? "yes" : ap.reversible === "partial" ? "partial" : "no") : "no";
   return (
     <div className={"qbox" + (q.kind === "approval" ? " appr" : "")} role="group" aria-label={`Question ${label}`}>
       <span className="cap">{label} · {q.kind}</span>
       <span className="qtext">{q.text}</span>
       {q.context ? <span className="hint">{q.context}</span> : null}
+      {nonEmpty(q.meanwhile) ? <span className="hint" aria-label="Meanwhile">While you decide: {q.meanwhile}</span> : null}
       {ap ? (
         <>
           <dl className="kv">
             <dt>Target</dt><dd>{ap.target}</dd>
             <dt>Runs as</dt><dd>{ap.runs_as || "not stated"}</dd>
-            <dt>Reversible</dt><dd>{ap.reversible ? "Yes" : "No"}</dd>
+            <dt>Reversible</dt>
+            <dd style={rev === "yes" ? undefined : { color: "var(--warn)" }}>{rev === "yes" ? "Yes" : rev === "no" ? "No" : "Partly"}</dd>
           </dl>
-          <div className="code" aria-label="Command">{ap.command}</div>
+          {nonEmpty(ap.reversible_note) ? <span className="hint" aria-label="Reversible note">{ap.reversible_note}</span> : null}
+          <div style={{ position: "relative" }}>
+            {nonEmpty(ap.command_lang) ? (
+              <span aria-label="Command language" className="mono" style={{ position: "absolute", top: 4, right: 8, fontSize: 10, textTransform: "uppercase", color: "var(--fg3)" }}>{ap.command_lang}</span>
+            ) : null}
+            <div className="code" aria-label="Command" style={{ whiteSpace: "pre-wrap" }}>{ap.command}</div>
+          </div>
         </>
       ) : null}
       {q.options.map((o, i) => (

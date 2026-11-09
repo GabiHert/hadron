@@ -16,6 +16,7 @@ var policyText = map[string]string{
 	"allow_all":      "may answer every question and approval itself, then tells the user what it decided",
 	"decisions_only": "may answer decisions; brings approvals to the user",
 	"ask_for_prd":    "may answer decisions and approvals that target DEV; asks the user for anything that targets PRD",
+	"user_only":      "answers and clears nothing itself; asks the user, then relays their answer with question_answer on_behalf_of",
 }
 
 // RenderPrompt builds the prompt of a planner or session (or the text of a handoff) for a

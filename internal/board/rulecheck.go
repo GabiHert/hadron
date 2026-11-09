@@ -84,6 +84,10 @@ func CheckRule(tx *store.Store, reg *fields.Registry, ws domain.Workspace, t Tri
 		if t.Minutes < 1 {
 			bad("trigger.minutes must be 1 or more for idle_for")
 		}
+	case OnNoReportFor:
+		if t.Minutes < 1 {
+			bad("trigger.minutes must be 1 or more for no_report_for")
+		}
 	case OnCron:
 		if _, err := ParseCron(t.Spec); err != nil {
 			bad("%v", err)

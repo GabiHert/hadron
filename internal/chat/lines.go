@@ -47,7 +47,7 @@ var ErrEmpty = errors.New("the message is empty. Pass the text to send")
 // It trims the ends, so a message never starts or ends blank. A line the planner reads starts with
 // its tag, so a leading /, ! or # cannot become a command.
 func Sanitize(text string) (string, error) {
-	text = strings.ReplaceAll(text, "\r\n", "\n")
+	text = Clean(strings.ReplaceAll(text, "\r\n", "\n"))
 	var b strings.Builder
 	n := 0
 	for _, r := range text {
@@ -67,13 +67,27 @@ func Sanitize(text string) (string, error) {
 	return out, nil
 }
 
-// Tag is how the planner names a card: [KEY nick], or [nick] when the card has no key.
-func Tag(card domain.Card) string {
+// sep separates a line's subject from what kind of line it is: "[ACME-1 nick · report]". Only
+// Hadron writes it, so Sanitize and Clean take it, and its look-alikes, out of everything a user,
+// a session or a rule typed. A line the planner reads with the separator in its tag is Hadron's.
+const sep = " · "
+
+var lookalikes = strings.NewReplacer("·", "-", "•", "-", "∙", "-", "⋅", "-", "‧", "-", "・", "-", "●", "-")
+
+// Clean removes the notice separator and its look-alikes from a name or a text that goes into a tag.
+func Clean(s string) string { return lookalikes.Replace(s) }
+
+// subject is how the planner names a card inside a notice: "KEY nick", or "nick" without a key.
+func subject(card domain.Card) string {
 	if card.Key != "" {
-		return "[" + card.Key + " " + card.Nick + "]"
+		return Clean(card.Key) + " " + Clean(card.Nick)
 	}
-	return "[" + card.Nick + "]"
+	return Clean(card.Nick)
 }
+
+// Tag is how the planner names a card in a line the user wrote: [KEY nick], or [nick] when the card
+// has no key.
+func Tag(card domain.Card) string { return "[" + subject(card) + "]" }
 
 // CardLine is the user's message on a card's channel, as the planner hears it.
 func CardLine(card domain.Card, text string) string { return Tag(card) + " " + text }
@@ -81,18 +95,37 @@ func CardLine(card domain.Card, text string) string { return Tag(card) + " " + t
 // PlannerLine is the user's message to the planner itself.
 func PlannerLine(text string) string { return "[planner] " + text }
 
-// ReportNotice tells the planner a card reported: the kind and the first MaxNotice characters.
+// ReportNotice tells the planner a card reported: "[KEY nick · report] kind: first 200 characters".
 func ReportNotice(card domain.Card, kind, text string) string {
-	return fmt.Sprintf("%s report %s: %s", Tag(card), kind, oneLine(text, MaxNotice))
+	return fmt.Sprintf("[%s%sreport] %s: %s", subject(card), sep, Clean(kind), oneLine(Clean(text), MaxNotice))
 }
 
-// AnswerNotice tells the planner the user answered a question: its number, the chosen labels and the notes.
+// AnswerNotice tells the planner the user's answer to a question: "[KEY nick · answer] Q-NN:
+// labels; notes: ...".
 func AnswerNotice(card domain.Card, seq int, selections []string, notes string) string {
-	line := fmt.Sprintf("%s answered Q-%02d: %s", Tag(card), seq, strings.Join(selections, ", "))
+	return answerLine(card, seq, selections, notes, "")
+}
+
+// RelayedAnswerNotice is AnswerNotice for an answer the planner relayed for the user.
+func RelayedAnswerNotice(card domain.Card, seq int, selections []string, notes string) string {
+	return answerLine(card, seq, selections, notes, " (relayed)")
+}
+
+func answerLine(card domain.Card, seq int, selections []string, notes, suffix string) string {
+	clean := make([]string, len(selections))
+	for i, l := range selections {
+		clean[i] = Clean(l)
+	}
+	line := fmt.Sprintf("[%s%sanswer%s] Q-%02d: %s", subject(card), sep, suffix, seq, strings.Join(clean, ", "))
 	if notes = strings.TrimSpace(notes); notes != "" {
-		line += "; notes: " + oneLine(notes, MaxText)
+		line += "; notes: " + oneLine(Clean(notes), MaxText)
 	}
 	return line
+}
+
+// RuleNotice is what a rule tells the planner: "[rule · name] [KEY nick] text".
+func RuleNotice(rule string, card domain.Card, text string) string {
+	return fmt.Sprintf("[rule%s%s] %s %s", sep, Clean(rule), Tag(card), Clean(text))
 }
 
 // oneLine keeps the first n characters of text, with newlines folded to spaces so the notice stays

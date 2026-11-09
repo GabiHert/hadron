@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -45,7 +46,7 @@ type CardFieldsOut struct {
 
 // CardFieldSetIn is the input of card_field_set.
 type CardFieldSetIn struct {
-	Card  string `json:"card" jsonschema:"the card: id, nickname or key"`
+	Card  string `json:"card,omitempty" jsonschema:"the card: id, nickname or key; a session may leave it out for its own card"`
 	Path  string `json:"path" jsonschema:"the field: card.assignee, card.stage, card.key, card.nick, card.column, custom.<name> or <integration>.<field>; field_schema_get lists them"`
 	Value any    `json:"value" jsonschema:"the new value: a string, number or true/false matching the field's type; an empty string clears it"`
 }
@@ -139,12 +140,26 @@ func registerFields(r *Registry) {
 			return CardFieldsOut{CardID: card.ID, Fields: fields.Flat(vars)}, nil
 		})
 
-	Register(r, Spec{Name: "card_field_set", Description: "Set one field of a card. Native fields (card.assignee, card.stage, card.key, card.nick, card.column) and custom.* fields are written here; a field of a linked integration is written through the integration. Rules that watch the field run afterwards.",
+	Register(r, Spec{Name: "card_field_set", Description: "Set one field of a card. A card session may set only its own card's card.stage, custom.* fields and linked-item fields. Native fields (card.assignee, card.stage, card.key, card.nick, card.column) and custom.* fields are written here; a field of a linked integration is written through the integration. Rules that watch the field run afterwards.",
 		Mutates: true, Entities: []string{"cards"}},
 		func(ctx context.Context, c *Call, in CardFieldSetIn) (CardFieldSetOut, error) {
+			if c.Actor.Kind == KindSession && in.Card == "" {
+				in.Card = c.Actor.CardID
+			}
+			if in.Card == "" {
+				return CardFieldSetOut{}, errors.New("pass card: the id, nickname or key of the card")
+			}
 			card, err := cardByRef(c, in.Card)
 			if err != nil {
 				return CardFieldSetOut{}, err
+			}
+			if c.Actor.Kind == KindSession {
+				if card.ID != c.Actor.CardID {
+					return CardFieldSetOut{}, fmt.Errorf("%s may set fields only on its own card, not on %q. Ask the planner with card_report", c.Actor, card.Nick)
+				}
+				if strings.HasPrefix(in.Path, "card.") && in.Path != "card.stage" {
+					return CardFieldSetOut{}, fmt.Errorf("a session may set card.stage, custom.* and the fields of its own linked items, not %s. The planner or the user changes that", in.Path)
+				}
 			}
 			return setField(ctx, c, card, in.Path, in.Value)
 		})

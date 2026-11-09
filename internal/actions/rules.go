@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -106,7 +107,7 @@ func registerRules(r *Registry) {
 			return c.Store.Rules.List(w.ID)
 		})
 
-	Register(r, Spec{Name: "rule_create", Description: "Create a rule: when a trigger happens and the optional CEL condition holds, run the actions. Triggers: field_changed{field}, column_entered{column}, card_created, report{kind}, question_opened, question_answered, idle_for{minutes}, cron{spec}. Actions: move{column_id|role|to}, set_field{path,value}, notify{text}, tell_planner{text}, run_action{script,action}. One event lets rules run at most 10 actions per card.",
+	Register(r, Spec{Name: "rule_create", Description: "Create a rule: when a trigger happens and the optional CEL condition holds, run the actions. Triggers: field_changed{field}, column_entered{column}, card_created, report{kind}, question_opened, question_answered, idle_for{minutes}, no_report_for{minutes} (a running session has not reported for that long; tell_planner and notify may use {{quiet.minutes}}, {{report.last}}, {{report.last_kind}} and {{report.last_ago}}), cron{spec}. Actions: move{column_id|role|to}, set_field{path,value}, notify{text}, tell_planner{text}, run_action{script,action}. One event lets rules run at most 10 actions per card.",
 		Mutates: true, Entities: []string{"rules"}},
 		func(ctx context.Context, c *Call, in RuleCreateIn) (domain.Rule, error) {
 			w, err := c.Workspace(in.WorkspaceID)
@@ -446,7 +447,7 @@ func dispatchEffects(deps Deps, st *store.Store, after func(func()), effects []b
 			if err != nil || deps.Chat == nil {
 				continue
 			}
-			line := chat.Tag(card) + " rule \"" + e.Rule + "\": " + e.Text
+			line := chat.RuleNotice(e.Rule, card, e.Text)
 			after(func() {
 				deps.Chat.Enqueue(e.WorkspaceID, line, func(why string) {
 					msg := domain.Message{WorkspaceID: e.WorkspaceID, Channel: chat.CardChannel(e.CardID), Author: "rule", Kind: "event", Text: "Rule \"" + e.Rule + "\" could not tell the planner (" + why + "): " + e.Text, Delivered: true}
@@ -526,6 +527,16 @@ func (r *Registry) TickRules(ctx context.Context, now time.Time) error {
 						r.clock.idleDone[key] = card.UpdatedAt
 					}
 				}
+			case board.OnNoReportFor:
+				cards, err := r.deps.Store.Cards.List(w.ID, store.CardFilter{})
+				if err != nil {
+					return err
+				}
+				for _, card := range cards {
+					if ev, ok := r.quietCard(w.ID, rule.ID, card, t.Minutes, now); ok {
+						events = append(events, ev)
+					}
+				}
 			}
 			for _, ev := range events {
 				if err := r.runTimed(ctx, w.ID, rule.ID, ev); err != nil && firstErr == nil {
@@ -535,6 +546,42 @@ func (r *Registry) TickRules(ctx context.Context, now time.Time) error {
 		}
 	}
 	return firstErr
+}
+
+// quietCard decides whether a card's running session has gone t.Minutes without reporting. The
+// quiet spell starts at the later of the last report and the session's start, and a rule fires
+// once per spell. The caller holds the clock's lock.
+func (r *Registry) quietCard(workspaceID, ruleID string, card domain.Card, minutes int, now time.Time) (board.Event, bool) {
+	sess, err := r.deps.Store.Sessions.Latest(workspaceID, card.ID)
+	if err != nil || sess.Status != "running" {
+		return board.Event{}, false
+	}
+	ref := sess.StartedAt
+	last, lerr := r.deps.Store.Messages.LastReport(workspaceID, chat.CardChannel(card.ID))
+	if lerr == nil && last.CreatedAt.After(ref) {
+		ref = last.CreatedAt
+	}
+	quiet := now.Sub(ref)
+	key := ruleID + "/" + card.ID + "/quiet"
+	if quiet < time.Duration(minutes)*time.Minute || r.clock.idleDone[key].Equal(ref) {
+		return board.Event{}, false
+	}
+	r.clock.idleDone[key] = ref
+	vars := map[string]string{
+		"quiet.minutes":    strconv.Itoa(int(quiet / time.Minute)),
+		"report.last":      "no report yet",
+		"report.last_kind": "none",
+		"report.last_ago":  "never",
+	}
+	if lerr == nil {
+		vars["report.last"] = chat.Clean(strings.Join(strings.Fields(last.Text), " "))
+		if len([]rune(vars["report.last"])) > chat.MaxNotice {
+			vars["report.last"] = string([]rune(vars["report.last"])[:chat.MaxNotice])
+		}
+		vars["report.last_kind"] = last.ReportKind
+		vars["report.last_ago"] = strconv.Itoa(int(now.Sub(last.CreatedAt)/time.Minute)) + " minutes ago"
+	}
+	return board.Event{Trigger: board.OnNoReportFor, CardID: card.ID, Minutes: minutes, Vars: vars}, true
 }
 
 // runTimed runs one timer event in its own transaction, as the rules do for any event.

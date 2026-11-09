@@ -107,6 +107,9 @@ func registerSessions(r *Registry) {
 			if err != nil {
 				return SessionStatus{}, err
 			}
+			if err := mayControl(c, card.WorkspaceID, &card, true, "session_start"); err != nil {
+				return SessionStatus{}, err
+			}
 			return startSession(c, card, in.LaunchProfile, false, false)
 		})
 
@@ -117,6 +120,9 @@ func registerSessions(r *Registry) {
 			if err != nil {
 				return SessionStatus{}, err
 			}
+			if err := mayControl(c, card.WorkspaceID, &card, true, "session_restart"); err != nil {
+				return SessionStatus{}, err
+			}
 			return startSession(c, card, in.LaunchProfile, in.Fresh, true)
 		})
 
@@ -125,6 +131,9 @@ func registerSessions(r *Registry) {
 		func(ctx context.Context, c *Call, in SessionCardIn) (SessionStatus, error) {
 			card, err := cardByRef(c, in.Card)
 			if err != nil {
+				return SessionStatus{}, err
+			}
+			if err := mayControl(c, card.WorkspaceID, &card, true, "session_stop"); err != nil {
 				return SessionStatus{}, err
 			}
 			t, err := target(c, card.WorkspaceID, &card)
@@ -145,6 +154,9 @@ func registerSessions(r *Registry) {
 			if err != nil {
 				return SessionStatus{}, err
 			}
+			if err := mayControl(c, card.WorkspaceID, &card, true, "session_send"); err != nil {
+				return SessionStatus{}, err
+			}
 			return sendTo(c, card.WorkspaceID, &card, in.Text, in.Enter)
 		})
 
@@ -153,6 +165,9 @@ func registerSessions(r *Registry) {
 		func(ctx context.Context, c *Call, in SessionKeysIn) (SessionStatus, error) {
 			card, err := cardByRef(c, in.Card)
 			if err != nil {
+				return SessionStatus{}, err
+			}
+			if err := mayControl(c, card.WorkspaceID, &card, true, "session_keys"); err != nil {
 				return SessionStatus{}, err
 			}
 			return keysTo(c, card.WorkspaceID, &card, in.Keys)
@@ -165,6 +180,9 @@ func registerSessions(r *Registry) {
 			if err != nil {
 				return SessionStatus{}, err
 			}
+			if err := mayControl(c, card.WorkspaceID, &card, true, "session_interrupt"); err != nil {
+				return SessionStatus{}, err
+			}
 			return keysTo(c, card.WorkspaceID, &card, []string{"Ctrl-C"})
 		})
 
@@ -174,6 +192,9 @@ func registerSessions(r *Registry) {
 			if err != nil {
 				return ScreenOut{}, err
 			}
+			if err := mayControl(c, card.WorkspaceID, &card, false, "session_read_screen"); err != nil {
+				return ScreenOut{}, err
+			}
 			return readScreen(c, card.WorkspaceID, &card, in.Lines, in.Scrollback)
 		})
 
@@ -181,6 +202,9 @@ func registerSessions(r *Registry) {
 		func(ctx context.Context, c *Call, in SessionCardIn) (SessionStatus, error) {
 			card, err := cardByRef(c, in.Card)
 			if err != nil {
+				return SessionStatus{}, err
+			}
+			if err := mayControl(c, card.WorkspaceID, &card, false, "session_status"); err != nil {
 				return SessionStatus{}, err
 			}
 			t, err := target(c, card.WorkspaceID, &card)
@@ -194,6 +218,9 @@ func registerSessions(r *Registry) {
 		func(ctx context.Context, c *Call, in PlannerIn) (SessionStatus, error) {
 			w, err := c.Workspace(in.WorkspaceID)
 			if err != nil {
+				return SessionStatus{}, err
+			}
+			if err := mayControl(c, w.ID, nil, false, "planner_get"); err != nil {
 				return SessionStatus{}, err
 			}
 			t, err := target(c, w.ID, nil)
@@ -210,6 +237,9 @@ func registerSessions(r *Registry) {
 			if err != nil {
 				return SessionStatus{}, err
 			}
+			if err := mayControl(c, w.ID, nil, true, "planner_start"); err != nil {
+				return SessionStatus{}, err
+			}
 			return startPlanner(c, w, false, false)
 		})
 
@@ -218,6 +248,9 @@ func registerSessions(r *Registry) {
 		func(ctx context.Context, c *Call, in PlannerRestartIn) (SessionStatus, error) {
 			w, err := c.Workspace(in.WorkspaceID)
 			if err != nil {
+				return SessionStatus{}, err
+			}
+			if err := mayControl(c, w.ID, nil, true, "planner_restart"); err != nil {
 				return SessionStatus{}, err
 			}
 			return startPlanner(c, w, in.Fresh, true)
@@ -230,6 +263,9 @@ func registerSessions(r *Registry) {
 			if err != nil {
 				return SessionStatus{}, err
 			}
+			if err := mayControl(c, w.ID, nil, true, "planner_send"); err != nil {
+				return SessionStatus{}, err
+			}
 			return sendTo(c, w.ID, nil, in.Text, in.Enter)
 		})
 
@@ -239,8 +275,50 @@ func registerSessions(r *Registry) {
 			if err != nil {
 				return ScreenOut{}, err
 			}
+			if err := mayControl(c, w.ID, nil, false, "planner_read_screen"); err != nil {
+				return ScreenOut{}, err
+			}
 			return readScreen(c, w.ID, nil, in.Lines, in.Scrollback)
 		})
+}
+
+// mayControl decides whether the caller may act on a card's session (card != nil) or on the
+// workspace planner (card == nil). write is true for anything that types, presses keys, stops or
+// starts. The user and a connected external client may do everything. The planner may do anything
+// to its workspace's card sessions, and only read its own screen. A card session may read its own
+// screen and status and nothing else: it reports with card_report and asks with question_ask.
+func mayControl(c *Call, workspaceID string, card *domain.Card, write bool, what string) error {
+	a := c.Actor
+	switch a.Kind {
+	case KindSession, KindPlanner:
+		if a.WorkspaceID != "" && workspaceID != "" && a.WorkspaceID != workspaceID {
+			return fmt.Errorf("%s belongs to another workspace, so %s may not use %s on it", targetName(card), a, what)
+		}
+	}
+	switch a.Kind {
+	case KindSession:
+		if card == nil {
+			return fmt.Errorf("%s may not use %s on the planner. Report to it with card_report, or ask the user with question_ask", a, what)
+		}
+		if card.ID != a.CardID {
+			return fmt.Errorf("%s may not use %s on card %q: a session controls only itself, and only to read. Ask the planner with card_report", a, what, card.Nick)
+		}
+		if write {
+			return fmt.Errorf("%s may not use %s on its own session. Report with card_report; the planner or the user restarts sessions", a, what)
+		}
+	case KindPlanner:
+		if card == nil && write {
+			return fmt.Errorf("the planner may not use %s on itself. Ask the user to restart it", what)
+		}
+	}
+	return nil
+}
+
+func targetName(card *domain.Card) string {
+	if card == nil {
+		return "the planner"
+	}
+	return fmt.Sprintf("card %q", card.Nick)
 }
 
 // cardByRef finds a card by id, else by nickname or key in the caller's workspace.

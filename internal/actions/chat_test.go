@@ -165,7 +165,7 @@ func TestCardReportStoresTheReportAndNotifiesThePlanner(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.chat.Wait()
-	want := "[ACME-508 billing-fix] report progress: " + long[:200]
+	want := "[ACME-508 billing-fix · report] progress: " + long[:200]
 	if got := h.planner.typed(); len(got) != 1 || got[0] != want {
 		t.Fatalf("typed = %q\nwant   %q", got, want)
 	}
@@ -180,7 +180,7 @@ func TestCardReportStoresTheReportAndNotifiesThePlanner(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.chat.Wait()
-	if got := h.planner.typed(); got[1] != "[plain] report blocked: waiting on the VPN" {
+	if got := h.planner.typed(); got[1] != "[plain · report] blocked: waiting on the VPN" {
 		t.Errorf("typed = %q", got)
 	}
 }
@@ -307,10 +307,10 @@ func TestWidgetPostStoresTheWidgetForTheRightAuthors(t *testing.T) {
 func TestLinesFormat(t *testing.T) {
 	keyed := domain.Card{Key: "ACME-1", Nick: "a"}
 	bare := domain.Card{Nick: "b"}
-	if got := chat.AnswerNotice(keyed, 3, []string{"Option A", "Option C"}, "go\nahead"); got != "[ACME-1 a] answered Q-03: Option A, Option C; notes: go ahead" {
+	if got := chat.AnswerNotice(keyed, 3, []string{"Option A", "Option C"}, "go\nahead"); got != "[ACME-1 a · answer] Q-03: Option A, Option C; notes: go ahead" {
 		t.Errorf("answer notice = %q", got)
 	}
-	if got := chat.AnswerNotice(bare, 12, []string{"Approve"}, ""); got != "[b] answered Q-12: Approve" {
+	if got := chat.AnswerNotice(bare, 12, []string{"Approve"}, ""); got != "[b · answer] Q-12: Approve" {
 		t.Errorf("answer notice = %q", got)
 	}
 }
@@ -370,7 +370,7 @@ func TestTheExactBytesTypedIntoARealPlannerPTY(t *testing.T) {
 	}
 	want := "\x1b[200~[ACME-508 billing-fix] check rounding\x1b[201~\r" +
 		"\x1b[200~[planner] status?\x1b[201~\r" +
-		"\x1b[200~[ACME-508 billing-fix] report done: all green\x1b[201~\r"
+		"\x1b[200~[ACME-508 billing-fix · report] done: all green\x1b[201~\r"
 	waitUntil(t, "all three lines to arrive", func() bool { return len(read()) >= len(want) })
 	if got := read(); got != want {
 		t.Fatalf("bytes typed into the planner:\n got %q\nwant %q", got, want)

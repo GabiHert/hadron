@@ -58,7 +58,7 @@ Every table has `id TEXT PRIMARY KEY` (a ULID or UUID), `created_at` and `update
 | `questions` | `workspace_id`, `card_id`, `seq` (Q-01, Q-02 per card), `kind` (`decision`, `unblock`, `approval`), `text`, `context`, `options` (JSON `[{label, description}]`), `multi` (bool), `approval` (JSON `{target, runs_as, reversible, command}`), `status` (`open`, `answered`, `withdrawn`), `answer` (JSON `{selections, notes, via}`), `answered_at` |
 | `gates` | `workspace_id`, `card_id`, `kind` (`merge`, `promote`, `deploy-confirm`, `close`), `summary`, `since` |
 | `links` | `workspace_id`, `card_id`, `integration`, `item_id`, `title`, `url`, `fields` (JSON snapshot), `synced_at` |
-| `rules` | `workspace_id`, `position`, `name`, `enabled`, `trigger` (JSON `{on: field_changed, field}` or `{on: column_entered, column}`, `card_created`, `report`, `question_opened`, `idle_for {minutes}`, `cron {spec}`), `condition` (CEL string, may be empty), `actions` (JSON list: `move {column_id}`, `set_field {path, value}`, `notify {text}`, `tell_planner {text}`, `run_action {script, action}`), `builtin` (bool) |
+| `rules` | `workspace_id`, `position`, `name`, `enabled`, `trigger` (JSON `{on: field_changed, field}` or `{on: column_entered, column}`, `card_created`, `report`, `question_opened`, `idle_for {minutes}`, `no_report_for {minutes}`, `cron {spec}`), `condition` (CEL string, may be empty), `actions` (JSON list: `move {column_id}`, `set_field {path, value}`, `notify {text}`, `tell_planner {text}`, `run_action {script, action}`), `builtin` (bool) |
 | `views` | `workspace_id`, `name`, `filters` (JSON `{vals: {path: value}, q, expr}`), `position` |
 | `dash_blocks` | `workspace_id`, `position`, `type`, `title`, `span` (1 or 2), `source` (JSON `{query, args}`), `html`, `schedule`, `text`, `text_at` |
 | `prompts` | `workspace_id`, `kind` (`planner`, `session`, `handoff`, `handoff_planner`), `template` (a null row means the default; for `planner` and `session` that is empty, the workspace layer, with the core harness underneath) |
@@ -132,7 +132,7 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
 - **Command** (from the launch profile, default `claude`):
 
   ```
-  claude --append-system-prompt <rendered prompt> --mcp-config <file>
+  claude --append-system-prompt <composed prompt> --mcp-config <file> [--resume <id> | --session-id <new uuid>]
   ```
 
   - The MCP config file sits at `~/.hadron/run/<session-id>.mcp.json`:
@@ -154,7 +154,7 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
   - `waiting`: the card has an open question;
   - `idle`: neither;
   - `ended`: the process exited.
-- **Exit:** the session is marked `exited`. Cards keep their history, and `session_restart` starts again (with `claude --resume <id>` when the Claude session id is known; otherwise fresh).
+- **Exit:** the session is marked `exited`. Cards keep their history, and `session_restart` starts again (with `claude --resume <id>`). Every claude launch has an id Hadron knows: a fresh start passes `--session-id <uuid>` and stores it on the session row, so a restart always resumes the same conversation unless `fresh: true`.
 - **Planner:** one per workspace, started when the workspace opens if the setting `planner.autostart` is true (the default).
 - **Tests:** use a fake command (`/bin/cat`, or a small Go helper binary in `internal/pty/testdata`) instead of `claude`.
 
@@ -168,15 +168,19 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
 - **`chat_send` as you on `planner`:** type `[planner] <text>`.
 - **Sanitizing:** text is stripped of control characters other than newline and capped at 8,000 characters. A leading `/`, `!` or `#` is impossible, because of the tag.
 - **`chat_post`:** only the planner (or `you` in tests) may call it. It stores an `author: planner` message.
-- **`card_report`:** stores an `author: session, kind: report` message on the card's channel. It also types a one-line notice into the planner PTY: `[<KEY> <nick>] report <kind>: <first 200 chars>`. That is how the planner hears about it.
+- **`card_report`:** stores an `author: session, kind: report` message on the card's channel. It also types a one-line notice into the planner PTY: `[<KEY> <nick> · report] <kind>: <first 200 chars>`. That is how the planner hears about it.
+- **Unforgeable notices:** Hadron's own lines carry ` · ` (a middle dot) inside the brackets: `[<KEY> <nick> · report]`, `[<KEY> <nick> · answer]` (`answer (relayed)` for a relayed answer) and `[rule · <name>] [<KEY> <nick>] <text>`. `chat.Sanitize` and the tag builders remove that character and its look-alikes from everything a user, a session or a rule typed, so a line without the dot is the user typing.
 - **`question_ask`:**
   - opens a question, adds a `report_kind: question` message, and fires the `question_opened` trigger;
   - the built-in rule moves the card to the first `needs-you` column and remembers `return_column_id`.
 - **`question_answer`:**
   - stores the answer and a `kind: answer` message;
   - the built-in rule moves the card back;
-  - types to the planner: `[<KEY> <nick>] answered Q-NN: <labels>; notes: <notes>`.
-  - **Policy:** the planner may answer approvals only when the planner policy allows it. The default policy, set in v1 settings, is `allow_all`; the other values are `decisions_only` and `ask_for_prd`. A session may never answer its own question.
+  - types to the planner: `[<KEY> <nick> · answer] Q-NN: <labels>; notes: <notes>`.
+  - **Policy:** the planner may answer approvals only when the planner policy allows it. The default policy, set in v1 settings, is `allow_all`; the other values are `decisions_only`, `ask_for_prd` and `user_only` (the planner answers and clears nothing itself). A session may never answer its own question.
+  - **Relay:** the planner may pass `on_behalf_of: user` and `source_message_id` to record an answer the user already gave in chat. The message must be the user's own, in the card's channel or the planner channel, newer than the question. It works under every policy and is stored `via: planner-relay`.
+  - **Question fields:** `meanwhile` (what the session does while it waits) and, for approvals, `approval.reversible` (`yes`, `no` or `partial`), `reversible_note` (required for `partial`) and `command_lang`.
+- **`gate_withdraw`:** takes back a gate that no longer applies; the session that set it, the planner and the user may. `gate_clear` still means the user did or declined it.
 
 ## 6. Prompts (`internal/prompts`)
 

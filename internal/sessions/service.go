@@ -168,6 +168,13 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 		row.ClaudeSessionID = resume
 	}
 	row.ID = uuid.NewString() // known before the row exists, so nothing fallible follows the insert
+	// Every claude launch has a conversation id Hadron knows: a fresh one is given to claude with
+	// --session-id and stored, so a restart can always resume it.
+	newConversation := ""
+	if resume == "" && isClaude(command) {
+		newConversation = uuid.NewString()
+		row.ClaudeSessionID = newConversation
+	}
 
 	prompt, err := RenderPromptWith(tx, ws, card, &profile, kindOf(card))
 	if err != nil {
@@ -182,6 +189,9 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 		args = append(args, "--append-system-prompt", prompt, "--mcp-config", cfgPath)
 		if resume != "" {
 			args = append(args, "--resume", resume)
+		}
+		if newConversation != "" {
+			args = append(args, "--session-id", newConversation)
 		}
 	}
 	args = append(args, profile.Args...)

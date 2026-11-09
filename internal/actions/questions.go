@@ -24,31 +24,70 @@ const (
 	PolicyAllowAll      = "allow_all"
 	PolicyDecisionsOnly = "decisions_only"
 	PolicyAskForPRD     = "ask_for_prd"
+	// PolicyUserOnly means the planner answers nothing and clears nothing itself. It may still relay
+	// an answer the user gave in chat (question_answer with on_behalf_of).
+	PolicyUserOnly = "user_only"
 )
 
 // PlannerPolicies lists every policy.
-var PlannerPolicies = []string{PolicyAllowAll, PolicyDecisionsOnly, PolicyAskForPRD}
+var PlannerPolicies = []string{PolicyAllowAll, PolicyDecisionsOnly, PolicyAskForPRD, PolicyUserOnly}
 
 // maxOptions bounds how many choices a question offers.
 const maxOptions = 12
 
+// Reversible says whether what an approval allows can be undone: yes, no or partial.
+type Reversible string
+
+// Reversible values.
+const (
+	ReversibleYes     Reversible = "yes"
+	ReversibleNo      Reversible = "no"
+	ReversiblePartial Reversible = "partial"
+)
+
+// UnmarshalJSON reads yes, no or partial, and the true or false older sessions sent.
+func (r *Reversible) UnmarshalJSON(b []byte) error {
+	var v any
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	switch x := v.(type) {
+	case bool:
+		if x {
+			*r = ReversibleYes
+		} else {
+			*r = ReversibleNo
+		}
+	case string:
+		*r = Reversible(strings.ToLower(strings.TrimSpace(x)))
+	case nil:
+		*r = ""
+	default:
+		return fmt.Errorf("reversible must be yes, no or partial, got %v", v)
+	}
+	return nil
+}
+
 // ApprovalIn describes what an approval question asks the user to allow.
 type ApprovalIn struct {
-	Target     string `json:"target" jsonschema:"what it touches, such as DEV, PRD or a repo"`
-	RunsAs     string `json:"runs_as" jsonschema:"the identity it runs as, such as a role or user"`
-	Reversible bool   `json:"reversible" jsonschema:"whether it can be undone"`
-	Command    string `json:"command" jsonschema:"the exact command or operation"`
+	Target         string     `json:"target" jsonschema:"what it touches, such as DEV, PRD or a repo"`
+	RunsAs         string     `json:"runs_as" jsonschema:"the identity it runs as, such as a role or user"`
+	Reversible     Reversible `json:"reversible" jsonschema:"can it be undone: yes, no or partial"`
+	ReversibleNote string     `json:"reversible_note,omitempty" jsonschema:"how it is undone, or what stays after an undo; required when reversible is partial"`
+	Command        string     `json:"command" jsonschema:"the exact command or operation"`
+	CommandLang    string     `json:"command_lang,omitempty" jsonschema:"the command's language for highlighting, such as sql, bash, json or python; default bash"`
 }
 
 // QuestionAskIn is the input of question_ask.
 type QuestionAskIn struct {
-	Card     string                  `json:"card,omitempty" jsonschema:"the card; a session asks about its own card and may leave this out"`
-	Kind     string                  `json:"kind" jsonschema:"decision, unblock or approval"`
-	Text     string                  `json:"text" jsonschema:"the question"`
-	Context  string                  `json:"context,omitempty" jsonschema:"what the reader needs to know to answer"`
-	Options  []domain.QuestionOption `json:"options,omitempty" jsonschema:"the choices, each with a label and a description; put your recommendation first"`
-	Multi    bool                    `json:"multi,omitempty" jsonschema:"allow picking more than one option"`
-	Approval *ApprovalIn             `json:"approval,omitempty" jsonschema:"required for kind approval: what is being approved"`
+	Card      string                  `json:"card,omitempty" jsonschema:"the card; a session asks about its own card and may leave this out"`
+	Kind      string                  `json:"kind" jsonschema:"decision, unblock or approval"`
+	Text      string                  `json:"text" jsonschema:"the question"`
+	Context   string                  `json:"context,omitempty" jsonschema:"what the reader needs to know to answer"`
+	Options   []domain.QuestionOption `json:"options,omitempty" jsonschema:"the choices, each with a label and a description; put your recommendation first"`
+	Multi     bool                    `json:"multi,omitempty" jsonschema:"allow picking more than one option"`
+	Approval  *ApprovalIn             `json:"approval,omitempty" jsonschema:"required for kind approval: what is being approved"`
+	Meanwhile string                  `json:"meanwhile,omitempty" jsonschema:"what you do while this waits for the user, such as working on something else or stopping; the user sees it with the question"`
 }
 
 // QuestionListIn is the input of question_list.
@@ -68,6 +107,9 @@ type QuestionAnswerIn struct {
 	QuestionID string   `json:"question_id" jsonschema:"the question id"`
 	Selections []string `json:"selections,omitempty" jsonschema:"the labels of the chosen options"`
 	Notes      string   `json:"notes,omitempty" jsonschema:"free text that goes with the answer, or the whole answer when no option fits"`
+	// OnBehalfOf and SourceMessageID let the planner relay an answer the user already gave in chat.
+	OnBehalfOf      string `json:"on_behalf_of,omitempty" jsonschema:"planner only: pass user to relay an answer the user gave in chat. It is allowed under every planner policy, because the user decided. Needs source_message_id"`
+	SourceMessageID string `json:"source_message_id,omitempty" jsonschema:"planner only, with on_behalf_of: the id of the user's chat message that holds the answer (chat_read shows ids). It must be the user's own message in this card's channel or the planner channel, written after the question was asked"`
 }
 
 // QuestionWithdrawIn is the input of question_withdraw.
@@ -90,6 +132,14 @@ type GateClearIn struct {
 	Kind   string `json:"kind,omitempty" jsonschema:"merge, promote, deploy-confirm or close, with card"`
 }
 
+// GateWithdrawIn is the input of gate_withdraw.
+type GateWithdrawIn struct {
+	GateID string `json:"gate_id,omitempty" jsonschema:"the gate id; or pass card and kind"`
+	Card   string `json:"card,omitempty" jsonschema:"the card (id, nickname or key), with kind; a session may leave this out for its own card"`
+	Kind   string `json:"kind,omitempty" jsonschema:"merge, promote, deploy-confirm or close, with card"`
+	Reason string `json:"reason,omitempty" jsonschema:"why the gate no longer applies"`
+}
+
 // GateListIn is the input of gate_list.
 type GateListIn struct {
 	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
@@ -104,11 +154,12 @@ type PlannerPolicyOut struct {
 
 // PlannerPolicySetIn is the input of planner_policy_set.
 type PlannerPolicySetIn struct {
-	Policy string `json:"policy" jsonschema:"allow_all, decisions_only or ask_for_prd"`
+	Policy string `json:"policy" jsonschema:"allow_all, decisions_only, ask_for_prd or user_only"`
 }
 
 var gateKinds = []string{"merge", "promote", "deploy-confirm", "close"}
 var questionKinds = []string{"decision", "unblock", "approval"}
+var langRe = regexp.MustCompile(`^[a-z][a-z0-9+#-]{0,19}$`)
 var prdTarget = regexp.MustCompile(`(?i)\b(prd|prod|production)\b`)
 
 func registerQuestions(r *Registry) {
@@ -174,8 +225,14 @@ func registerQuestions(r *Registry) {
 			if err != nil {
 				return q, err
 			}
-			if err := mayAnswer(c, q); err != nil {
+			relay, err := checkRelay(c, q, in)
+			if err != nil {
 				return q, err
+			}
+			if !relay {
+				if err := mayAnswer(c, q); err != nil {
+					return q, err
+				}
 			}
 			if q.Status != "open" {
 				return q, fmt.Errorf("Q-%02d is already %s", q.Seq, q.Status)
@@ -185,7 +242,13 @@ func registerQuestions(r *Registry) {
 				return q, err
 			}
 			via := c.Actor.Kind
-			answer, _ := json.Marshal(map[string]any{"selections": labels, "notes": notes, "via": via})
+			result := map[string]any{"selections": labels, "notes": notes}
+			if relay {
+				via = ViaPlannerRelay
+				result["source_message_id"] = in.SourceMessageID
+			}
+			result["via"] = via
+			answer, _ := json.Marshal(result)
 			now := time.Now().UTC()
 			q.Status, q.Answer, q.AnsweredAt = "answered", answer, &now
 			if err := c.Store.Questions.Update(&q); err != nil {
@@ -207,8 +270,12 @@ func registerQuestions(r *Registry) {
 			} else {
 				// The planner (or another client) answered, and the planner already knows, so nothing is typed back.
 				msg.Author = "system"
-				if via == KindPlanner {
+				switch via {
+				case KindPlanner:
 					msg.Author = "planner"
+				case ViaPlannerRelay:
+					msg.Author = "planner"
+					msg.Text += "\n(relayed from your message in chat)"
 				}
 				if err := c.Store.Messages.Create(&msg); err != nil {
 					return q, err
@@ -316,6 +383,47 @@ func registerQuestions(r *Registry) {
 			return c.Store.Gates.List(w.ID, cardID)
 		})
 
+	Register(r, Spec{Name: "gate_withdraw", Description: "Take back a gate that no longer applies, for example one set by mistake or that the card's work made moot. The session that set it, the planner and the user may. It is not the same as gate_clear, which means the user did or declined the thing.",
+		Mutates: true, Entities: attentionEntities},
+		func(ctx context.Context, c *Call, in GateWithdrawIn) (domain.Gate, error) {
+			if c.Actor.Kind == KindSession && in.GateID == "" && in.Card == "" {
+				in.Card = c.Actor.CardID
+			}
+			g, err := findGate(c, GateClearIn{GateID: in.GateID, Card: in.Card, Kind: in.Kind})
+			if err != nil {
+				return g, err
+			}
+			card, err := getCard(c, g.CardID)
+			if err != nil {
+				return g, err
+			}
+			switch c.Actor.Kind {
+			case KindYou:
+			case KindPlanner:
+				if err := sameWorkspace(c, g.WorkspaceID); err != nil {
+					return g, err
+				}
+			case KindSession:
+				if c.Actor.CardID != g.CardID {
+					return g, errors.New("a session may withdraw only its own card's gates")
+				}
+			default:
+				return g, fmt.Errorf("%s may not withdraw gates", c.Actor)
+			}
+			if err := c.Store.Gates.Delete(g.ID); err != nil {
+				return g, err
+			}
+			text := fmt.Sprintf("Withdrew the %s gate", g.Kind)
+			if r := strings.TrimSpace(in.Reason); r != "" {
+				text += ": " + r
+			}
+			ev := domain.Message{WorkspaceID: card.WorkspaceID, Channel: chat.CardChannel(card.ID), Author: authorOf(c.Actor), Kind: "event", Text: text, Delivered: true}
+			if err := c.Store.Messages.Create(&ev); err != nil {
+				return g, err
+			}
+			return g, reconcile(c, card)
+		})
+
 	Register(r, Spec{Name: "gate_clear", Description: "Clear a gate once the user has done or declined it. The user may always clear it; the planner only under the allow_all policy. A session can never clear its own gate.",
 		Mutates: true, Entities: attentionEntities},
 		func(ctx context.Context, c *Call, in GateClearIn) (domain.Gate, error) {
@@ -349,7 +457,7 @@ func registerQuestions(r *Registry) {
 			return g, reconcile(c, card)
 		})
 
-	Register(r, Spec{Name: "planner_policy_get", Description: "Report the planner policy: allow_all (the planner may answer everything), decisions_only (it may answer decisions and unblocks, not approvals) or ask_for_prd (it may answer approvals that target DEV, not PRD)."},
+	Register(r, Spec{Name: "planner_policy_get", Description: "Report the planner policy: allow_all (the planner may answer everything), decisions_only (it may answer decisions and unblocks, not approvals), ask_for_prd (it may answer approvals that target DEV, not PRD) or user_only (it answers and clears nothing itself, and only relays what the user said in chat)."},
 		func(ctx context.Context, c *Call, in struct{}) (PlannerPolicyOut, error) {
 			return PlannerPolicyOut{Policy: plannerPolicy(c.Store), Options: PlannerPolicies}, nil
 		})
@@ -383,6 +491,42 @@ func plannerPolicy(st *store.Store) string {
 	return p
 }
 
+// ViaPlannerRelay is the "via" of an answer the planner relayed for the user.
+const ViaPlannerRelay = "planner-relay"
+
+// checkRelay validates a relayed answer. It returns false when the call is not a relay.
+func checkRelay(c *Call, q domain.Question, in QuestionAnswerIn) (bool, error) {
+	if in.OnBehalfOf == "" && in.SourceMessageID == "" {
+		return false, nil
+	}
+	if c.Actor.Kind != KindPlanner {
+		return false, fmt.Errorf("only the planner relays an answer for the user, and %s is not the planner", c.Actor)
+	}
+	if in.OnBehalfOf != "user" {
+		return false, fmt.Errorf("on_behalf_of must be %q, got %q", "user", in.OnBehalfOf)
+	}
+	if in.SourceMessageID == "" {
+		return false, errors.New("source_message_id is required to relay an answer: pass the id of the user's chat message (chat_read shows it)")
+	}
+	if err := sameWorkspace(c, q.WorkspaceID); err != nil {
+		return false, err
+	}
+	msg, err := c.Store.Messages.Get(in.SourceMessageID)
+	if err != nil {
+		return false, fmt.Errorf("source message %q was not found. Pass the id of the user's chat message", in.SourceMessageID)
+	}
+	if msg.WorkspaceID != q.WorkspaceID || (msg.Channel != chat.CardChannel(q.CardID) && msg.Channel != chat.ChannelPlanner) {
+		return false, errors.New("the source message is not in this card's channel or the planner channel")
+	}
+	if msg.Author != "you" || msg.Kind != "text" {
+		return false, errors.New("the source message was not written by the user, so it cannot be relayed as their answer")
+	}
+	if msg.CreatedAt.Before(q.CreatedAt) {
+		return false, fmt.Errorf("the source message is older than Q-%02d, so it cannot be its answer", q.Seq)
+	}
+	return true, nil
+}
+
 // mayAnswer applies who-may-answer: the user always; a session never; the planner (and any other
 // client that is not the user) as far as the planner policy allows.
 func mayAnswer(c *Call, q domain.Question) error {
@@ -399,6 +543,9 @@ func mayAnswer(c *Call, q domain.Question) error {
 		return err
 	}
 	policy := plannerPolicy(c.Store)
+	if policy == PolicyUserOnly {
+		return errors.New("the planner policy is user_only, so the planner answers nothing itself. Bring the question to the user in the card's chat, then relay their answer with on_behalf_of and source_message_id")
+	}
 	if q.Kind != "approval" {
 		return nil
 	}
@@ -499,13 +646,34 @@ func buildQuestion(card domain.Card, in QuestionAskIn) (domain.Question, error) 
 		if ap == nil || strings.TrimSpace(ap.Target) == "" || strings.TrimSpace(ap.Command) == "" {
 			return q, errors.New("an approval needs approval.target and approval.command, and should say who it runs_as and whether it is reversible")
 		}
-		raw, _ := json.Marshal(ApprovalIn{Target: strings.TrimSpace(ap.Target), RunsAs: strings.TrimSpace(ap.RunsAs), Reversible: ap.Reversible, Command: strings.TrimSpace(ap.Command)})
+		if !contains([]string{"yes", "no", "partial"}, string(ap.Reversible)) {
+			return q, errors.New("approval.reversible must be yes, no or partial: say whether the user can undo this")
+		}
+		note := strings.TrimSpace(ap.ReversibleNote)
+		if ap.Reversible == ReversiblePartial && note == "" {
+			return q, errors.New("approval.reversible_note is required when reversible is partial: say what can be undone and what cannot")
+		}
+		lang := strings.ToLower(strings.TrimSpace(ap.CommandLang))
+		if lang != "" && !langRe.MatchString(lang) {
+			return q, fmt.Errorf("approval.command_lang %q must be a short language name such as sql, bash, json or python", ap.CommandLang)
+		}
+		if note != "" {
+			if note, err = chat.Sanitize(note); err != nil {
+				return q, err
+			}
+		}
+		raw, _ := json.Marshal(ApprovalIn{Target: strings.TrimSpace(ap.Target), RunsAs: strings.TrimSpace(ap.RunsAs), Reversible: ap.Reversible, ReversibleNote: note, Command: strings.TrimSpace(ap.Command), CommandLang: lang})
 		q.Approval = raw
 		if len(q.Options) == 0 {
 			q.Options = []domain.QuestionOption{{Label: "Approve"}, {Label: "Reject"}}
 		}
 	} else if in.Approval != nil {
 		return q, errors.New("approval details belong to kind approval only")
+	}
+	if strings.TrimSpace(in.Meanwhile) != "" {
+		if q.Meanwhile, err = chat.Sanitize(in.Meanwhile); err != nil {
+			return q, err
+		}
 	}
 	if q.Multi && len(q.Options) < 2 {
 		return q, errors.New("multi needs at least two options")

@@ -87,7 +87,7 @@ func TestQuestionRoundTripMovesTheCardToTheCustomNamedNeedsYouColumnAndBack(t *t
 	if !sawReport || !sawEvent {
 		t.Errorf("report=%v event=%v in %+v", sawReport, sawEvent, h.messages())
 	}
-	if got := h.planner.typed(); len(got) != 1 || got[0] != "[ACME-508 billing-fix] report question: Round invoices up or to nearest?" {
+	if got := h.planner.typed(); len(got) != 1 || got[0] != "[ACME-508 billing-fix · report] question: Round invoices up or to nearest?" {
 		t.Errorf("planner heard %q", got)
 	}
 
@@ -110,7 +110,7 @@ func TestQuestionRoundTripMovesTheCardToTheCustomNamedNeedsYouColumnAndBack(t *t
 		t.Fatalf("after the answer the card is in %s (return %q), want %s", card.ColumnID, card.ReturnColumnID, h.working.ID)
 	}
 	h.chat.Wait()
-	want := "[ACME-508 billing-fix] answered Q-01: Nearest; notes: keep cents exact"
+	want := "[ACME-508 billing-fix · answer] Q-01: Nearest; notes: keep cents exact"
 	if got := h.planner.typed(); len(got) != 2 || got[1] != want {
 		t.Errorf("planner heard %q, want last %q", got, want)
 	}
@@ -267,7 +267,7 @@ func TestPlannerApprovalIsRefusedUnderDecisionsOnly(t *testing.T) {
 	}
 	h.chat.Wait()
 	for _, line := range h.planner.typed() {
-		if strings.Contains(line, "answered Q-") {
+		if strings.Contains(line, "· answer] Q-") {
 			t.Errorf("the planner is not told about its own answer: %q", line)
 		}
 	}

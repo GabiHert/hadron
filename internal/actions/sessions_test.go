@@ -129,8 +129,8 @@ func TestCardCreateStartsAFakeClaudeWithTheRightArgvEnvAndFirstPrompt(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(argv) != 4 || argv[0] != "--append-system-prompt" || argv[1] != wantPrompt || argv[2] != "--mcp-config" || argv[3] != mcpPath {
-		t.Fatalf("argv = %q\nwant [--append-system-prompt <prompt> --mcp-config %s]", argv, mcpPath)
+	if len(argv) != 6 || argv[0] != "--append-system-prompt" || argv[1] != wantPrompt || argv[2] != "--mcp-config" || argv[3] != mcpPath || argv[4] != "--session-id" || argv[5] != sess.ClaudeSessionID || sess.ClaudeSessionID == "" {
+		t.Fatalf("argv = %q\nwant [--append-system-prompt <prompt> --mcp-config %s --session-id <the stored id>]", argv, mcpPath)
 	}
 	for _, want := range []string{`working on the card "billing-fix" (ACME-508) in the "Acme" workspace`, "card_report", "no linked items yet"} {
 		if !strings.Contains(argv[1], want) {
@@ -332,13 +332,17 @@ func TestSendKeysScreenInterruptStopAndRestartResume(t *testing.T) {
 		t.Fatalf("screen after exit = %+v", screen)
 	}
 
-	// Restart without a known Claude session id starts fresh; with one it resumes.
+	// Every launch stores its conversation id (G1), so a restart resumes it.
+	if first.ClaudeSessionID == "" || !strings.Contains(h.file(".argv"), "--session-id\x00"+first.ClaudeSessionID) {
+		t.Fatalf("the first launch must pass and store --session-id: %+v\n%q", first, h.file(".argv"))
+	}
 	h.do("session_restart", m{"card": "talker"}, nil)
 	waitUntil(t, "the second run", func() bool { return h.latest(w.ID, card.ID).ID != first.ID })
 	waitUntil(t, "claude to start again", func() bool { return h.card(card.ID).Liveness != domain.LivenessEnded })
+	waitUntil(t, "the resumed argv", func() bool { return strings.Contains(h.file(".argv"), "--resume\x00"+first.ClaudeSessionID) })
 	second := h.latest(w.ID, card.ID)
-	if second.ClaudeSessionID != "" || strings.Contains(h.file(".argv"), "--resume") {
-		t.Fatalf("a restart with no known conversation must start fresh: %q", h.file(".argv"))
+	if second.ClaudeSessionID != first.ClaudeSessionID || !strings.Contains(h.file(".argv"), "--resume\x00"+first.ClaudeSessionID) || strings.Contains(h.file(".argv"), "--session-id") {
+		t.Fatalf("a restart must resume the stored conversation, not start a new one: %q", h.file(".argv"))
 	}
 	second.ClaudeSessionID = "abc-123"
 	if err := h.reg.Deps().Store.Sessions.Update(&second); err != nil {
@@ -361,9 +365,12 @@ func TestSendKeysScreenInterruptStopAndRestartResume(t *testing.T) {
 	// fresh: true ignores the known id.
 	h.do("session_restart", m{"card": "talker", "fresh": true}, nil)
 	waitUntil(t, "the fresh run", func() bool {
-		a := strings.Split(strings.TrimSuffix(h.file(".argv"), "\x00"), "\x00")
-		return len(a) == 4 && h.latest(w.ID, card.ID).ID != third.ID
+		argv := h.file(".argv")
+		return strings.Contains(argv, "--session-id\x00") && !strings.Contains(argv, "--resume") && h.latest(w.ID, card.ID).ID != third.ID
 	})
+	if fresh := h.latest(w.ID, card.ID); fresh.ClaudeSessionID == "" || fresh.ClaudeSessionID == "abc-123" || fresh.ClaudeSessionID == first.ClaudeSessionID {
+		t.Fatalf("a fresh restart gets a new conversation id: %+v", fresh)
+	}
 
 	h.do("session_stop", m{"card": "talker"}, nil)
 	waitUntil(t, "stop to end the card", func() bool { return h.card(card.ID).Liveness == domain.LivenessEnded })
@@ -454,7 +461,7 @@ func TestPlannerDoesNotAutostartInATestHomeButStartsOnRequest(t *testing.T) {
 	}
 	waitUntil(t, "the planner to start", func() bool { return h.file(".started") != "" })
 	argv := strings.Split(strings.TrimSuffix(h.file(".argv"), "\x00"), "\x00")
-	if len(argv) != 4 || !strings.Contains(argv[1], `You are the planner for the "W" workspace in Hadron.`) ||
+	if len(argv) != 6 || argv[4] != "--session-id" || !strings.Contains(argv[1], `You are the planner for the "W" workspace in Hadron.`) ||
 		!strings.Contains(argv[1], "Needs you (needs-you), Working (active)") || !strings.Contains(argv[1], "Root folder: "+w.Root) {
 		t.Fatalf("planner argv = %q", argv)
 	}

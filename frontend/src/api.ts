@@ -287,17 +287,25 @@ export interface QuestionOption {
   label: string;
   description: string;
 }
+/** Can an approved operation be undone? Older stored questions hold true or false. */
+export type Reversible = "yes" | "no" | "partial";
 export interface Approval {
   target: string;
   runs_as: string;
-  reversible: boolean;
+  reversible: Reversible | boolean;
+  /** How it is undone, or what stays after an undo; set when reversible is partial. */
+  reversible_note?: string;
   command: string;
+  /** The command's language for highlighting, such as sql or bash. */
+  command_lang?: string;
 }
 export interface Answer {
   selections: string[];
   notes: string;
   /** you, planner or external */
   via: string;
+  /** planner-relay when the planner relayed the user's chat answer. */
+  source_message_id?: string;
 }
 export interface Question {
   id: string;
@@ -316,6 +324,8 @@ export interface Question {
   status: "open" | "answered" | "withdrawn";
   answer: Answer | null;
   answered_at: string | null;
+  /** What the session does while the question waits. */
+  meanwhile: string;
 }
 export type GateKind = "merge" | "promote" | "deploy-confirm" | "close";
 export interface Gate {
@@ -326,7 +336,7 @@ export interface Gate {
   summary: string;
   since: string;
 }
-export type PlannerPolicy = "allow_all" | "decisions_only" | "ask_for_prd";
+export type PlannerPolicy = "allow_all" | "decisions_only" | "ask_for_prd" | "user_only";
 export const question_ask = (a: {
   card?: string;
   kind: QuestionKind;
@@ -335,14 +345,23 @@ export const question_ask = (a: {
   options?: QuestionOption[];
   multi?: boolean;
   approval?: Approval;
+  meanwhile?: string;
 }) => call<Question>("question_ask", a);
 export const question_list = (a: { workspace_id?: string; card?: string; status?: "open" | "answered" | "withdrawn" } = {}) =>
   call<Question[]>("question_list", a);
 export const question_get = (a: { question_id: string }) => call<Question>("question_get", a);
-export const question_answer = (a: { question_id: string; selections?: string[]; notes?: string }) => call<Question>("question_answer", a);
+export const question_answer = (a: {
+  question_id: string;
+  selections?: string[];
+  notes?: string;
+  /** Planner only: "user" relays an answer the user gave in chat, with source_message_id. */
+  on_behalf_of?: "user";
+  source_message_id?: string;
+}) => call<Question>("question_answer", a);
 export const question_withdraw = (a: { question_id: string; reason?: string }) => call<Question>("question_withdraw", a);
 export const gate_set = (a: { card?: string; kind: GateKind; summary: string }) => call<Gate>("gate_set", a);
 export const gate_list = (a: { workspace_id?: string; card?: string } = {}) => call<Gate[]>("gate_list", a);
+export const gate_withdraw = (a: { gate_id?: string; card?: string; kind?: GateKind; reason?: string }) => call<Gate>("gate_withdraw", a);
 export const gate_clear = (a: { gate_id?: string; card?: string; kind?: GateKind }) => call<Gate>("gate_clear", a);
 export const planner_policy_get = () => call<{ policy: PlannerPolicy; options: PlannerPolicy[] }>("planner_policy_get", {});
 export const planner_policy_set = (a: { policy: PlannerPolicy }) => call<{ policy: PlannerPolicy; options: PlannerPolicy[] }>("planner_policy_set", a);
@@ -498,6 +517,7 @@ export type TriggerOn =
   | "question_opened"
   | "question_answered"
   | "idle_for"
+  | "no_report_for"
   | "cron";
 export interface RuleTrigger {
   on: TriggerOn;

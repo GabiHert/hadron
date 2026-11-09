@@ -198,7 +198,7 @@ func registerCards(r *Registry) {
 			return c.Store.Cards.Get(card.ID)
 		})
 
-	Register(r, Spec{Name: "card_move", Description: "Move a card to a column, at a position (0 is the top; default is the bottom). Also reorders within a column.",
+	Register(r, Spec{Name: "card_move", Description: "Move a card to a column, at a position (0 is the top; default is the bottom). Also reorders within a column. A card that waits on a question or gate remembers where it should return to: moving it into a needs-you column remembers the column it left, and moving it out of one forgets the old return column, because you put it somewhere on purpose.",
 		Mutates: true, Entities: []string{"cards"}},
 		func(ctx context.Context, c *Call, in CardMoveIn) (domain.Card, error) {
 			before, err := getCard(c, in.CardID)
@@ -218,6 +218,9 @@ func registerCards(r *Registry) {
 			}
 			from, _ := c.Store.Columns.Get(before.ColumnID)
 			to, _ := c.Store.Columns.Get(moved.ColumnID)
+			if err := updateReturnColumn(c, moved, before.ColumnID, from, to); err != nil {
+				return moved, err
+			}
 			for _, ev := range board.ColumnEvents(moved.ID, moved.ColumnID, from.Name, to.Name) {
 				if err := runEvent(c, ev); err != nil {
 					return moved, err
@@ -256,6 +259,34 @@ func registerCards(r *Registry) {
 			}
 			return out, c.Store.Cards.Delete(card.ID)
 		})
+}
+
+// updateReturnColumn keeps a card's return_column_id true after a move by hand. Into a needs-you
+// column with something still waiting, it remembers the column the card came from, so answering
+// sends it back there. Out of a needs-you column, or anywhere else, the old pointer is dropped.
+func updateReturnColumn(c *Call, moved domain.Card, fromColumnID string, from, to domain.Column) error {
+	fresh, err := c.Store.Cards.Get(moved.ID)
+	if err != nil {
+		return err
+	}
+	want := fresh.ReturnColumnID
+	switch {
+	case to.Role == domain.RoleNeedsYou && from.Role != domain.RoleNeedsYou:
+		attention, err := board.Attention(c.Store, fresh)
+		if err != nil {
+			return err
+		}
+		if attention > 0 {
+			want = fromColumnID
+		}
+	case to.Role != domain.RoleNeedsYou:
+		want = ""
+	}
+	if want == fresh.ReturnColumnID {
+		return nil
+	}
+	fresh.ReturnColumnID = want
+	return c.Store.Cards.Update(&fresh)
 }
 
 func getCard(c *Call, id string) (domain.Card, error) {

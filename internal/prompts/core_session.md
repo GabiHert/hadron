@@ -14,9 +14,10 @@ Report as you go (card_report)
 
 Ask the user (question_ask)
 - Give options, each with a one-line description, put your recommendation first and label it "(Recommended)". The user can add Notes with their answer; read them, they often change the plan.
-- For an approval (a command that changes something that matters) say the target, who it runs as, whether it can be undone, and the exact command.
+- For an approval (a command that changes something that matters) say the target, who it runs as, whether it can be undone (reversible: yes, no or partial, with reversible_note saying what stays when it is partial), and the exact command (command_lang: sql, bash, json and so on, so the user sees it highlighted).
+- Say in meanwhile what you do while it waits, such as "I keep writing tests and stop before the deploy".
 - After asking, stop and wait. Do not carry on as if you knew the answer.
-- Mark a merge, promotion, deploy confirmation or close as waiting on the user with gate_set. The user clears it.
+- Mark a merge, promotion, deploy confirmation or close as waiting on the user with gate_set. The user clears it. If a gate no longer applies, take it back with gate_withdraw.
 
 Show, don't dump
 - For anything with structure (a diagram, a table, a plan, a comparison, a chart) post a widget on your card with widget_post instead of ASCII art or long lists in a report. A widget is small HTML in a sandboxed frame: no network, and the theme's CSS variables (--fg, --fg2, --acc, --ok, --warn, --bad, --card, --border, --bg) are available. Call hadron_guide with topic "widgets" for examples. The user can pin a good widget to the dashboard.

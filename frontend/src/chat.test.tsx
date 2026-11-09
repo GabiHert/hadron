@@ -69,6 +69,32 @@ describe("question card", () => {
     expect(within(box).getByText(/planner may also answer this/)).toBeInTheDocument();
   });
 
+  it("shows reversible Yes/No/Partly, its note, the meanwhile line and the command language", () => {
+    const base = { target: "Acme invoices", runs_as: "acme-db", command: "psql -c 'select 1'" };
+    const mk = (rev: "yes" | "no" | "partial" | boolean, extra = {}) =>
+      question({ kind: "approval", meanwhile: "I keep drafting the billing-fix", options: [{ label: "Approve", description: "" }], approval: { ...base, reversible: rev, ...extra } });
+    const { rerender } = render(<QuestionCard q={mk("partial", { reversible_note: "rows can be restored, emails cannot", command_lang: "sql" })} onAnswer={vi.fn()} />);
+    expect(screen.getByText("Reversible").nextSibling).toHaveTextContent("Partly");
+    expect(screen.getByLabelText("Reversible note")).toHaveTextContent("rows can be restored, emails cannot");
+    expect(screen.getByLabelText("Meanwhile")).toHaveTextContent("While you decide: I keep drafting the billing-fix");
+    expect(screen.getByLabelText("Command language")).toHaveTextContent("sql");
+    expect(screen.getByLabelText("Command")).toHaveTextContent("psql -c 'select 1'");
+    rerender(<QuestionCard q={mk("no")} onAnswer={vi.fn()} />);
+    expect(screen.getByText("Reversible").nextSibling).toHaveTextContent("No");
+    expect(screen.queryByLabelText("Command language")).toBeNull();
+    rerender(<QuestionCard q={mk("yes")} onAnswer={vi.fn()} />);
+    expect(screen.getByText("Reversible").nextSibling).toHaveTextContent("Yes");
+    rerender(<QuestionCard q={mk(true)} onAnswer={vi.fn()} />);
+    expect(screen.getByText("Reversible").nextSibling).toHaveTextContent("Yes");
+    rerender(<QuestionCard q={question({ kind: "approval", approval: { ...base, reversible: true } })} onAnswer={vi.fn()} />);
+    expect(screen.queryByLabelText("Meanwhile")).toBeNull();
+  });
+
+  it("an answer relayed by the planner says so", () => {
+    render(<QuestionCard q={question({ status: "answered", answer: { selections: ["Nearest"], notes: "", via: "planner-relay" } })} onAnswer={vi.fn()} />);
+    expect(screen.getByTestId("question-answered")).toHaveTextContent("relayed by the planner from your chat message");
+  });
+
   it("an answered or withdrawn question shrinks to a line with its outcome", () => {
     const { rerender } = render(
       <QuestionCard q={question({ status: "answered", answer: { selections: ["Nearest"], notes: "keep cents", via: "planner" } })} onAnswer={vi.fn()} />,

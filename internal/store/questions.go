@@ -10,14 +10,14 @@ import (
 // Questions is the repo for questions.
 type Questions struct{ s *Store }
 
-const qCols = `id, created_at, updated_at, workspace_id, card_id, seq, kind, text, context, options, multi, approval, status, answer, answered_at`
+const qCols = `id, created_at, updated_at, workspace_id, card_id, seq, kind, text, context, options, multi, approval, status, answer, answered_at, meanwhile`
 
 func scanQuestion(r scanner) (domain.Question, error) {
 	var q domain.Question
 	var cr, up, opts, appr, ans string
 	var multi int
 	var at sql.NullString
-	err := r.Scan(&q.ID, &cr, &up, &q.WorkspaceID, &q.CardID, &q.Seq, &q.Kind, &q.Text, &q.Context, &opts, &multi, &appr, &q.Status, &ans, &at)
+	err := r.Scan(&q.ID, &cr, &up, &q.WorkspaceID, &q.CardID, &q.Seq, &q.Kind, &q.Text, &q.Context, &opts, &multi, &appr, &q.Status, &ans, &at, &q.Meanwhile)
 	q.CreatedAt, q.UpdatedAt, q.Multi = parseTS(cr), parseTS(up), multi == 1
 	q.Options = []domain.QuestionOption{}
 	fromJSON(opts, &q.Options)
@@ -38,9 +38,9 @@ func (r *Questions) Create(q *domain.Question) error {
 	if err := r.s.q.QueryRow(`SELECT COALESCE(MAX(seq), 0) + 1 FROM questions WHERE card_id = ?`, q.CardID).Scan(&q.Seq); err != nil {
 		return err
 	}
-	_, err := r.s.q.Exec(`INSERT INTO questions (`+qCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+	_, err := r.s.q.Exec(`INSERT INTO questions (`+qCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		q.ID, ts(q.CreatedAt), ts(q.UpdatedAt), q.WorkspaceID, q.CardID, q.Seq, q.Kind, q.Text, q.Context, toJSON(q.Options), b2i(q.Multi),
-		rawOrDefault(q.Approval, "null"), q.Status, rawOrDefault(q.Answer, "null"), tsPtr(q.AnsweredAt))
+		rawOrDefault(q.Approval, "null"), q.Status, rawOrDefault(q.Answer, "null"), tsPtr(q.AnsweredAt), q.Meanwhile)
 	return mapErr(err)
 }
 

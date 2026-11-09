@@ -133,6 +133,8 @@ type Question struct {
 	Status      string           `json:"status"`
 	Answer      json.RawMessage  `json:"answer"`
 	AnsweredAt  *time.Time       `json:"answered_at"`
+	// Meanwhile is what the session does while the question waits.
+	Meanwhile string `json:"meanwhile"`
 }
 
 // Gate is a merge, promote, deploy-confirm or close waiting on the user.

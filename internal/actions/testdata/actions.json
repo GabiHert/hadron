@@ -99,7 +99,7 @@
     "fields": [
       {
         "name": "card",
-        "required": true,
+        "required": false,
         "type": "string"
       },
       {
@@ -986,6 +986,32 @@
     ]
   },
   {
+    "name": "gate_withdraw",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "gate_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "reason",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "get_update_status",
     "mutates": false,
     "fields": null
@@ -1799,6 +1825,16 @@
         "name": "notes",
         "required": false,
         "type": "string"
+      },
+      {
+        "name": "on_behalf_of",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "source_message_id",
+        "required": false,
+        "type": "string"
       }
     ]
   },
@@ -1840,6 +1876,11 @@
         "name": "approval",
         "required": false,
         "type": "object"
+      },
+      {
+        "name": "meanwhile",
+        "required": false,
+        "type": "string"
       }
     ]
   },

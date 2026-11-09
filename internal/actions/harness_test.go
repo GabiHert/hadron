@@ -10,7 +10,7 @@ import (
 
 func argvPrompt(t *testing.T, h *sessionHarness) string {
 	t.Helper()
-	waitUntil(t, "the argv", func() bool { return h.file(".argv") != "" })
+	waitUntil(t, "the argv", func() bool { return strings.Contains(h.file(".argv"), "--mcp-config") })
 	argv := strings.Split(strings.TrimSuffix(h.file(".argv"), "\x00"), "\x00")
 	for i, a := range argv {
 		if a == "--append-system-prompt" && i+1 < len(argv) {

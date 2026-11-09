@@ -22,10 +22,11 @@ const (
 	OnQuestionAnswered = "question_answered"
 	OnIdleFor          = "idle_for"
 	OnCron             = "cron"
+	OnNoReportFor      = "no_report_for"
 )
 
 // Triggers lists every trigger name.
-var Triggers = []string{OnFieldChanged, OnColumnEntered, OnCardCreated, OnReport, OnQuestionOpened, OnQuestionAnswered, OnIdleFor, OnCron}
+var Triggers = []string{OnFieldChanged, OnColumnEntered, OnCardCreated, OnReport, OnQuestionOpened, OnQuestionAnswered, OnIdleFor, OnCron, OnNoReportFor}
 
 // Action types.
 const (
@@ -48,11 +49,11 @@ const MaxActionsPerCard = 10
 
 // Trigger is a rule's trigger, stored as JSON.
 type Trigger struct {
-	On      string `json:"on" jsonschema:"field_changed, column_entered, card_created, report, question_opened, question_answered, idle_for or cron"`
+	On      string `json:"on" jsonschema:"field_changed, column_entered, card_created, report, question_opened, question_answered, idle_for, cron or no_report_for"`
 	Field   string `json:"field,omitempty" jsonschema:"field_changed: the field path to watch, such as jira.status; empty means any field"`
 	Column  string `json:"column,omitempty" jsonschema:"column_entered: the column id; empty means any column"`
 	Kind    string `json:"kind,omitempty" jsonschema:"report: progress, question, blocked or done; empty means any report"`
-	Minutes int    `json:"minutes,omitempty" jsonschema:"idle_for: how many minutes a card's session stays idle"`
+	Minutes int    `json:"minutes,omitempty" jsonschema:"idle_for: how many minutes a card's session stays idle. no_report_for: how many minutes a running session goes without a card_report"`
 	Spec    string `json:"spec,omitempty" jsonschema:"cron: a five-field cron spec, such as 0 9 * * 1-5"`
 }
 
@@ -99,6 +100,8 @@ type Event struct {
 	ReportKind string // report
 	Minutes    int    // idle_for
 	Spec       string // cron
+	// Vars are extra {{variables}} for the rule's text, filled by the trigger (no_report_for).
+	Vars map[string]string
 }
 
 // Effect is a side effect a rule asks for. The caller performs it once the transaction commits, so
@@ -174,6 +177,7 @@ type runState struct {
 	skipped map[string]bool
 	out     Outcome
 	queue   []Event
+	vars    map[string]string // the event's own template variables
 }
 
 // Handle runs every enabled rule that matches ev, in position order, then the events their actions
@@ -226,7 +230,7 @@ func matches(t Trigger, ev Event) bool {
 		return t.Column == "" || t.Column == ev.ColumnID
 	case OnReport:
 		return t.Kind == "" || t.Kind == ev.ReportKind
-	case OnIdleFor:
+	case OnIdleFor, OnNoReportFor:
 		return t.Minutes == ev.Minutes
 	case OnCron:
 		return t.Spec == ev.Spec
@@ -235,6 +239,8 @@ func matches(t Trigger, ev Event) bool {
 }
 
 func (rs *runState) fire(ctx context.Context, rule domain.Rule, ev Event) error {
+	rs.vars = ev.Vars
+	defer func() { rs.vars = nil }()
 	card, err := rs.tx.Cards.Get(ev.CardID)
 	if err != nil {
 		return err
@@ -552,6 +558,9 @@ func (rs *runState) write(rule domain.Rule, card domain.Card, action string, bef
 	return rs.tx.Changes.Create(&ch)
 }
 
+// A rule's text may use {{card.nick}}, {{<field path>}} and, for a no_report_for trigger,
+// {{quiet.minutes}} (how long the session has been quiet), {{report.last}} (the last report's
+// text), {{report.last_kind}} and {{report.last_ago}}.
 var tmplRe = regexp.MustCompile(`\{\{\s*([a-z_]+\.[a-z0-9_]+)\s*\}\}`)
 
 // render fills {{card.nick}} and {{<field path>}} in a rule's message.
@@ -571,6 +580,9 @@ func (rs *runState) render(card domain.Card, text string) string {
 	flat := fields.Flat(vars)
 	return tmplRe.ReplaceAllStringFunc(text, func(m string) string {
 		path := tmplRe.FindStringSubmatch(m)[1]
+		if v, ok := rs.vars[path]; ok {
+			return v
+		}
 		if v, ok := flat[path]; ok {
 			return fmt.Sprint(v)
 		}

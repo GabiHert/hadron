@@ -67,6 +67,27 @@ describe("Settings → Rules builder", () => {
     );
   });
 
+  it("builds a no_report_for rule with minutes and shows the variables hint only for it", async () => {
+    const user = await openRules();
+    expect(screen.queryByLabelText("Variables")).toBeNull();
+    await user.selectOptions(screen.getByRole("combobox", { name: "When" }), "no_report_for");
+    const mins = screen.getByRole("spinbutton", { name: "Quiet minutes" });
+    await user.clear(mins);
+    await user.type(mins, "20");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Condition field" }), "");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Then" }), "tell_planner");
+    await user.click(screen.getByRole("textbox", { name: "Message" }));
+    await user.paste("{{card.nick}} is quiet");
+    expect(screen.getByLabelText("Variables")).toHaveTextContent("{{quiet.minutes}}, {{report.last}}, {{report.last_kind}}, {{report.last_ago}}");
+    expect(screen.getByLabelText("Rule as CEL").textContent).toContain("no_report_for(20 min)");
+    await user.click(screen.getByRole("button", { name: "Create rule" }));
+    await waitFor(() =>
+      expect(mocks.rule_create).toHaveBeenCalledWith(
+        expect.objectContaining({ trigger: { on: "no_report_for", minutes: 20 }, actions: [{ type: "tell_planner", text: "{{card.nick}} is quiet" }] }),
+      ),
+    );
+  });
+
   it("shows the backend's reason when it refuses a rule", async () => {
     const user = await openRules();
     mocks.rule_create.mockRejectedValueOnce(new Error("condition: ERROR: <input>:1:1: undeclared reference to 'x'"));

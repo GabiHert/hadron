@@ -145,6 +145,12 @@ export function RulesTab({ board }: { board: Board }) {
                 <span className="hint">minutes</span>
               </>
             ) : null}
+            {draft.on === "no_report_for" ? (
+              <>
+                <input className="in" type="number" min={1} style={{ width: 70 }} value={draft.minutes} onChange={(e) => set({ minutes: e.target.value })} aria-label="Quiet minutes" />
+                <span className="hint">minutes without a report</span>
+              </>
+            ) : null}
             {draft.on === "cron" ? <input className="in mono" style={{ width: 150 }} value={draft.spec} onChange={(e) => set({ spec: e.target.value })} aria-label="Cron spec" placeholder="0 9 * * 1-5" /> : null}
           </div>
 
@@ -204,6 +210,9 @@ export function RulesTab({ board }: { board: Board }) {
             ) : null}
             {draft.action === "notify" || draft.action === "tell_planner" ? (
               <input className="in" style={{ flex: 1, minWidth: 160 }} value={draft.text} onChange={(e) => set({ text: e.target.value })} aria-label="Message" placeholder="{{card.nick}} is ready" />
+            ) : null}
+            {draft.on === "no_report_for" && (draft.action === "notify" || draft.action === "tell_planner") ? (
+              <span className="hint" aria-label="Variables">Variables: {"{{card.nick}}"}, and for this trigger {"{{quiet.minutes}}"}, {"{{report.last}}"}, {"{{report.last_kind}}"}, {"{{report.last_ago}}"}</span>
             ) : null}
           </div>
         </div>

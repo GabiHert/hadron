@@ -202,3 +202,14 @@ Build them in order. Each WI ends green on `make test`, plus `make build` for an
 **WI-26: Built-in harness and layered prompts**
 - **What:** the core planner and session prompts are embedded, versioned and read-only; a session prompt is composed from the core, the workspace prompt, the launch profile's `prompt` and the card's `prompt`, all with `{{variables}}`. New `hadron_guide {topic?}` (twelve embedded topics, with widget HTML that uses the theme's CSS variables), new `prompt_layers_get {kind, card?}`, `prompt_render` returns the composed text, the MCP server `instructions` point at `hadron_guide`. Settings, Prompts becomes Settings, Harness.
 - **AC:** tests cover layer order and variable filling in the fake claude's argv, the core surviving `prompt_set` and `prompt_reset`, the card and profile layers, every guide topic and the unknown-topic error, and the MCP instructions. Spec section 6 is updated.
+
+**WI-27: Harness-integration fixes**
+- **What:**
+  - every claude launch passes `--session-id` (or `--resume`) and stores the conversation id;
+  - session-control actions are checked per actor: a card session reads only its own screen and status, the planner drives card sessions but not itself, other workspaces are refused;
+  - Hadron's notices to the planner carry a middle dot that nothing a user, session or rule types can contain: `[KEY nick · report]`, `[KEY nick · answer]`, `[rule · name]`;
+  - `question_answer` takes `on_behalf_of` and `source_message_id` to relay the user's chat answer (`via: planner-relay`); the `user_only` policy; `gate_withdraw`;
+  - the `no_report_for {minutes}` trigger, with `{{quiet.minutes}}` and `{{report.last*}}` in `tell_planner` and `notify` text;
+  - `question_ask` takes `meanwhile`, and an approval takes `reversible` (yes, no or partial), `reversible_note` and `command_lang`, shown in the question card;
+  - `card_move` keeps `return_column_id` true; a card session may set its own `card.stage`, `custom.*` and linked-item fields.
+- **AC:** a test per item, in `internal/actions` and `internal/chat`, plus Vitest for the question card and the rule builder. `docs/mcp-tools.md` is regenerated, and the handoff prompts mention the notice prefixes.

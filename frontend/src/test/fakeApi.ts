@@ -55,7 +55,7 @@ export const message = (over: Partial<Message> = {}): Message => ({
   report_kind: "", text: "", widget_title: "", widget_html: "", delivered: true, reason: "", question_id: "", ...over,
 });
 export const question = (over: Partial<Question> = {}): Question => ({
-  id: "q1", created_at: ts, updated_at: ts, workspace_id: "w1", card_id: "c1", seq: 1, kind: "decision", text: "Round invoices up or to nearest?", context: "",
+  id: "q1", created_at: ts, updated_at: ts, workspace_id: "w1", card_id: "c1", seq: 1, kind: "decision", text: "Round invoices up or to nearest?", context: "", meanwhile: "",
   options: [{ label: "Nearest", description: "recommended" }, { label: "Up", description: "" }], multi: false, approval: null, status: "open", answer: null, answered_at: null, ...over,
 });
 
