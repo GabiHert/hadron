@@ -856,6 +856,12 @@ export interface BlockSource {
   columns?: { key: string; label: string }[];
   /** the chat message a pinned widget came from */
   from?: string;
+  /** heatmap: "strip" (default for non-date keys) or "calendar" (chosen automatically when every key is YYYY-MM-DD) */
+  layout?: "strip" | "calendar";
+  /** heatmap calendar: weeks shown, 1 to 53 (default 26) */
+  weeks?: number;
+  /** heatmap: what is counted ("deploys"), for tooltips and the total line */
+  unit?: string;
   [k: string]: unknown;
 }
 export interface Block {
@@ -878,6 +884,14 @@ export interface DashResult {
   shape: "groups" | "rows";
   groups: { key: string; label: string; count: number }[];
   rows: Record<string, unknown>[];
+  /** Queries an integration script defines are served from a cache: how old the data is, in seconds. */
+  age_s?: number;
+  /** nothing has been fetched yet; a fetch is under way */
+  pending?: boolean;
+  /** older than its time to live, being refreshed */
+  stale?: boolean;
+  /** why the last refresh failed; the data shown is the last good one */
+  error?: string;
 }
 export interface BlockView extends Block {
   data: DashResult | null;
@@ -888,6 +902,7 @@ export interface DashQueryInfo {
   shape: string;
   doc: string;
   args: unknown;
+  any_args?: boolean;
 }
 export interface BlockSpec {
   type: BlockType;

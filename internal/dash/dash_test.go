@@ -426,3 +426,113 @@ func TestTheSeededDashboardValidatesAndResolves(t *testing.T) {
 		}
 	}
 }
+
+func heatmap(src *Source) Spec {
+	return Spec{Type: TypeHeatmap, Title: "Deploys", Source: src}
+}
+
+func TestCalendarOptionsAreValidatedAndEveryProblemIsListed(t *testing.T) {
+	f := newFixture(t)
+	good := []Spec{
+		heatmap(&Source{Query: "mcp.calls", Args: map[string]any{"by": "hour"}}),
+		heatmap(&Source{Query: "mcp.calls", Args: map[string]any{"by": "hour"}, Layout: LayoutStrip, Unit: "calls"}),
+		heatmap(&Source{Query: "mcp.calls", Args: map[string]any{"by": "hour"}, Layout: LayoutCalendar, Weeks: 53, Unit: "deploys"}),
+		heatmap(&Source{Query: "mcp.calls", Args: map[string]any{"by": "hour"}, Weeks: 1}),
+	}
+	if errs := Validate(good, f.env.Lookup); len(errs) != 0 {
+		t.Fatalf("valid options rejected: %v", errs)
+	}
+	bad := []Spec{
+		heatmap(&Source{Query: "mcp.calls", Args: map[string]any{"by": "hour"}, Layout: "spiral", Weeks: 54, Unit: strings.Repeat("x", 31)}),
+		heatmap(&Source{Query: "mcp.calls", Args: map[string]any{"by": "hour"}, Layout: LayoutStrip, Weeks: 4}),
+		heatmap(&Source{Query: "mcp.calls", Args: map[string]any{"by": "hour"}, Weeks: -3, Unit: "a\nb"}),
+		{Type: TypeBars, Title: "Bars", Source: &Source{Query: "cards.count", Layout: LayoutCalendar, Weeks: 10, Unit: "cards"}},
+	}
+	errs := strings.Join(Validate(bad, f.env.Lookup), "\n")
+	for _, want := range []string{
+		`block 1 (Deploys): layout "spiral" must be strip or calendar`,
+		"block 1 (Deploys): weeks must be between 1 and 53, got 54",
+		"block 1 (Deploys): the unit is longer than 30 characters",
+		"block 2 (Deploys): weeks only applies to the calendar layout",
+		"block 3 (Deploys): weeks must be between 1 and 53, got -3",
+		"block 3 (Deploys): the unit must be plain text on one line",
+		"block 4 (Bars): only heatmap blocks take a layout",
+		"block 4 (Bars): only heatmap blocks take weeks",
+		"block 4 (Bars): only heatmap blocks take a unit",
+	} {
+		if !strings.Contains(errs, want) {
+			t.Errorf("missing %q in:\n%s", want, errs)
+		}
+	}
+	// The options survive the round trip through a stored block.
+	b, err := good[2].Domain(f.ws.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	back := SpecOf(b)
+	if back.Source == nil || back.Source.Layout != LayoutCalendar || back.Source.Weeks != 53 || back.Source.Unit != "deploys" {
+		t.Errorf("round trip lost the options: %+v", back.Source)
+	}
+}
+
+func TestDateKeysAndTheCalendarCheck(t *testing.T) {
+	days := []Group{{Key: "2026-11-03"}, {Key: "2026-02-28"}}
+	if !AllISODates(days) || CalendarProblem(days) != "" {
+		t.Error("ISO dates are calendar-ready")
+	}
+	for _, bad := range []string{"2026-13-01", "2026-2-3", "03/11/2026", "Mon", "2026-11-03T10:00:00Z", ""} {
+		if IsISODate(bad) {
+			t.Errorf("%q is not an ISO date", bad)
+		}
+	}
+	mixed := []Group{{Key: "2026-11-03"}, {Key: "tuesday"}}
+	if AllISODates(mixed) || AllISODates(nil) || !strings.Contains(CalendarProblem(mixed), `"tuesday"`) {
+		t.Error("a non-date key blocks the calendar and is named")
+	}
+}
+
+// fakeCustom stands in for the integrations' script-defined queries.
+type fakeCustom struct{}
+
+func (fakeCustom) QuerySpecs(ws domain.Workspace) []QuerySpec {
+	return []QuerySpec{{Name: "ci.deploys_per_day", Shape: ShapeGroups, Doc: "Deploys per day", Args: map[string]string{}, AnyArgs: true}}
+}
+func (fakeCustom) Query(_ context.Context, _ domain.Workspace, name string, args map[string]any) (Result, error) {
+	return Result{Query: name, Shape: ShapeGroups, Groups: []Group{{Key: "2026-11-03", Label: "2026-11-03", Count: 4}}, Pending: args["pending"] == true}, nil
+}
+
+func TestScriptDefinedQueriesAreLookedUpAndAcceptAnyArgs(t *testing.T) {
+	f := newFixture(t)
+	f.env.Workspace.Integrations = []string{"jira", "ci"}
+	if _, ok := f.env.Lookup("ci.deploys_per_day"); ok {
+		t.Fatal("without a provider the query does not exist")
+	}
+	f.env.Custom = fakeCustom{}
+	q, ok := f.env.Lookup("ci.deploys_per_day")
+	if !ok || !q.AnyArgs {
+		t.Fatalf("lookup = %+v %v", q, ok)
+	}
+	// Not in the workspace's integrations: not found.
+	f.env.Workspace.Integrations = []string{"jira"}
+	if _, ok := f.env.Lookup("ci.deploys_per_day"); ok {
+		t.Error("a workspace that does not use the integration cannot use its queries")
+	}
+	f.env.Workspace.Integrations = []string{"jira", "ci"}
+	spec := heatmap(&Source{Query: "ci.deploys_per_day", Args: map[string]any{"repo": "acme/web", "branch": "main"}, Layout: LayoutCalendar})
+	if errs := ValidateOne(&spec, f.env.Lookup); len(errs) != 0 {
+		t.Fatalf("free-form args are accepted: %v", errs)
+	}
+	res, err := Run(context.Background(), f.env, "ci.deploys_per_day", map[string]any{"repo": "acme/web"})
+	if err != nil || len(res.Groups) != 1 || res.Groups[0].Count != 4 {
+		t.Fatalf("run = %+v %v", res, err)
+	}
+	names := map[string]bool{}
+	for _, q := range f.env.AllQueries() {
+		names[q.Name] = true
+	}
+	for _, want := range []string{"cards.count", "jira.count", "ci.links", "ci.deploys_per_day"} {
+		if !names[want] {
+			t.Errorf("AllQueries lacks %s: %v", want, names)
+		}
+	}
+}

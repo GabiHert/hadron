@@ -61,6 +61,9 @@ type Ops struct {
 	Poll     *OpSpec           `json:"poll,omitempty"`
 	Actions  map[string]OpSpec `json:"actions,omitempty"`
 	Sessions *SessionOps       `json:"sessions,omitempty"`
+	// Queries are named dashboard queries: each ops.queries.<name> returns {groups:[{key,label,count}]}
+	// and registers the query <integration>.<name> for dashboard blocks.
+	Queries map[string]OpSpec `json:"queries,omitempty"`
 }
 
 // SessionOps are the ops of an integration that runs remote (cloud agent) sessions.
@@ -176,6 +179,11 @@ func ParseManifest(raw []byte) (Manifest, []string) {
 func (m Manifest) check() []string {
 	var p []string
 	seen := map[string]bool{}
+	for qn := range m.Ops.Queries {
+		if qn == "links" || qn == "count" {
+			p = append(p, fmt.Sprintf("manifest: ops.queries.%s is a reserved name: every integration already has <integration>.%s. Pick another name", qn, qn))
+		}
+	}
 	for _, f := range m.Fields {
 		if seen[f.Name] {
 			p = append(p, fmt.Sprintf("manifest: field %q is listed twice", f.Name))
@@ -221,6 +229,14 @@ func (m Manifest) OpNames() []string {
 	for _, n := range names {
 		out = append(out, "actions."+n)
 	}
+	qnames := make([]string, 0, len(m.Ops.Queries))
+	for n := range m.Ops.Queries {
+		qnames = append(qnames, n)
+	}
+	sort.Strings(qnames)
+	for _, n := range qnames {
+		out = append(out, "queries."+n)
+	}
 	if s := m.Ops.Sessions; s != nil {
 		add("sessions.list", s.List)
 		add("sessions.output", s.Output)
@@ -247,6 +263,12 @@ func (m Manifest) OpSpec(op string) (OpSpec, bool) {
 		if name, ok := strings.CutPrefix(op, "actions."); ok {
 			if a, found := m.Ops.Actions[name]; found {
 				return a, true
+			}
+			return OpSpec{}, false
+		}
+		if name, ok := strings.CutPrefix(op, "queries."); ok {
+			if q, found := m.Ops.Queries[name]; found {
+				return q, true
 			}
 			return OpSpec{}, false
 		}

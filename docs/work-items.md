@@ -224,3 +224,7 @@ Build them in order. Each WI ends green on `make test`, plus `make build` for an
   - Workspaces may share a root folder; their card worktrees get distinct folders and branches.
   - `planner_policy_get` and `planner_policy_set` take `workspace_id`: a workspace's own policy wins over the global one, and `inherit` removes it.
 - **AC:** tests run the real `release.sh` in a throwaway repository with a stubbed `gh` (refused without entries, promoted and used as the notes, restored after a failed build); the parser, `changelog_get`, the menu, two workspaces on one git root, and per-workspace policy are covered; Vitest covers the window and the tooltips.
+
+**Calendar heatmap and integration dashboard queries**
+- **What:** a `calendar` layout for heatmap blocks (automatic for date keys, `weeks`, `unit`, total line, legend); `ops.queries` in integration scripts registering `<integration>.<name>` dashboard queries with a per-args cache, stale-while-revalidate and last-error reporting; guide topics for both.
+- **AC:** tests cover option validation (every error listed), day placement, week columns, empty days and colour buckets, and the query registration, cache, stale and failed-refresh behaviour against a fake HTTP server.

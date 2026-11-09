@@ -25,11 +25,18 @@ var DefaultSchemas = map[string][2]string{
 	"sessions.stop":   {`{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}`, `{"type":["object","null"]}`},
 }
 
+// QuerySchemas are the input and output schemas of every ops.queries.<name>: any args object in,
+// groups of counts out, and an optional ttl_s (seconds the result may be served from the cache).
+var QuerySchemas = [2]string{`{"type":"object"}`, `{"type":"object","required":["groups"],"properties":{"groups":{"type":"array","items":{"type":"object","required":["key","count"],"properties":{"key":{"type":"string"},"label":{"type":"string"},"count":{"type":"number","minimum":0}}}},"ttl_s":{"type":"number","minimum":1,"maximum":86400}}}`}
+
 // SchemaFor returns the input and output schema of an op: the manifest's, else the default, else
 // any object.
 func SchemaFor(m Manifest, op string) (in, out json.RawMessage) {
 	spec, _ := m.OpSpec(op)
 	d, ok := DefaultSchemas[op]
+	if strings.HasPrefix(op, "queries.") {
+		d, ok = QuerySchemas, true
+	}
 	if !ok {
 		d = [2]string{`{"type":"object"}`, `{}`}
 	}

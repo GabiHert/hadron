@@ -5,3 +5,36 @@ An integration is a manifest plus a JavaScript file that runs in a sandbox and c
 Build one: `integration_scaffold {name, template}` then `integration_write_file` for `manifest.json` and `index.js`, `integration_validate`, `integration_test` (recorded tests with fixtures), and leave it for approval (`integration_approve`; the user always may, the planner depends on `planner_policy`). Only the user stores secrets (`integration_secret_set`).
 
 Once enabled, its fields appear as `<integration>.<field>`; `link_add` ties cards to items; `poll_seconds` keeps snapshots fresh; rules can call a script with `run_action`.
+
+## Dashboard queries
+An integration can feed dashboard blocks with data it fetches itself. Declare each query in the manifest under `ops.queries` and define it in `index.js` as `ops.queries.<name> = function (args) { ... }`. It returns `{groups: [{key, label, count}], ttl_s?}` and registers the query `<integration>.<name>`, which `dash_get` lists and a block's `source.query` can use. `args` is whatever the block passes.
+
+It runs in the same sandbox as every op: `host.http.request`, `host.secret`, `host.exec`, the manifest's permissions and the same time limit. The result is cached per args for 10 minutes (set `ttl_s` for another time). A dashboard render never waits for the network: it shows the last result with its age, refreshes in the background, and shows the error on the block when the last refresh failed. `links` and `count` are reserved names.
+
+Example: successful workflow runs per day of a repository (`manifest.json` permissions: `network: ["https://api.github.com/*"]`, `secrets: ["token"]`; the manifest declares `"ops": {"queries": {"deploys_per_day": {"description": "Successful workflow runs per day"}}}`):
+```js
+var ops = {
+  queries: {
+    deploys_per_day: function (args) {
+      var r = host.http.request({
+        method: "GET",
+        url: "https://api.github.com/repos/" + args.repo + "/actions/runs",
+        query: { status: "success", per_page: 100 },
+        headers: { Accept: "application/vnd.github+json" },
+        auth: { type: "bearer", secret: host.secret("token") }
+      });
+      if (r.status >= 400) { throw new Error("GitHub answered " + r.status); }
+      var perDay = {};
+      r.json.workflow_runs.forEach(function (run) {
+        var day = run.created_at.slice(0, 10);
+        perDay[day] = (perDay[day] || 0) + 1;
+      });
+      return {
+        groups: Object.keys(perDay).sort().map(function (d) { return { key: d, label: d, count: perDay[d] }; }),
+        ttl_s: 900
+      };
+    }
+  }
+};
+```
+Then add a heatmap block with `source: {query: "ci.deploys_per_day", args: {repo: "acme/web"}, layout: "calendar", unit: "deploys"}`.

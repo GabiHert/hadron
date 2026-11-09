@@ -7,6 +7,10 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- A calendar layout for heatmap blocks: a contributions-style grid with one square per day, weeks as columns, month labels, a five-step colour scale and a Less/More legend. It is chosen automatically when every group is a date (`YYYY-MM-DD`), or set with `layout: "calendar"`, with `weeks` (default 26) and `unit` options and a total line such as "42 deploys in the last 26 weeks".
+- Integrations can define their own dashboard queries (`ops.queries`), such as a repository's successful workflow runs per day. The data is fetched in the background and cached, so the dashboard never waits for the network; it shows how old the data is, and the error of the last refresh next to the last good data.
+
 ## [0.2.7] - 2026-11-09
 
 ### Changed

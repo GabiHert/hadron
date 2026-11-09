@@ -56,6 +56,11 @@ type Manager struct {
 	// Changed tells the frontend what to refetch. May be nil.
 	Changed func(workspaceID string, entities ...string)
 
+	// QueryTTL overrides DefaultQueryTTL; Now overrides the clock. Tests use both.
+	QueryTTL time.Duration
+	Now      func() time.Time
+
+	qc       queryCache
 	mu       sync.RWMutex
 	enabled  map[string]script.Manifest // "<workspace id or ''>/<name>" -> manifest of an enabled integration
 	lastPoll map[string]time.Time
@@ -94,6 +99,9 @@ func (m *Manager) Sync() error {
 	previous := m.enabled
 	m.enabled = enabled
 	m.mu.Unlock()
+	m.qc.mu.Lock() // a changed script may answer differently: forget what it answered before
+	m.qc.entries = nil
+	m.qc.mu.Unlock()
 	for k := range previous {
 		_, name, _ := strings.Cut(k, "/")
 		if !names[name] {

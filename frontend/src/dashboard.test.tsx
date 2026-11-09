@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { Widget, clampHeight, widgetSandbox, widgetSrcDoc } from "./components/Widget";
@@ -139,5 +139,99 @@ describe("chat widgets", () => {
     await user.click(within(group).getByRole("button", { name: "Pin Burndown to the dashboard" }));
     expect(mocks.widget_pin).toHaveBeenCalledWith({ message_id: "m9" });
     expect(await within(group).findByRole("button", { name: /on the dashboard/i })).toBeDisabled();
+  });
+});
+
+describe("heatmap calendar and cached-query status", () => {
+  const heat = (over: Partial<Parameters<typeof dashBlock>[1]> & { groups?: { key: string; label: string; count: number }[] } = {}) => {
+    const { groups, ...rest } = over;
+    return dashBlock("h1", {
+      type: "heatmap", title: "Deploys", span: 2, source: { query: "acme.deploys", unit: "deploys", weeks: 4 },
+      data: { query: "acme.deploys", shape: "groups", groups: groups ?? [{ key: "2025-11-03", label: "3 Nov", count: 4 }, { key: "2025-11-04", label: "4 Nov", count: 1 }], rows: [] },
+      ...rest,
+    });
+  };
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2025, 10, 5, 12, 0, 0));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  async function show(b: ReturnType<typeof heat>) {
+    state.dash = [b];
+    const user = userEvent.setup({ advanceTimers: () => {} });
+    render(<App />);
+    await screen.findByRole("heading", { name: "Acme" });
+    await user.click(screen.getByRole("tab", { name: /Dashboard/ }));
+    return await screen.findByRole("region", { name: b.title });
+  }
+
+  it("draws a calendar for ISO-date groups with tooltips, levels, legend and total", async () => {
+    const r = await show(heat());
+    const img = within(r).getByRole("img");
+    expect(img.getAttribute("aria-label")).toBe("Deploys: 5 deploys in the last 4 weeks");
+    const mon = r.querySelector('[data-date="2025-11-03"]')!;
+    expect(mon.getAttribute("title")).toBe("Mon 3 Nov · 4 deploys");
+    expect(mon.getAttribute("aria-label")).toBe("Mon 3 Nov · 4 deploys");
+    expect(mon.getAttribute("data-level")).toBe("4");
+    expect(r.querySelector('[data-date="2025-11-04"]')!.getAttribute("data-level")).toBe("1");
+    expect(r.querySelector('[data-date="2025-11-05"]')!.getAttribute("title")).toBe("Wed 5 Nov · 0 deploys");
+    expect(r.querySelector('[data-date="2025-11-06"]')).toBeNull();
+    expect(within(r).getByText("5 deploys in the last 4 weeks")).toBeInTheDocument();
+    expect(within(r).getByText("Less")).toBeInTheDocument();
+    expect(within(r).getByText("More")).toBeInTheDocument();
+    expect(r.querySelectorAll("[data-legend-level]").length).toBe(5);
+    expect(within(r).getByText("Mon")).toBeInTheDocument();
+    expect(within(r).getByText("Nov")).toBeInTheDocument();
+  });
+
+  it("keeps the strip for hour keys", async () => {
+    const r = await show(heat({ title: "Tool calls by hour", source: { query: "mcp.calls" }, groups: [{ key: "00", label: "00", count: 2 }, { key: "01", label: "01", count: 5 }] }));
+    expect(r.querySelector("[data-date]")).toBeNull();
+    expect(r.querySelector('[title="01: 5"]')).not.toBeNull();
+  });
+
+  it("honours layout strip over date keys", async () => {
+    const r = await show(heat({ source: { query: "acme.deploys", layout: "strip" } }));
+    expect(r.querySelector("[data-date]")).toBeNull();
+    expect(r.querySelector('[title="3 Nov: 4"]')).not.toBeNull();
+  });
+
+  it("shows only the error when a calendar was asked for but keys are not dates", async () => {
+    const r = await show(heat({ source: { query: "q", layout: "calendar" }, groups: [{ key: "00", label: "00", count: 1 }], error: "heatmap calendar needs YYYY-MM-DD keys" }));
+    expect(within(r).getByRole("note")).toHaveTextContent("needs YYYY-MM-DD");
+    expect(r.querySelector("[data-date]")).toBeNull();
+    expect(r.querySelector('[title="00: 1"]')).toBeNull();
+  });
+
+  it("shows the fetching note instead of an empty chart", async () => {
+    const r = await show(heat({ groups: [], data: { query: "q", shape: "groups", groups: [], rows: [], pending: true } }));
+    expect(within(r).getByLabelText("Block status")).toHaveTextContent("Fetching the data…");
+    expect(r.querySelector("[data-date]")).toBeNull();
+  });
+
+  it("shows the age in minutes and hours, and Refreshing when stale", async () => {
+    const mk = (age_s: number, stale?: boolean) => heat({ data: { query: "q", shape: "groups", groups: [{ key: "2025-11-03", label: "x", count: 1 }], rows: [], age_s, stale } });
+    let r = await show(mk(300, true));
+    expect(within(r).getByText("Updated 5 min ago")).toBeInTheDocument();
+    expect(within(r).getByText("Refreshing…")).toBeInTheDocument();
+    cleanup();
+    r = await show(mk(3 * 3600));
+    expect(within(r).getByText("Updated 3 h ago")).toBeInTheDocument();
+    expect(within(r).queryByText("Refreshing…")).toBeNull();
+    cleanup();
+    r = await show(mk(30));
+    expect(within(r).queryByText(/Updated/)).toBeNull();
+  });
+
+  it("shows the data and the error note together, and the error alone without data", async () => {
+    let r = await show(heat({ error: "the last refresh failed: timeout", data: { query: "q", shape: "groups", groups: [{ key: "2025-11-03", label: "x", count: 1 }], rows: [], stale: true } }));
+    expect(within(r).getByRole("note")).toHaveTextContent("the last refresh failed: timeout");
+    expect(r.querySelector('[data-date="2025-11-03"]')).not.toBeNull();
+    expect(within(r).queryByText("Refreshing…")).toBeNull();
+    cleanup();
+    r = await show(heat({ error: "boom", data: null }));
+    expect(within(r).getByRole("note")).toHaveTextContent("boom");
+    expect(r.querySelector("[data-date]")).toBeNull();
   });
 });

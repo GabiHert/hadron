@@ -36,6 +36,7 @@
         "update": {"$ref": "#/$defs/op"},
         "poll": {"$ref": "#/$defs/op"},
         "actions": {"type": "object", "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"}, "additionalProperties": {"$ref": "#/$defs/op"}},
+        "queries": {"type": "object", "description": "Named dashboard queries. ops.queries.<name> takes the block's args and returns {groups: [{key, label, count}], ttl_s?}; the app registers <integration>.<name> and caches the result.", "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"}, "additionalProperties": {"$ref": "#/$defs/op"}},
         "sessions": {
           "type": "object",
           "additionalProperties": false,

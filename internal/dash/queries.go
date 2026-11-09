@@ -21,6 +21,18 @@ type QuerySpec struct {
 	Doc   string `json:"doc"`
 	// Args maps an argument name to its type: string, int or text.
 	Args map[string]string `json:"args"`
+	// AnyArgs means the query takes whatever arguments its script reads, so none are rejected.
+	AnyArgs bool `json:"any_args,omitempty"`
+}
+
+// CustomQueries are the queries integration scripts define (ops.queries.<name>). Query never
+// waits for the network: it returns the last result with its age, starts a refresh in the
+// background when the result is old, and says so in the Result.
+type CustomQueries interface {
+	// QuerySpecs lists the queries the workspace's integrations define, named <integration>.<name>.
+	QuerySpecs(ws domain.Workspace) []QuerySpec
+	// Query returns the named query's cached result for the arguments.
+	Query(ctx context.Context, ws domain.Workspace, name string, args map[string]any) (Result, error)
 }
 
 // Builtin lists the built-in queries.
@@ -55,6 +67,8 @@ type Env struct {
 	Fields    *fields.Registry
 	Workspace domain.Workspace
 	Now       time.Time
+	// Custom serves the queries integration scripts define. It may be nil.
+	Custom CustomQueries
 }
 
 // Lookup finds a query by name for a workspace: a built-in, or <integration>.links / .count of an
@@ -75,7 +89,30 @@ func (e Env) Lookup(name string) (QuerySpec, bool) {
 			return q, true
 		}
 	}
+	if e.Custom != nil {
+		for _, q := range e.Custom.QuerySpecs(e.Workspace) {
+			if q.Name == name {
+				return q, true
+			}
+		}
+	}
 	return QuerySpec{}, false
+}
+
+// AllQueries lists the built-in queries, the standard ones of each integration the workspace uses,
+// and the ones its integrations define.
+func (e Env) AllQueries() []QuerySpec {
+	out := append([]QuerySpec{}, Builtin...)
+	for _, ns := range e.Workspace.Integrations {
+		for _, q := range IntegrationQueries {
+			q.Name = ns + "." + q.Name
+			out = append(out, q)
+		}
+	}
+	if e.Custom != nil {
+		out = append(out, e.Custom.QuerySpecs(e.Workspace)...)
+	}
+	return out
 }
 
 // QueryNames lists every query a lookup knows, for error messages. It probes the built-ins and
@@ -85,7 +122,7 @@ func QueryNames(lookup func(string) (QuerySpec, bool)) []string {
 	for _, q := range Builtin {
 		out = append(out, q.Name)
 	}
-	out = append(out, "<integration>.links", "<integration>.count")
+	out = append(out, "<integration>.links", "<integration>.count", "<integration>.<query the integration defines>")
 	return out
 }
 
@@ -109,6 +146,9 @@ func checkArgs(q QuerySpec, args map[string]any) []string {
 	sort.Strings(valid)
 	for _, k := range names {
 		typ, ok := q.Args[k]
+		if !ok && q.AnyArgs {
+			continue
+		}
 		if !ok {
 			errs = append(errs, fmt.Sprintf("unknown argument %q (valid: %s)", k, strings.Join(valid, ", ")))
 			continue
@@ -155,6 +195,14 @@ type Result struct {
 	Shape  string           `json:"shape"`
 	Groups []Group          `json:"groups"`
 	Rows   []map[string]any `json:"rows"`
+	// The rest is for queries an integration script defines, whose data comes from a cache: AgeS is
+	// how many seconds old the data is, Pending means nothing has been fetched yet (a fetch is under
+	// way), Stale means the data is older than its time to live and is being refreshed, and Error is
+	// why the last refresh failed (the data shown is then the last good one, if any).
+	AgeS    int    `json:"age_s,omitempty"`
+	Pending bool   `json:"pending,omitempty"`
+	Stale   bool   `json:"stale,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 func argString(args map[string]any, k string) string {
@@ -201,6 +249,9 @@ func Run(ctx context.Context, e Env, name string, args map[string]any) (Result, 
 		res.Rows, err = e.rulesFired(args)
 	default:
 		ns, rest, _ := strings.Cut(name, ".")
+		if e.Custom != nil && rest != "links" && rest != "count" {
+			return e.Custom.Query(ctx, e.Workspace, name, args)
+		}
 		if rest == "links" {
 			res.Rows, err = e.integrationLinks(ns, args)
 		} else {

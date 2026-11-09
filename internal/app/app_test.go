@@ -24,7 +24,7 @@ import (
 
 func newTestApp(t *testing.T) *App {
 	t.Helper()
-	loginEnv = os.Environ // never read the developer's login shell in a test
+	loginEnv = os.Environ                                        // never read the developer's login shell in a test
 	emitEvent = func(context.Context, string, ...interface{}) {} // Wails accepts only its own context
 	home := t.TempDir()
 	t.Setenv("HADRON_HOME", home)

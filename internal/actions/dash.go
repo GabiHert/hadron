@@ -80,7 +80,7 @@ type DashBlockIDIn struct {
 // DashQueryRunIn is the input of dash_query_run.
 type DashQueryRunIn struct {
 	WorkspaceID string         `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
-	Query       string         `json:"query" jsonschema:"a named query: cards.count, cards.list, questions.open, mcp.calls, rules.fired or <integration>.links / <integration>.count"`
+	Query       string         `json:"query" jsonschema:"a named query: cards.count, cards.list, questions.open, mcp.calls, rules.fired or <integration>.links / <integration>.count, or a query an integration defines (<integration>.<name>, see dash_get)"`
 	Args        map[string]any `json:"args,omitempty" jsonschema:"the query's arguments, such as {\"by\": \"column\"}"`
 }
 
@@ -91,7 +91,11 @@ type WidgetPinIn struct {
 }
 
 func dashEnv(c *Call, w domain.Workspace) dash.Env {
-	return dash.Env{Store: c.Store, Fields: fieldRegistry(c), Workspace: w, Now: time.Now()}
+	env := dash.Env{Store: c.Store, Fields: fieldRegistry(c), Workspace: w, Now: time.Now()}
+	if c.Deps.Integrations != nil {
+		env.Custom = c.Deps.Integrations
+	}
+	return env
 }
 
 func resolveBlock(ctx context.Context, env dash.Env, b domain.Block) BlockView {
@@ -110,6 +114,14 @@ func resolveBlock(ctx context.Context, env dash.Env, b domain.Block) BlockView {
 		return v
 	}
 	v.Data = &res
+	if src.Layout == dash.LayoutCalendar {
+		if p := dash.CalendarProblem(res.Groups); p != "" {
+			v.Error = p
+		}
+	}
+	if res.Error != "" && v.Error == "" {
+		v.Error = "the last refresh failed: " + res.Error
+	}
 	return v
 }
 
@@ -150,13 +162,7 @@ func registerDash(r *Registry) {
 				return DashGetOut{}, err
 			}
 			env := dashEnv(c, w)
-			out := DashGetOut{Blocks: []BlockView{}, Queries: append([]dash.QuerySpec{}, dash.Builtin...)}
-			for _, ns := range w.Integrations {
-				for _, q := range dash.IntegrationQueries {
-					q.Name = ns + "." + q.Name
-					out.Queries = append(out.Queries, q)
-				}
-			}
+			out := DashGetOut{Blocks: []BlockView{}, Queries: env.AllQueries()}
 			for _, b := range blocks {
 				out.Blocks = append(out.Blocks, resolveBlock(ctx, env, b))
 			}
@@ -349,7 +355,7 @@ func registerDash(r *Registry) {
 			return BlockView{Block: b}, nil
 		})
 
-	Register(r, Spec{Name: "dash_query_run", Description: "Run a named dashboard query now and return its result. cards.count{by,expr} gives groups; cards.list{expr}, questions.open, mcp.calls{since,by} and rules.fired{since} give rows (or groups); an integration adds <integration>.links and <integration>.count{by}."},
+	Register(r, Spec{Name: "dash_query_run", Description: "Run a named dashboard query now and return its result. cards.count{by,expr} gives groups; cards.list{expr}, questions.open, mcp.calls{since,by} and rules.fired{since} give rows (or groups); an integration adds <integration>.links and <integration>.count{by}, plus any query its script defines in ops.queries (<integration>.<name>), served from a cache: the result carries age_s, stale, pending and error."},
 		func(ctx context.Context, c *Call, in DashQueryRunIn) (dash.Result, error) {
 			w, err := c.Workspace(in.WorkspaceID)
 			if err != nil {

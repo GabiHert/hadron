@@ -72,6 +72,55 @@ type Source struct {
 	Height  int            `json:"height,omitempty"`  // 80 to 1200; 0 means automatic
 	Columns []Column       `json:"columns,omitempty"` // table blocks: which keys to show
 	From    string         `json:"from,omitempty"`    // custom blocks pinned from a chat widget: the message id
+	// Heatmap presentation. Layout is "strip" (the default for keys that are not dates) or
+	// "calendar" (weeks as columns, Monday to Sunday as rows; chosen automatically when every
+	// group key is a YYYY-MM-DD date). Weeks is how many weeks the calendar shows (default 26).
+	// Unit names what is counted ("deploys") in tooltips and the total line.
+	Layout string `json:"layout,omitempty"`
+	Weeks  int    `json:"weeks,omitempty"`
+	Unit   string `json:"unit,omitempty"`
+}
+
+// Calendar layout limits.
+const (
+	LayoutStrip    = "strip"
+	LayoutCalendar = "calendar"
+	DefaultWeeks   = 26
+	MaxWeeks       = 53
+	MaxUnitRunes   = 30
+	isoDateLayout  = "2006-01-02"
+)
+
+// IsISODate says whether s is a calendar date written YYYY-MM-DD.
+func IsISODate(s string) bool {
+	if len(s) != len(isoDateLayout) {
+		return false
+	}
+	_, err := time.Parse(isoDateLayout, s)
+	return err == nil
+}
+
+// AllISODates says whether every group key is a YYYY-MM-DD date (and there is at least one group).
+func AllISODates(groups []Group) bool {
+	if len(groups) == 0 {
+		return false
+	}
+	for _, g := range groups {
+		if !IsISODate(g.Key) {
+			return false
+		}
+	}
+	return true
+}
+
+// CalendarProblem explains why groups cannot be drawn as a calendar, or returns "".
+func CalendarProblem(groups []Group) string {
+	for _, g := range groups {
+		if !IsISODate(g.Key) {
+			return fmt.Sprintf("the calendar layout needs every group key to be a date written YYYY-MM-DD, but %q is not", g.Key)
+		}
+	}
+	return ""
 }
 
 // ParseSource decodes a block's stored source. An empty source is the zero Source.
@@ -171,6 +220,35 @@ func ValidateOne(b *Spec, knownQuery func(name string) (QuerySpec, bool)) []stri
 	case src != nil && (src.Query != "" || len(src.Args) > 0):
 		bad("%s blocks do not take a source query", b.Type)
 	}
+	if src != nil {
+		if src.Layout != "" && src.Layout != LayoutStrip && src.Layout != LayoutCalendar {
+			bad("layout %q must be %s or %s", src.Layout, LayoutStrip, LayoutCalendar)
+		}
+		if b.Type != TypeHeatmap {
+			if src.Layout != "" {
+				bad("only heatmap blocks take a layout")
+			}
+			if src.Weeks != 0 {
+				bad("only heatmap blocks take weeks")
+			}
+			if src.Unit != "" {
+				bad("only heatmap blocks take a unit")
+			}
+		} else {
+			if src.Weeks != 0 && (src.Weeks < 1 || src.Weeks > MaxWeeks) {
+				bad("weeks must be between 1 and %d, got %d", MaxWeeks, src.Weeks)
+			}
+			if src.Weeks != 0 && src.Layout == LayoutStrip {
+				bad("weeks only applies to the calendar layout")
+			}
+			if len([]rune(src.Unit)) > MaxUnitRunes {
+				bad("the unit is longer than %d characters", MaxUnitRunes)
+			}
+			if strings.ContainsAny(src.Unit, "\n\r<>") {
+				bad("the unit must be plain text on one line")
+			}
+		}
+	}
 	if b.Type == TypeTable && src != nil {
 		if len(src.Columns) > MaxTableCols {
 			bad("at most %d columns", MaxTableCols)
@@ -238,7 +316,7 @@ func (s Spec) Domain(workspaceID string) (domain.Block, error) {
 // SpecOf is the inverse of Spec.Domain.
 func SpecOf(b domain.Block) Spec {
 	s := Spec{Type: b.Type, Title: b.Title, Span: b.Span, HTML: b.HTML, Text: b.Text, Schedule: b.Schedule}
-	if src, err := ParseSource(b.Source); err == nil && (src.Query != "" || src.Height != 0 || len(src.Columns) > 0 || src.From != "" || len(src.Args) > 0) {
+	if src, err := ParseSource(b.Source); err == nil && (src.Query != "" || src.Height != 0 || len(src.Columns) > 0 || src.From != "" || len(src.Args) > 0 || src.Layout != "" || src.Weeks != 0 || src.Unit != "") {
 		s.Source = &src
 	}
 	return s

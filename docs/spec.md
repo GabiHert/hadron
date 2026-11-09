@@ -242,6 +242,8 @@ An integration is `manifest` + `source`. The manifest's JSON Schema lives in `in
 - **`planner` blocks:** the text is written by asking the planner through `planner_send`, with a generated instruction to call `dash_block_update` with text. That happens on the schedule (`daily HH:MM`, `hourly`) or on refresh. The default dashboard has no `planner` block that runs on a schedule, so it spends no tokens.
 - **The default dashboard** matches the prototype.
 
+**Dashboard queries from integrations, and the calendar heatmap.** `ops.queries.<name>` in a manifest and in `index.js` registers the dashboard query `<integration>.<name>` (groups of `{key,label,count}`, optional `ttl_s`). It runs in the sandbox like any op and is served from a per-args cache (default TTL 10 minutes): the first call returns `pending`, an old result is returned at once with `age_s` and `stale` while a background refresh runs, and a failed refresh keeps the last good data and sets `error`. A heatmap block takes `layout` (`strip` or `calendar`; calendar is automatic when every key is YYYY-MM-DD), `weeks` (1 to 53, default 26) and `unit`.
+
 ## 10. MCP server (`internal/mcpserver`)
 
 - **Listening:** `127.0.0.1` only, on port `47820` (setting `mcp.port`; `HADRON_MCP_PORT` overrides). If the port is busy, the server starts on a free one and records the port it uses in `~/.hadron/mcp.json` with mode 0600.

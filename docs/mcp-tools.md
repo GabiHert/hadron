@@ -523,14 +523,14 @@ Read the workspace's dashboard: each block with its data already resolved by its
 
 ### `dash_query_run`
 
-Run a named dashboard query now and return its result. cards.count{by,expr} gives groups; cards.list{expr}, questions.open, mcp.calls{since,by} and rules.fired{since} give rows (or groups); an integration adds <integration>.links and <integration>.count{by}.
+Run a named dashboard query now and return its result. cards.count{by,expr} gives groups; cards.list{expr}, questions.open, mcp.calls{since,by} and rules.fired{since} give rows (or groups); an integration adds <integration>.links and <integration>.count{by}, plus any query its script defines in ops.queries (<integration>.<name>), served from a cache: the result carries age_s, stale, pending and error.
 
 *reads*
 
 | Argument | Type | Required | What it is |
 |---|---|---|---|
 | `workspace_id` | string | no | the workspace; defaults to the active one |
-| `query` | string | yes | a named query: cards.count, cards.list, questions.open, mcp.calls, rules.fired or <integration>.links / <integration>.count |
+| `query` | string | yes | a named query: cards.count, cards.list, questions.open, mcp.calls, rules.fired or <integration>.links / <integration>.count, or a query an integration defines (<integration>.<name>, see dash_get) |
 | `args` | object | no | the query's arguments, such as {"by": "column"} |
 
 ### `dash_set`

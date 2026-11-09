@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
 import type { BlockSource, BlockType, BlockView, FieldEntry } from "../api";
+import { allISODates, buildCalendar, tooltip } from "../calendar";
 import { hm, short } from "../lib";
 import type { Board as BoardState } from "../state/useBoard";
 import { useDash, useWidgetScripts } from "../state/useDash";
@@ -122,10 +123,10 @@ export function Dashboard({ board }: { board: BoardState }) {
               onClick={() => void mutate(() => api.dash_block_remove({ block_id: b.id }))}><Icon name="close" size={13} /></button>
           </div>
           <div className="blkb">
-            {b.error ? <div className="hint" role="note">{b.error}</div> : <BlockBody b={b} board={board} scripts={scripts} onRewrite={async () => {
+            <BlockStatus b={b} board={board} scripts={scripts} onRewrite={async () => {
               const out = await mutate(() => api.dash_block_refresh({ block_id: b.id }));
               if (out) actions.toast("Asked the planner to write it");
-            }} />}
+            }} />
           </div>
         </section>
       ))}
@@ -134,6 +135,28 @@ export function Dashboard({ board }: { board: BoardState }) {
 }
 
 const ellipsis = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } as const;
+
+function ageText(s: number): string {
+  return s >= 7200 ? `Updated ${Math.floor(s / 3600)} h ago` : `Updated ${Math.floor(s / 60)} min ago`;
+}
+
+function BlockStatus({ b, board, scripts, onRewrite }: { b: BlockView; board: BoardState; scripts: boolean; onRewrite: () => void }) {
+  const d = b.data;
+  // A calendar that was asked for but cannot be drawn (non-date keys) shows the error only.
+  const unusable = b.type === "heatmap" && b.source?.layout === "calendar" && !allISODates(d?.groups ?? []);
+  const hasData = !!d && !unusable && (d.groups.length > 0 || d.rows.length > 0);
+  if (b.error && !hasData) return <div className="hint" role="note">{b.error}</div>;
+  if (d?.pending && !hasData)
+    return <div className="hint" role="status" aria-label="Block status">Fetching the data…</div>;
+  return (
+    <>
+      {b.error ? <div className="hint" role="note" style={{ marginBottom: 6 }}>{b.error}</div> : null}
+      <BlockBody b={b} board={board} scripts={scripts} onRewrite={onRewrite} />
+      {d && d.age_s !== undefined && d.age_s >= 60 ? <div className="hint" style={{ marginTop: 6, fontSize: 11 }}>{ageText(d.age_s)}</div> : null}
+      {d?.stale && !b.error ? <div className="hint" style={{ marginTop: 6, fontSize: 11 }} role="status" aria-label="Block status">Refreshing…</div> : null}
+    </>
+  );
+}
 
 function BlockBody({ b, board, scripts, onRewrite }: { b: BlockView; board: BoardState; scripts: boolean; onRewrite: () => void }) {
   const groups = b.data?.groups ?? [];
@@ -160,6 +183,8 @@ function BlockBody({ b, board, scripts, onRewrite }: { b: BlockView; board: Boar
       );
     }
     case "heatmap": {
+      const layout = b.source?.layout;
+      if (layout === "calendar" || (layout !== "strip" && allISODates(groups))) return <CalendarHeatmap b={b} />;
       const max = Math.max(1, ...groups.map((g) => g.count));
       return (
         <div style={{ display: "flex", gap: 3 }} role="img" aria-label={b.title}>
@@ -208,6 +233,52 @@ function BlockBody({ b, board, scripts, onRewrite }: { b: BlockView; board: Boar
     default:
       return <TableBody b={b} board={board} />;
   }
+}
+
+const LEVEL_BG = [
+  "color-mix(in srgb, var(--fg) 8%, transparent)",
+  "color-mix(in srgb, var(--acc) 28%, transparent)",
+  "color-mix(in srgb, var(--acc) 50%, transparent)",
+  "color-mix(in srgb, var(--acc) 75%, transparent)",
+  "color-mix(in srgb, var(--acc) 100%, transparent)",
+];
+const SQ = 12;
+const GAP = 3;
+
+function CalendarHeatmap({ b }: { b: BlockView }) {
+  const unit = typeof b.source?.unit === "string" && b.source.unit ? b.source.unit : undefined;
+  const cal = buildCalendar(b.data?.groups ?? [], { weeks: b.source?.weeks, now: new Date(), unit });
+  return (
+    <div style={{ maxWidth: "100%" }}>
+      <div style={{ overflowX: "auto", maxWidth: "100%", paddingBottom: 4 }}>
+        <div role="img" aria-label={`${b.title}: ${cal.totalText}`}
+          style={{ display: "grid", gridTemplateColumns: `auto repeat(${cal.weeks}, ${SQ}px)`, gridTemplateRows: `14px repeat(7, ${SQ}px)`, gap: GAP, width: "max-content", fontSize: 10 }}>
+          {cal.months.map((m) => (
+            <span key={m.col} className="hint" style={{ gridRow: 1, gridColumn: m.col + 2, whiteSpace: "nowrap", overflow: "visible", lineHeight: "14px" }}>{m.label}</span>
+          ))}
+          {cal.weekdayLabels.map((w, r) => (
+            <span key={r} className="hint" style={{ gridRow: r + 2, gridColumn: 1, lineHeight: `${SQ}px`, paddingRight: 4 }}>{w}</span>
+          ))}
+          {cal.columns.map((col, c) =>
+            col.map((cell, r) =>
+              cell.future ? null : (
+                <span key={cell.date} data-level={cell.level} data-date={cell.date} title={tooltip(cell, unit)} aria-label={tooltip(cell, unit)}
+                  style={{ gridRow: r + 2, gridColumn: c + 2, width: SQ, height: SQ, borderRadius: 2, background: LEVEL_BG[cell.level] }} />
+              ),
+            ),
+          )}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+        <span className="hint" style={{ flex: 1, minWidth: 0 }}>{cal.totalText}</span>
+        <span className="hint" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10 }}>
+          <span>Less</span>
+          {LEVEL_BG.map((bg, i) => <span key={i} data-legend-level={i} style={{ width: 10, height: 10, borderRadius: 2, background: bg, display: "inline-block" }} />)}
+          <span>More</span>
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function TableBody({ b, board }: { b: BlockView; board: BoardState }) {
