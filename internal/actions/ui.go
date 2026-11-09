@@ -3,7 +3,6 @@ package actions
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -106,16 +105,24 @@ func registerUI(r *Registry) {
 					return nil, fmt.Errorf("setting key %q must be lowercase letters, digits, dots and underscores, starting with a letter", k)
 				}
 				if k == "planner.policy" {
-					if c.Actor.Kind != KindYou {
-						return nil, errors.New("only the user sets the planner policy")
+					if err := c.UserOnly("settings_update planner.policy"); err != nil {
+						return nil, err
 					}
 					if p, _ := v.(string); !contains(PlannerPolicies, p) {
 						return nil, fmt.Errorf("planner.policy must be one of %s, got %v", strings.Join(PlannerPolicies, ", "), v)
 					}
 				}
+				if k == SettingUserActions {
+					if err := checkUserActionsValue(v); err != nil {
+						return nil, err
+					}
+					if err := c.UserOnly("settings_update " + SettingUserActions); err != nil {
+						return nil, err
+					}
+				}
 				if k == "widgets.scripts" {
-					if c.Actor.Kind != KindYou {
-						return nil, errors.New("only the user lets widgets run scripts: a widget the planner writes would otherwise run code")
+					if err := c.UserOnly("settings_update widgets.scripts"); err != nil {
+						return nil, err
 					}
 					if _, ok := v.(bool); !ok {
 						return nil, fmt.Errorf("widgets.scripts must be true or false, got %v", v)

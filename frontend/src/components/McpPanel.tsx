@@ -12,7 +12,21 @@ interface Props {
   client?: { info: () => Promise<McpInfo>; calls: () => Promise<McpCall[]> };
   on?: (cb: () => void) => () => void;
   copy?: (text: string) => Promise<void>;
+  /** Reads and writes the mcp.user_actions setting. Replaceable in tests. */
+  userActions?: { get: () => Promise<string>; set: (v: string) => Promise<void> };
 }
+
+/** The values of mcp.user_actions, with the line that explains each. */
+export const USER_ACTION_MODES: { value: string; label: string; help: string }[] = [
+  { value: "external", label: "Your own clients", help: "Your own MCP clients (no session header) may call the actions that are yours alone, such as setting the planner policy or sending chat. The planner and cards may not." },
+  { value: "all", label: "Everyone, including the planner", help: "The planner and card sessions may call them too. Only choose this when you trust what runs in them." },
+  { value: "off", label: "Only this app", help: "Only the buttons in this window may. Over MCP they are refused." },
+];
+
+const defaultUserActions = {
+  get: () => api.settings_get({ key: "mcp.user_actions" }).then((v) => (typeof v["mcp.user_actions"] === "string" ? (v["mcp.user_actions"] as string) : "external")),
+  set: (v: string) => api.settings_update({ values: { "mcp.user_actions": v } }).then(() => undefined),
+};
 
 const defaultClient = { info: api.mcp_info, calls: () => api.mcp_calls({ limit: 100 }) };
 const defaultCopy = (text: string) => navigator.clipboard.writeText(text);
@@ -45,7 +59,8 @@ export function CallRow({ call }: { call: McpCall }) {
   );
 }
 
-export function McpPanel({ client = defaultClient, on = api.onChanged, copy = defaultCopy }: Props) {
+export function McpPanel({ client = defaultClient, on = api.onChanged, copy = defaultCopy, userActions = defaultUserActions }: Props) {
+  const [mode, setMode] = useState("external");
   const [info, setInfo] = useState<McpInfo | null>(null);
   const [calls, setCalls] = useState<McpCall[]>([]);
   const [err, setErr] = useState("");
@@ -55,6 +70,19 @@ export function McpPanel({ client = defaultClient, on = api.onChanged, copy = de
     client.info().then(setInfo).catch((e) => setErr(errText(e)));
     client.calls().then(setCalls).catch((e) => setErr(errText(e)));
   }, [client]);
+
+  useEffect(() => {
+    userActions.get().then(setMode).catch(() => {});
+  }, [userActions]);
+
+  const chooseMode = async (v: string) => {
+    try {
+      await userActions.set(v);
+      setMode(v);
+    } catch (e) {
+      setErr(errText(e));
+    }
+  };
 
   useEffect(() => {
     load();
@@ -104,6 +132,17 @@ export function McpPanel({ client = defaultClient, on = api.onChanged, copy = de
         <button className="btn" type="button" disabled={!info?.connect_command} onClick={() => void doCopy("command", info!.connect_command)}>
           {copied === "command" ? "Copied" : "Copy command with token"}
         </button>
+      </div>
+
+      <h4 className="h5">Actions that are yours alone</h4>
+      <p className="sub">Some actions are the user's: setting the planner policy or its launch profile, sending chat as you, storing secrets. Choose who may call them over MCP. Every such call is written to the config history with who made it.</p>
+      <div role="radiogroup" aria-label="Who may use user-only actions" className="stack">
+        {USER_ACTION_MODES.map((m) => (
+          <label key={m.value} className="inline" style={{ alignItems: "flex-start" }}>
+            <input type="radio" name="user-actions" aria-label={m.label} checked={mode === m.value} onChange={() => void chooseMode(m.value)} />
+            <span><strong>{m.label}</strong><br /><span className="hint">{m.help}</span></span>
+          </label>
+        ))}
       </div>
 
       <h4 className="h5">Live call log</h4>

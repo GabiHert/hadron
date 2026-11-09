@@ -242,6 +242,7 @@ export const sessions_running = () => call<RunningSessions>("sessions_running", 
 export const planner_stop = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_stop", a);
 export const planner_restart = (a: { workspace_id?: string; fresh?: boolean } = {}) => call<SessionStatus>("planner_restart", a);
 export const planner_send = (a: { workspace_id?: string; text: string; enter?: boolean }) => call<SessionStatus>("planner_send", a);
+export const planner_keys = (a: { workspace_id?: string; keys: string[] }) => call<SessionStatus>("planner_keys", a);
 export const planner_read_screen = (a: { workspace_id?: string; lines?: number; scrollback?: boolean }) =>
   call<ScreenOut>("planner_read_screen", a);
 export const launch_profile_list = (a: { workspace_id?: string } = {}) => call<LaunchProfile[]>("launch_profile_list", a);

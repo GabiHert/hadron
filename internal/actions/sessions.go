@@ -63,6 +63,12 @@ type PlannerSendIn struct {
 	Enter       *bool  `json:"enter,omitempty" jsonschema:"press Enter after the text (default true)"`
 }
 
+// PlannerKeysIn is the input of planner_keys.
+type PlannerKeysIn struct {
+	WorkspaceID string   `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
+	Keys        []string `json:"keys" jsonschema:"keys to press, in order: Enter, Escape, Tab, Up, Down, Left, Right, Backspace, Ctrl-<letter>, or one character"`
+}
+
 // PlannerReadScreenIn is the input of planner_read_screen.
 type PlannerReadScreenIn struct {
 	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
@@ -264,11 +270,11 @@ func registerSessions(r *Registry) {
 			return st, nil
 		})
 
-	Register(r, Spec{Name: "planner_set_profile", Description: "Choose the launch profile of the workspace's planner: its command, arguments (such as --dangerously-skip-permissions), model and environment apply whenever the planner starts, restarts or is adopted. Its first prompt is never sent to a planner. Empty goes back to a bare claude. Takes effect at the next start. Only the user may.",
+	Register(r, Spec{Name: "planner_set_profile", Description: "Choose the launch profile of the workspace's planner: its command, arguments (such as --dangerously-skip-permissions), model and environment apply whenever the planner starts, restarts or is adopted. Its first prompt is never sent to a planner. Empty goes back to a bare claude. Takes effect at the next start. User-only: see mcp.user_actions.",
 		Mutates: true, Entities: []string{"sessions"}},
 		func(ctx context.Context, c *Call, in PlannerSetProfileIn) (SessionStatus, error) {
-			if c.Actor.Kind == KindSession || c.Actor.Kind == KindPlanner {
-				return SessionStatus{}, errors.New("only the user changes how the planner starts")
+			if err := c.UserOnly("planner_set_profile"); err != nil {
+				return SessionStatus{}, err
 			}
 			w, err := c.Workspace(in.WorkspaceID)
 			if err != nil {
@@ -343,6 +349,19 @@ func registerSessions(r *Registry) {
 			return sendTo(c, w.ID, nil, in.Text, in.Enter)
 		})
 
+	Register(r, Spec{Name: "planner_keys", Description: "Press keys in the planner's session: Enter, Escape, Tab, arrows, Backspace, Ctrl-<letter>, or single characters. Use it for menus and confirmations. It is a user-only action: see mcp.user_actions.",
+		Mutates: true, Entities: []string{"sessions"}},
+		func(ctx context.Context, c *Call, in PlannerKeysIn) (SessionStatus, error) {
+			w, err := c.Workspace(in.WorkspaceID)
+			if err != nil {
+				return SessionStatus{}, err
+			}
+			if err := mayControl(c, w.ID, nil, true, "planner_keys"); err != nil {
+				return SessionStatus{}, err
+			}
+			return keysTo(c, w.ID, nil, in.Keys)
+		})
+
 	Register(r, Spec{Name: "planner_read_screen", Description: "Read what the planner's terminal shows, as plain text: the last lines (default 60), optionally with the scrollback."},
 		func(ctx context.Context, c *Call, in PlannerReadScreenIn) (ScreenOut, error) {
 			w, err := c.Workspace(in.WorkspaceID)
@@ -362,6 +381,14 @@ func registerSessions(r *Registry) {
 // to its workspace's card sessions, and only read its own screen. A card session may read its own
 // screen and status and nothing else: it reports with card_report and asks with question_ask.
 func mayControl(c *Call, workspaceID string, card *domain.Card, write bool, what string) error {
+	err := mayControlRole(c, workspaceID, card, write, what)
+	if err != nil && write && c.Actor.WorkspaceID == workspaceID && c.userActionsOverride(what) {
+		return nil
+	}
+	return err
+}
+
+func mayControlRole(c *Call, workspaceID string, card *domain.Card, write bool, what string) error {
 	a := c.Actor
 	switch a.Kind {
 	case KindSession, KindPlanner:

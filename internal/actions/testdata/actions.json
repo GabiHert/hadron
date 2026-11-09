@@ -1712,6 +1712,22 @@
     ]
   },
   {
+    "name": "planner_keys",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "keys",
+        "required": true,
+        "type": "array"
+      }
+    ]
+  },
+  {
     "name": "planner_policy_get",
     "mutates": false,
     "fields": [

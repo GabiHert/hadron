@@ -231,7 +231,7 @@ func TestChatPostIsThePlannersAndChatSendIsTheUsers(t *testing.T) {
 	if err := h.as(Actor{Kind: KindExternal}, "chat_post", m{"channel": "planner", "text": "x"}, nil); err == nil {
 		t.Error("external chat_post should be refused")
 	}
-	if err := h.as(h.plannerActor(), "chat_send", m{"channel": "planner", "text": "x"}, nil); err == nil || !strings.Contains(err.Error(), "speaks as the user") {
+	if err := h.as(h.plannerActor(), "chat_send", m{"channel": "planner", "text": "x"}, nil); err == nil || !strings.Contains(err.Error(), "only the user may use chat_send") {
 		t.Errorf("planner chat_send: %v", err)
 	}
 	other := h.workspace("Other")

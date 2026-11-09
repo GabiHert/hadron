@@ -93,11 +93,11 @@ func registerChat(r *Registry) {
 			return msgs, nil
 		})
 
-	Register(r, Spec{Name: "chat_send", Description: "Send a message as the user. On a card's channel it is typed into the planner as \"[KEY nick] text\"; on the planner channel as \"[planner] text\". Only the user may call it; the planner answers with chat_post.",
+	Register(r, Spec{Name: "chat_send", Description: "Send a message as the user. On a card's channel it is typed into the planner as \"[KEY nick] text\"; on the planner channel as \"[planner] text\". User-only: see mcp.user_actions. The planner answers with chat_post.",
 		Mutates: true, Entities: []string{EntityMessages}},
 		func(ctx context.Context, c *Call, in ChatSendIn) (domain.Message, error) {
-			if c.Actor.Kind != KindYou {
-				return domain.Message{}, fmt.Errorf("chat_send speaks as the user, and %s is not the user. The planner replies with chat_post; a session reports with card_report", c.Actor)
+			if err := c.UserOnly("chat_send"); err != nil {
+				return domain.Message{}, err
 			}
 			ch, err := resolveChannel(c, in.WorkspaceID, in.Channel)
 			if err != nil {

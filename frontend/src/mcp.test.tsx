@@ -78,3 +78,41 @@ test("helpers", () => {
   expect(argsText({})).toBe("");
   expect(argsText({ a: "x".repeat(200) }, 20)).toHaveLength(20);
 });
+
+describe("user-only actions setting", () => {
+  function setupMode(initial: string, fail = false) {
+    const client = { info: vi.fn(async () => info), calls: vi.fn(async () => []) };
+    const userActions = {
+      get: vi.fn(async () => initial),
+      set: vi.fn(async (_v: string) => {
+        if (fail) throw new Error("not allowed");
+      }),
+    };
+    render(<McpPanel client={client} on={() => () => {}} copy={async () => {}} userActions={userActions} />);
+    return userActions;
+  }
+
+  test("shows the current value and one line for each choice", async () => {
+    setupMode("all");
+    const all = await screen.findByRole("radio", { name: "Everyone, including the planner" });
+    await waitFor(() => expect(all).toBeChecked());
+    expect(screen.getByRole("radio", { name: "Your own clients" })).not.toBeChecked();
+    expect(screen.getByText(/Only the buttons in this window may/)).toBeInTheDocument();
+    expect(screen.getByText(/The planner and card sessions may call them too/)).toBeInTheDocument();
+    expect(screen.getByText(/no session header\) may call/)).toBeInTheDocument();
+  });
+
+  test("choosing a value saves it", async () => {
+    const ua = setupMode("external");
+    await userEvent.click(await screen.findByRole("radio", { name: "Only this app" }));
+    expect(ua.set).toHaveBeenCalledWith("off");
+    await waitFor(() => expect(screen.getByRole("radio", { name: "Only this app" })).toBeChecked());
+  });
+
+  test("a refused save keeps the old value and shows the error", async () => {
+    setupMode("external", true);
+    await userEvent.click(await screen.findByRole("radio", { name: "Only this app" }));
+    expect(await screen.findByText("not allowed")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Your own clients" })).toBeChecked();
+  });
+});

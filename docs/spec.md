@@ -82,6 +82,7 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
 - **The actor** comes from the caller:
   - the UI is `you`;
   - MCP uses the `X-Hadron-Session` header: the planner's session id maps to `planner`, a card's session to `session:<nick>`, and a missing header to `external`.
+  - **User-only actions** (`planner_policy_set`, `planner_set_profile`, `models_set`, `chat_send`, `integration_secret_set`/`_clear`, `settings_update` of `planner.policy`, `widgets.scripts` and `mcp.user_actions`, and the planner-control denials of `mayControl`/`planner_set_model`) all pass `Call.UserOnly`, which reads the setting `mcp.user_actions`: `external` (default) allows the UI and `external` actors, `all` also the planner and sessions, `off` only the UI. A non-UI caller that passes is written to the config history (`user-only action over MCP`, with the actor) as well as `mcp_calls`. `planner_keys` presses keys in the planner like `session_keys`.
   - Rules run as `rule:<name>`.
 - **Every mutating action:**
   - validates its input, returning errors that say what to fix;

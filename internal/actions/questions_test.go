@@ -299,6 +299,7 @@ func TestAllowAllIsTheDefaultAndOnlyTheUserSetsThePolicy(t *testing.T) {
 	if err := h.as(h.plannerActor(), "question_answer", m{"question_id": ap.ID, "selections": []string{"Approve"}}, nil); err != nil {
 		t.Errorf("allow_all: %v", err)
 	}
+	h.do("settings_update", m{"values": m{SettingUserActions: "off"}}, nil) // external is covered by the mcp.user_actions tests
 	for _, who := range []Actor{h.plannerActor(), h.session(h.card), {Kind: KindExternal}} {
 		if err := h.as(who, "planner_policy_set", m{"policy": "allow_all"}, nil); err == nil || !strings.Contains(err.Error(), "only the user") {
 			t.Errorf("%s set the policy: %v", who, err)

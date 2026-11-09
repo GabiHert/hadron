@@ -71,11 +71,11 @@ func registerModels(r *Registry) {
 			return ModelsOut{Models: sessions.Models(c.Store), WorkspaceID: w.ID, DefaultModel: w.DefaultModel, PlannerModel: w.PlannerModel, Order: modelOrder}, nil
 		})
 
-	Register(r, Spec{Name: "models_set", Description: "Replace the list of models the pickers offer. Only the user can. A card may still run a model that is not in the list.",
+	Register(r, Spec{Name: "models_set", Description: "Replace the list of models the pickers offer. User-only: see mcp.user_actions. A card may still run a model that is not in the list.",
 		Mutates: true, Entities: []string{"settings"}},
 		func(ctx context.Context, c *Call, in ModelsSetIn) (ModelsOut, error) {
-			if c.Actor.Kind != KindYou {
-				return ModelsOut{}, errors.New("only the user changes the model list")
+			if err := c.UserOnly("models_set"); err != nil {
+				return ModelsOut{}, err
 			}
 			list, err := sessions.CheckModels(in.Models)
 			if err != nil {
@@ -147,9 +147,15 @@ func registerModels(r *Registry) {
 func mayChooseModel(c *Call, workspaceID string, card *domain.Card) error {
 	switch c.Actor.Kind {
 	case KindSession:
+		if c.userActionsOverride("change a model") {
+			return nil
+		}
 		return fmt.Errorf("%s may not change a model. Ask the planner with card_report", c.Actor)
 	case KindPlanner:
 		if card == nil {
+			if c.userActionsOverride("planner_set_model") {
+				return nil
+			}
 			return errors.New("the planner may not change its own model. Ask the user")
 		}
 		return sameWorkspace(c, workspaceID)

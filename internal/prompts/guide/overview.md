@@ -6,6 +6,7 @@ Hadron is a macOS app. A **workspace** has a **board** of columns; every **card*
 - Sessions report with `card_report`, ask with `question_ask`, and wait on the user with `gate_set`. A question or gate moves the card to the **Needs you** column until the user answers.
 - Every button in the app is also an MCP tool. `app_status` shows the version and tool count; `hadron_guide` explains features.
 - Columns have **roles** (needs-you, active, blocked, done, backlog). Rules and moves use roles, never names.
+- **User-only actions** (`chat_send`, `planner_policy_set`, `planner_set_profile`, `models_set`, `integration_secret_set`, `settings_update` for `planner.policy` and `widgets.scripts`, and `planner_keys`/`planner_send` on the planner itself) follow the setting `mcp.user_actions`: `external` (default) lets token holders with no `X-Hadron-Session` call them, `all` lets the planner and card sessions too, `off` leaves them to the app. Every such call over MCP is written to the config history with the actor. Changing the setting needs the same permission, so a planner can change it only when it is already `all`. Do not use one unless the user asked.
 - The user can open any session's Terminal tab and type directly. That bypasses the planner.
 
 ## Session folders and adoption

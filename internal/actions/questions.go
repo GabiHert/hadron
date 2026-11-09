@@ -479,11 +479,11 @@ func registerQuestions(r *Registry) {
 			return policyOut(c, id)
 		})
 
-	Register(r, Spec{Name: "planner_policy_set", Description: "Set the planner policy. Without workspace_id it sets the global policy that every workspace follows unless it has its own; with workspace_id it sets that workspace's own, and policy inherit removes it again. Only the user can: the planner cannot widen its own permissions.",
+	Register(r, Spec{Name: "planner_policy_set", Description: "Set the planner policy. Without workspace_id it sets the global policy that every workspace follows unless it has its own; with workspace_id it sets that workspace's own, and policy inherit removes it again. User-only: the planner cannot widen its own permissions unless the user sets mcp.user_actions to all.",
 		Mutates: true, Entities: []string{"settings"}},
 		func(ctx context.Context, c *Call, in PlannerPolicySetIn) (PlannerPolicyOut, error) {
-			if c.Actor.Kind != KindYou {
-				return PlannerPolicyOut{}, errors.New("only the user sets the planner policy")
+			if err := c.UserOnly("planner_policy_set"); err != nil {
+				return PlannerPolicyOut{}, err
 			}
 			if in.WorkspaceID == "" {
 				if !contains(PlannerPolicies, in.Policy) {

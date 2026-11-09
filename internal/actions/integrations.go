@@ -325,11 +325,11 @@ func registerIntegrations(r *Registry) {
 			return scriptView(c, w, sc), nil
 		})
 
-	Register(r, Spec{Name: "integration_secret_set", Description: "Store a secret an integration uses (an API token). It goes to the macOS login keychain under the service \"Hadron secrets\" and is never shown or returned again.",
+	Register(r, Spec{Name: "integration_secret_set", Description: "Store a secret an integration uses (an API token). It goes to the macOS login keychain under the service \"Hadron secrets\" and is never shown or returned again. User-only: see mcp.user_actions.",
 		Mutates: true, Sensitive: true, Entities: []string{EntityScripts}},
 		func(ctx context.Context, c *Call, in SecretSetIn) (ScriptView, error) {
-			if c.Actor.Kind != KindYou {
-				return ScriptView{}, errors.New("only the user stores secrets: a token should never pass through the planner's chat. Ask the user to enter it in Settings, Integrations")
+			if err := c.UserOnly("integration_secret_set"); err != nil {
+				return ScriptView{}, err
 			}
 			m, err := integ(c)
 			if err != nil {
@@ -354,8 +354,8 @@ func registerIntegrations(r *Registry) {
 	Register(r, Spec{Name: "integration_secret_clear", Description: "Delete a stored secret of an integration.",
 		Mutates: true, Entities: []string{EntityScripts}},
 		func(ctx context.Context, c *Call, in SecretClearIn) (ScriptView, error) {
-			if c.Actor.Kind != KindYou {
-				return ScriptView{}, errors.New("only the user deletes secrets")
+			if err := c.UserOnly("integration_secret_clear"); err != nil {
+				return ScriptView{}, err
 			}
 			m, err := integ(c)
 			if err != nil {
