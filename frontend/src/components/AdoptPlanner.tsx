@@ -30,7 +30,7 @@ export function AdoptPlanner({ board, onClose }: { board: Board; onClose: () => 
     if (!picked) return;
     setBusy(true);
     const out = await actions.run(() =>
-      api.planner_adopt({ workspace_id: ws.id, claude_session_id: picked.claude_session_id, ...(profile ? { launch_profile: profile } : {}) }),
+      api.planner_adopt({ workspace_id: ws.id, claude_session_id: picked.claude_session_id, ...(profile ? { launch_profile: profile } : {}), ...(picked.cwd ? { cwd: picked.cwd } : {}) }),
     );
     setBusy(false);
     if (!out) return;

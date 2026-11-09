@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/GabiHert/hadron/internal/domain"
 )
 
 // MinAdoptableSize skips session files too small to hold a conversation.
@@ -21,6 +23,9 @@ type Adoptable struct {
 	FirstUserMessage string    `json:"first_user_message"`
 	LastActivity     time.Time `json:"last_activity"`
 	Size             int64     `json:"size"`
+	// Cwd is the folder the conversation was run in, read from its transcript. Resuming it works
+	// only in that folder.
+	Cwd string `json:"cwd"`
 }
 
 // ClaudeConfigDir is where Claude Code keeps its data: CLAUDE_CONFIG_DIR, else ~/.claude.
@@ -58,33 +63,87 @@ func ProjectDirs(configDir, root string) []string {
 	return out
 }
 
-// ListAdoptable scans the conversations of a workspace root, newest first. Files under 2 KB are
-// skipped.
+// ListAdoptable scans the conversations that were run in one folder, newest first. Files under
+// 2 KB are skipped. A transcript that records no cwd is taken to be of that folder.
 func ListAdoptable(configDir, root string) ([]Adoptable, error) {
 	var out []Adoptable
 	for _, dir := range ProjectDirs(configDir, root) {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			continue
+		out = append(out, scanProjectDir(dir, filepath.Clean(root))...)
+	}
+	sortNewest(out)
+	return out, nil
+}
+
+// ListAllAdoptable scans every folder under <configDir>/projects, newest first, with each
+// conversation's real cwd read from its transcript. The folder names are not decoded: the
+// encoding turns every non-alphanumeric character into a dash, so it cannot be reversed. A
+// transcript that records no cwd is left out, because Hadron would not know where to resume it.
+func ListAllAdoptable(configDir string) ([]Adoptable, error) {
+	entries, err := os.ReadDir(filepath.Join(configDir, "projects"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []Adoptable{}, nil
 		}
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".jsonl") {
-				continue
-			}
-			info, err := e.Info()
-			if err != nil || info.Size() < MinAdoptableSize {
-				continue
-			}
-			out = append(out, Adoptable{
-				ClaudeSessionID:  strings.TrimSuffix(e.Name(), ".jsonl"),
-				FirstUserMessage: firstUserMessage(filepath.Join(dir, e.Name())),
-				LastActivity:     info.ModTime().UTC(),
-				Size:             info.Size(),
-			})
+		return nil, err
+	}
+	out := []Adoptable{}
+	for _, e := range entries {
+		if e.IsDir() {
+			out = append(out, scanProjectDir(filepath.Join(configDir, "projects", e.Name()), "")...)
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].LastActivity.After(out[j].LastActivity) })
+	sortNewest(out)
 	return out, nil
+}
+
+func sortNewest(list []Adoptable) {
+	sort.SliceStable(list, func(i, j int) bool { return list[i].LastActivity.After(list[j].LastActivity) })
+}
+
+// scanProjectDir lists the adoptable conversations of one projects/ folder. fallbackCwd is used
+// for a transcript without a cwd; when it is empty, such a transcript is skipped.
+func scanProjectDir(dir, fallbackCwd string) []Adoptable {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var out []Adoptable
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".jsonl") {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil || info.Size() < MinAdoptableSize {
+			continue
+		}
+		first, cwd := readTranscript(filepath.Join(dir, e.Name()))
+		if cwd == "" {
+			cwd = fallbackCwd
+		}
+		if cwd == "" {
+			continue
+		}
+		out = append(out, Adoptable{
+			ClaudeSessionID:  strings.TrimSuffix(e.Name(), ".jsonl"),
+			FirstUserMessage: first,
+			LastActivity:     info.ModTime().UTC(),
+			Size:             info.Size(),
+			Cwd:              cwd,
+		})
+	}
+	return out
+}
+
+// Folder is the folder a session runs in before any worktree: the card's own folder, else (for
+// the planner, card nil) the workspace's planner folder, else the workspace root.
+func Folder(ws domain.Workspace, card *domain.Card) string {
+	if card != nil && card.Cwd != "" {
+		return card.Cwd
+	}
+	if card == nil && ws.PlannerCwd != "" {
+		return ws.PlannerCwd
+	}
+	return ws.Root
 }
 
 // HasConversation says whether the conversation file of a session id exists for a root.
@@ -100,35 +159,43 @@ func HasConversation(configDir, root, id string) bool {
 	return false
 }
 
-// firstUserMessage returns the first thing the user typed, cut to 200 characters. Tool results,
-// slash-command bookkeeping and sidechains are not the user typing.
-func firstUserMessage(path string) string {
+// readTranscript returns the first thing the user typed, cut to 200 characters, and the folder the
+// conversation was run in (the first cwd a line records). Tool results, slash-command bookkeeping
+// and sidechains are not the user typing. It reads at most 400 lines.
+func readTranscript(path string) (first, cwd string) {
 	f, err := os.Open(path)
 	if err != nil {
-		return ""
+		return "", ""
 	}
 	defer f.Close()
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 0, 64*1024), 8<<20)
-	for i := 0; i < 400 && sc.Scan(); i++ {
+	for i := 0; i < 400 && sc.Scan() && (first == "" || cwd == ""); i++ {
 		var line struct {
 			Type        string `json:"type"`
+			Cwd         string `json:"cwd"`
 			IsMeta      bool   `json:"isMeta"`
 			IsSidechain bool   `json:"isSidechain"`
 			Message     struct {
 				Content json.RawMessage `json:"content"`
 			} `json:"message"`
 		}
-		if json.Unmarshal(sc.Bytes(), &line) != nil || line.Type != "user" || line.IsMeta || line.IsSidechain {
+		if json.Unmarshal(sc.Bytes(), &line) != nil {
+			continue
+		}
+		if cwd == "" && filepath.IsAbs(line.Cwd) {
+			cwd = filepath.Clean(line.Cwd)
+		}
+		if first != "" || line.Type != "user" || line.IsMeta || line.IsSidechain {
 			continue
 		}
 		text := userText(line.Message.Content)
 		if text == "" || strings.HasPrefix(text, "<command-") || strings.HasPrefix(text, "<local-command") || strings.HasPrefix(text, "Caveat:") {
 			continue
 		}
-		return clip(strings.Join(strings.Fields(text), " "), 200)
+		first = clip(strings.Join(strings.Fields(text), " "), 200)
 	}
-	return ""
+	return first, cwd
 }
 
 func userText(raw json.RawMessage) string {

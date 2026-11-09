@@ -22,6 +22,8 @@ export interface Workspace {
   default_model: string;
   /** The planner's model; empty falls back to default_model. */
   planner_model: string;
+  /** The folder the planner runs in; empty means root. */
+  planner_cwd?: string;
   ui: {
     collapsed?: { planner?: boolean; card?: boolean };
     full?: "planner" | "card";
@@ -60,6 +62,8 @@ export interface Card {
   prompt: string;
   /** The Claude model of this card's session; empty falls back to the launch profile's, then the workspace default. */
   model: string;
+  /** The folder the card's session runs in; empty means the workspace root. */
+  cwd?: string;
 }
 
 export interface AppStatus {
@@ -114,6 +118,7 @@ export const workspace_update = (a: {
   integrations?: string[];
   filter_bar?: string[];
   default_model?: string;
+  planner_cwd?: string;
 }) => call<Workspace>("workspace_update", a);
 export const workspace_archive = (a: { workspace_id: string; archived?: boolean }) => call<Workspace>("workspace_archive", a);
 export const workspace_delete = (a: { workspace_id: string }) => call<Workspace>("workspace_delete", a);
@@ -149,6 +154,7 @@ export const card_create = (a: {
   start?: boolean;
   prompt?: string;
   model?: string;
+  cwd?: string;
 }) => call<Card>("card_create", a);
 export const card_update = (a: {
   card_id: string;
@@ -160,7 +166,8 @@ export const card_update = (a: {
   launch_profile?: string;
   prompt?: string;
   model?: string;
-}) => call<Card>("card_update", a);
+  cwd?: string;
+}) => call<Card & { note?: string }>("card_update", a);
 export const card_move = (a: { card_id: string; column_id: string; position?: number }) => call<Card>("card_move", a);
 export const card_archive = (a: { card_id: string; archived?: boolean }) => call<Card>("card_archive", a);
 export const card_delete = (a: { card_id: string }) => call<Card>("card_delete", a);
@@ -952,6 +959,8 @@ export interface Adoptable {
   first_user_message: string;
   last_activity: string;
   size: number;
+  /** The folder the conversation was run in, read from its transcript. */
+  cwd: string;
   already_in_hadron: boolean;
   held_by?: string;
 }
@@ -960,10 +969,10 @@ export interface AdoptResult {
   status: Partial<SessionStatus>;
   warning: string;
 }
-export const session_adoptable_list = (a: { workspace_id?: string } = {}) => call<Adoptable[]>("session_adoptable_list", a);
-export const session_adopt = (a: { workspace_id?: string; claude_session_id: string; nick: string; key?: string; column_id?: string; start?: boolean; handoff?: boolean; launch_profile?: string }) =>
+export const session_adoptable_list = (a: { workspace_id?: string; cwd?: string; all?: boolean } = {}) => call<Adoptable[]>("session_adoptable_list", a);
+export const session_adopt = (a: { workspace_id?: string; claude_session_id: string; nick: string; key?: string; column_id?: string; start?: boolean; handoff?: boolean; launch_profile?: string; cwd?: string }) =>
   call<AdoptResult>("session_adopt", a);
-export const planner_adopt = (a: { workspace_id?: string; claude_session_id: string; handoff?: boolean; launch_profile?: string }) =>
+export const planner_adopt = (a: { workspace_id?: string; claude_session_id: string; handoff?: boolean; launch_profile?: string; cwd?: string }) =>
   call<AdoptResult>("planner_adopt", a);
 
 // ---- importing a planner folder ----

@@ -128,7 +128,14 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 	} else if !errors.Is(prevErr, store.ErrNotFound) {
 		return domain.Session{}, nil, prevErr
 	}
-	if st, err := os.Stat(ws.Root); err != nil || !st.IsDir() {
+	base := Folder(ws, card)
+	if st, err := os.Stat(base); err != nil || !st.IsDir() {
+		switch {
+		case card != nil && card.Cwd != "":
+			return domain.Session{}, nil, fmt.Errorf("card %q runs in %s, which is not a folder any more. Change it with card_update cwd (empty means the workspace root)", card.Nick, base)
+		case card == nil && ws.PlannerCwd != "":
+			return domain.Session{}, nil, fmt.Errorf("the planner of %q runs in %s, which is not a folder any more. Change it with workspace_update planner_cwd (empty means the workspace root)", ws.Name, base)
+		}
 		return domain.Session{}, nil, fmt.Errorf("workspace %q has no folder at %s. Fix its root with workspace_update", ws.Name, ws.Root)
 	}
 
@@ -150,15 +157,15 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 		}
 	}
 
-	cwd := ws.Root
+	cwd := base
 	if card != nil && profile.Worktree {
 		switch {
-		case !IsGitRepo(env, ws.Root):
+		case !IsGitRepo(env, base):
 			if req.Warnings != nil {
-				*req.Warnings = append(*req.Warnings, fmt.Sprintf("the launch profile asks for a worktree but %s is not a git repository, so the session started in the workspace root", ws.Root))
+				*req.Warnings = append(*req.Warnings, fmt.Sprintf("the launch profile asks for a worktree but %s is not a git repository, so the session started in that folder", base))
 			}
 		default:
-			path, _, err := EnsureWorktree(env, ws.Root, WorktreeName(tx, ws, card.Nick))
+			path, _, err := EnsureWorktree(env, base, WorktreeName(tx, ws, card.Nick))
 			if err != nil {
 				return domain.Session{}, nil, fmt.Errorf("could not make the worktree for %s: %w", card.Nick, err)
 			}

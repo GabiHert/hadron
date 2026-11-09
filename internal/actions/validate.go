@@ -51,6 +51,65 @@ func checkColor(color string) error {
 
 func checkNick(nick string) error { return board.CheckNick(nick) }
 
+// resolveFolder checks the folder a session runs in (the field named field): ~ is expanded, and
+// the result must be an absolute path to a folder that exists. Empty stays empty, meaning the
+// workspace root.
+func resolveFolder(field, raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil
+	}
+	p := raw
+	if home, err := os.UserHomeDir(); err == nil {
+		switch {
+		case p == "~":
+			p = home
+		case strings.HasPrefix(p, "~/"):
+			p = filepath.Join(home, p[2:])
+		}
+	}
+	if !filepath.IsAbs(p) {
+		return "", fmt.Errorf("%s %q is not an absolute path. Start it with / or ~/, such as ~/code/acme-web", field, raw)
+	}
+	p = filepath.Clean(p)
+	st, err := os.Stat(p)
+	switch {
+	case err != nil:
+		return "", fmt.Errorf("%s %s does not exist. Pass a folder that is there, or empty for the workspace root", field, p)
+	case !st.IsDir():
+		return "", fmt.Errorf("%s %s is a file, not a folder", field, p)
+	}
+	return p, nil
+}
+
+// storedFolder is what a card or planner keeps for a folder: empty when it is the workspace root,
+// so the session follows the root if the root changes.
+func storedFolder(w domain.Workspace, folder string) string {
+	if folder == "" || filepath.Clean(folder) == filepath.Clean(w.Root) {
+		return ""
+	}
+	a, aerr := filepath.EvalSymlinks(folder)
+	b, berr := filepath.EvalSymlinks(w.Root)
+	if aerr == nil && berr == nil && a == b {
+		return ""
+	}
+	return folder
+}
+
+// joinErrs returns nil when no check failed, else every failure, one per line.
+func joinErrs(errs ...error) error {
+	var msgs []string
+	for _, e := range errs {
+		if e != nil {
+			msgs = append(msgs, e.Error())
+		}
+	}
+	if len(msgs) == 0 {
+		return nil
+	}
+	return errors.New(strings.Join(msgs, "\n"))
+}
+
 // resolveRoot expands ~ and makes the root absolute. An empty root means the home folder. The
 // folder need not exist yet, but if something is there it must be a folder.
 func resolveRoot(root string) (string, error) {

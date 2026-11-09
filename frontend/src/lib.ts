@@ -44,3 +44,15 @@ export function releaseHighlights(notes: string, n = 3): string[] {
   }
   return out;
 }
+
+/** A folder with the macOS home folder (/Users/<name>) shortened to ~. */
+export function tildePath(path: string): string {
+  return path.replace(/^\/Users\/[^/]+(?=\/|$)/, "~");
+}
+
+/** The folder a card runs in when it is not the workspace root, else "". */
+export function cardFolder(cwd: string | undefined, root: string | undefined): string {
+  const clean = (p: string) => p.replace(/\/+$/, "");
+  if (!cwd || clean(cwd) === clean(root ?? "")) return "";
+  return cwd;
+}

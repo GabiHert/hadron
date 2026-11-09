@@ -616,3 +616,60 @@ func TestListRestorableReturnsThePlannerFirstAndOneSessionPerOwner(t *testing.T)
 		t.Errorf("after ClearRestore: %+v", got)
 	}
 }
+
+// TestFolderMigrationKeepsOldCardsInTheRoot rolls a database back to before 0010, as an older
+// Hadron left it, and checks that the migration gives existing cards and workspaces an empty
+// folder (the workspace root) and that the new columns round-trip.
+func TestFolderMigrationKeepsOldCardsInTheRoot(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, "hadron.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := mustWS(t, s, "old")
+	col := mustCol(t, s, w.ID, "Working", "active")
+	card := mustCard(t, s, w.ID, col.ID, "legacy")
+	for _, q := range []string{
+		`ALTER TABLE cards DROP COLUMN cwd`,
+		`ALTER TABLE workspaces DROP COLUMN planner_cwd`,
+		`DELETE FROM schema_migrations WHERE version = 10`,
+	} {
+		if _, err := s.db.Exec(q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	s.Close()
+
+	s2, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s2.Close()
+	got, err := s2.Cards.Get(card.ID)
+	if err != nil || got.Cwd != "" {
+		t.Fatalf("an old card runs in the root (empty cwd): %+v, %v", got, err)
+	}
+	gw, err := s2.Workspaces.Get(w.ID)
+	if err != nil || gw.PlannerCwd != "" {
+		t.Fatalf("an old planner runs in the root: %+v, %v", gw, err)
+	}
+	got.Cwd = "/tmp/acme-web"
+	if err := s2.Cards.Update(&got); err != nil {
+		t.Fatal(err)
+	}
+	gw.PlannerCwd = "/tmp/acme-api"
+	if err := s2.Workspaces.Update(&gw); err != nil {
+		t.Fatal(err)
+	}
+	fresh := domain.Card{WorkspaceID: w.ID, ColumnID: col.ID, Nick: "beta", Cwd: "/tmp/beta"}
+	if err := s2.Cards.Create(&fresh); err != nil {
+		t.Fatal(err)
+	}
+	a, _ := s2.Cards.Get(card.ID)
+	b, _ := s2.Cards.Get(fresh.ID)
+	ww, _ := s2.Workspaces.Get(w.ID)
+	if a.Cwd != "/tmp/acme-web" || b.Cwd != "/tmp/beta" || ww.PlannerCwd != "/tmp/acme-api" {
+		t.Fatalf("round trip: %q %q %q", a.Cwd, b.Cwd, ww.PlannerCwd)
+	}
+}

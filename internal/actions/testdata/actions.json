@@ -84,6 +84,11 @@
         "name": "prompt",
         "required": false,
         "type": "string"
+      },
+      {
+        "name": "cwd",
+        "required": false,
+        "type": "string"
       }
     ]
   },
@@ -281,6 +286,11 @@
       },
       {
         "name": "prompt",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "cwd",
         "required": false,
         "type": "string"
       }
@@ -1682,6 +1692,11 @@
         "name": "launch_profile",
         "required": false,
         "type": "string"
+      },
+      {
+        "name": "cwd",
+        "required": false,
+        "type": "string"
       }
     ]
   },
@@ -2546,6 +2561,11 @@
         "name": "launch_profile",
         "required": false,
         "type": "string"
+      },
+      {
+        "name": "cwd",
+        "required": false,
+        "type": "string"
       }
     ]
   },
@@ -2557,6 +2577,16 @@
         "name": "workspace_id",
         "required": false,
         "type": "string"
+      },
+      {
+        "name": "cwd",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "all",
+        "required": false,
+        "type": "boolean"
       }
     ]
   },
@@ -3043,6 +3073,11 @@
       },
       {
         "name": "default_model",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "planner_cwd",
         "required": false,
         "type": "string"
       }

@@ -7,7 +7,7 @@ import (
 // Workspaces is the repo for workspaces.
 type Workspaces struct{ s *Store }
 
-const wsCols = `id, created_at, updated_at, name, color, root, position, archived, integrations, filter_bar, ui, default_model, planner_model`
+const wsCols = `id, created_at, updated_at, name, color, root, position, archived, integrations, filter_bar, ui, default_model, planner_model, planner_cwd`
 
 type scanner interface{ Scan(dest ...any) error }
 
@@ -15,7 +15,7 @@ func scanWorkspace(r scanner) (domain.Workspace, error) {
 	var w domain.Workspace
 	var c, u, integ, fb, ui string
 	var arch int
-	if err := r.Scan(&w.ID, &c, &u, &w.Name, &w.Color, &w.Root, &w.Position, &arch, &integ, &fb, &ui, &w.DefaultModel, &w.PlannerModel); err != nil {
+	if err := r.Scan(&w.ID, &c, &u, &w.Name, &w.Color, &w.Root, &w.Position, &arch, &integ, &fb, &ui, &w.DefaultModel, &w.PlannerModel, &w.PlannerCwd); err != nil {
 		return w, err
 	}
 	w.CreatedAt, w.UpdatedAt, w.Archived = parseTS(c), parseTS(u), arch == 1
@@ -41,9 +41,9 @@ func (r *Workspaces) Create(w *domain.Workspace) error {
 	if w.UI == nil {
 		w.UI = map[string]any{}
 	}
-	_, err := r.s.q.Exec(`INSERT INTO workspaces (`+wsCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+	_, err := r.s.q.Exec(`INSERT INTO workspaces (`+wsCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		w.ID, ts(w.CreatedAt), ts(w.UpdatedAt), w.Name, w.Color, w.Root, w.Position, b2i(w.Archived),
-		toJSON(w.Integrations), toJSON(w.FilterBar), toJSON(w.UI), w.DefaultModel, w.PlannerModel)
+		toJSON(w.Integrations), toJSON(w.FilterBar), toJSON(w.UI), w.DefaultModel, w.PlannerModel, w.PlannerCwd)
 	return mapErr(err)
 }
 
@@ -74,8 +74,8 @@ func (r *Workspaces) List(includeArchived bool) ([]domain.Workspace, error) {
 // Update writes every field of w.
 func (r *Workspaces) Update(w *domain.Workspace) error {
 	stamp(&w.Meta)
-	return affected(r.s.q.Exec(`UPDATE workspaces SET updated_at=?, name=?, color=?, root=?, position=?, archived=?, integrations=?, filter_bar=?, ui=?, default_model=?, planner_model=? WHERE id=?`,
-		ts(w.UpdatedAt), w.Name, w.Color, w.Root, w.Position, b2i(w.Archived), toJSON(w.Integrations), toJSON(w.FilterBar), toJSON(w.UI), w.DefaultModel, w.PlannerModel, w.ID))
+	return affected(r.s.q.Exec(`UPDATE workspaces SET updated_at=?, name=?, color=?, root=?, position=?, archived=?, integrations=?, filter_bar=?, ui=?, default_model=?, planner_model=?, planner_cwd=? WHERE id=?`,
+		ts(w.UpdatedAt), w.Name, w.Color, w.Root, w.Position, b2i(w.Archived), toJSON(w.Integrations), toJSON(w.FilterBar), toJSON(w.UI), w.DefaultModel, w.PlannerModel, w.PlannerCwd, w.ID))
 }
 
 // Delete removes a workspace and, by cascade, everything in it.

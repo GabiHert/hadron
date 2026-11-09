@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import * as api from "../api";
 import type { Adoptable, Column, LaunchProfile } from "../api";
-import { ROLES, SWATCHES, slug } from "../lib";
+import { ROLES, SWATCHES, slug, tildePath } from "../lib";
 import type { Board } from "../state/useBoard";
 import { formatVersion, isDark } from "./Header";
 import { Icon } from "./ui";
@@ -113,6 +113,7 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
   const [busy, setBusy] = useState(false);
   const [cardPrompt, setCardPrompt] = useState("");
   const [model, setModel] = useState("");
+  const [folder, setFolder] = useState("");
   const { info: modelInfo } = useModels(ws?.id ?? "", board.actions.toast);
   const nick = slug(nickIn);
   const [adopting, setAdopting] = useState(false);
@@ -121,7 +122,7 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
   const adopt = async () => {
     if (!picked) return;
     setBusy(true);
-    const out = await board.actions.run(() => api.session_adopt({ workspace_id: ws?.id, claude_session_id: picked.claude_session_id, nick, key: key.trim() || undefined, column_id: col || undefined, ...(adoptProfile ? { launch_profile: adoptProfile } : {}) }));
+    const out = await board.actions.run(() => api.session_adopt({ workspace_id: ws?.id, claude_session_id: picked.claude_session_id, nick, key: key.trim() || undefined, column_id: col || undefined, ...(adoptProfile ? { launch_profile: adoptProfile } : {}), ...(picked.cwd ? { cwd: picked.cwd } : {}) }));
     setBusy(false);
     if (!out) return;
     if (out.card) board.actions.select(out.card.id);
@@ -147,7 +148,7 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
   const chosen = profiles.find((p) => p.name === profile);
   const submit = async () => {
     setBusy(true);
-    const card = await board.actions.createCard({ nick, key: key.trim() || undefined, column_id: col || undefined, launch_profile: profile || undefined, ...(cardPrompt.trim() ? { prompt: cardPrompt } : {}), ...(model ? { model } : {}) });
+    const card = await board.actions.createCard({ nick, key: key.trim() || undefined, column_id: col || undefined, launch_profile: profile || undefined, ...(cardPrompt.trim() ? { prompt: cardPrompt } : {}), ...(model ? { model } : {}), ...(folder.trim() ? { cwd: folder.trim() } : {}) });
     setBusy(false);
     if (card) onClose();
   };
@@ -161,6 +162,7 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
           <AdoptList workspaceId={ws?.id ?? ""} root={ws?.root ?? ""} picked={picked?.claude_session_id ?? ""} onError={board.actions.toast} onPick={(a) => { setPicked(a); setNick(nickFrom(a.first_user_message)); }} />
           {picked ? (
             <>
+              {picked.cwd ? <p className="hint" aria-label="Adopted folder" style={{ margin: 0 }}>Runs in <span className="mono">{tildePath(picked.cwd)}</span></p> : null}
               <label className="field"><span>Nickname</span><input id="ad-nick" className="in" autoFocus value={nickIn} onChange={(e) => setNick(e.target.value)} placeholder="billing-fix" /></label>
               <label className="field"><span>Key (optional)</span><input id="ad-key" className="in mono" value={key} onChange={(e) => setKey(e.target.value.toUpperCase())} placeholder="ACME-550" /></label>
               <label className="field"><span>Launch profile</span>
@@ -193,6 +195,11 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
               {profiles.length === 0 ? <option value="">Plain claude, no first prompt</option> : null}
               {profiles.map((p) => <option key={p.id} value={p.name}>{profileLabel(p)}</option>)}
             </select>
+          </label>
+          <label className="field">
+            <span>Folder (optional)</span>
+            <input id="ns-cwd" className="in mono" aria-label="Session folder" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder={ws?.root ?? ""} />
+            <span className="hint">Where the session runs. Empty means the workspace root; ~ is expanded.</span>
           </label>
           <label className="field">
             <span>Model</span>
