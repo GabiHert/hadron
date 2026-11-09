@@ -27,6 +27,13 @@ for a in "$@"; do
   if [ "$prev" = "--mcp-config" ]; then cp "$a" "$out.mcp"; fi
   prev="$a"
 done
+kind=card
+case "$*" in *"You are the planner"*) kind=planner ;; esac
+prev=""
+for a in "$@"; do
+  case "$prev" in --resume|--session-id) echo "$kind $prev $a" >> "$out.history" ;; esac
+  prev="$a"
+done
 env > "$out.env"
 pwd > "$out.pwd"
 echo started > "$out.started"

@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GabiHert/hadron/internal/actions"
+	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/run"
 	"github.com/GabiHert/hadron/internal/store"
 	"github.com/wailsapp/wails/v2/pkg/menu"
@@ -23,6 +25,7 @@ import (
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 	loginEnv = os.Environ // never read the developer's login shell in a test
+	emitEvent = func(context.Context, string, ...interface{}) {} // Wails accepts only its own context
 	home := t.TempDir()
 	t.Setenv("HADRON_HOME", home)
 	st, err := store.Open(filepath.Join(home, "hadron.db"))
@@ -288,5 +291,60 @@ func TestTheMenuHasHelpWithWhatsNew(t *testing.T) {
 	whatsNew.Click(&menu.CallbackData{}) // before the window exists this must be harmless
 	if EventWhatsNew != "menu:whatsnew" {
 		t.Error("the frontend listens for menu:whatsnew")
+	}
+}
+
+func TestStartupRestoresFlaggedSessionsUnlessTheSettingIsOff(t *testing.T) {
+	for _, on := range []bool{true, false} {
+		a := newTestApp(t)
+		restoreStagger = 5 * time.Millisecond
+		out := filepath.Join(t.TempDir(), "argv")
+		script := filepath.Join(t.TempDir(), "fake-claude")
+		if err := os.WriteFile(script, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" > "+out+"\nsleep 5\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		// session.command replaces the program; the restore still goes through the shared start path.
+		inv := func(name, args string) string {
+			res, err := a.reg.Invoke(context.Background(), actions.You, name, args)
+			if err != nil {
+				t.Fatalf("%s: %v", name, err)
+			}
+			return res
+		}
+		var w domain.Workspace
+		if err := json.Unmarshal([]byte(inv("workspace_create", `{"name":"Acme","root":`+strconv.Quote(t.TempDir())+`}`)), &w); err != nil {
+			t.Fatal(err)
+		}
+		var card domain.Card
+		if err := json.Unmarshal([]byte(inv("card_create", `{"workspace_id":"`+w.ID+`","nick":"billing-fix","start":false}`)), &card); err != nil {
+			t.Fatal(err)
+		}
+		inv("settings_update", `{"values":{"session.command":`+strconv.Quote(script)+`,"sessions.restore_on_launch":`+strconv.FormatBool(on)+`}}`)
+		row := domain.Session{WorkspaceID: w.ID, CardID: card.ID, Kind: "card", Command: "claude", Cwd: w.Root, Status: "exited", ClaudeSessionID: "11111111-2222-3333-4444-555555555555", Restore: true}
+		if err := a.st.Sessions.Create(&row); err != nil {
+			t.Fatal(err)
+		}
+		a.startup(context.Background())
+		if on {
+			deadline := time.Now().Add(5 * time.Second)
+			for time.Now().Before(deadline) && a.sess.LiveSessions() == nil {
+				time.Sleep(20 * time.Millisecond)
+			}
+			if live := a.sess.LiveSessions(); len(live) != 1 || live[0].CardID != card.ID {
+				t.Fatalf("setting on: the flagged card is running again, got %+v", live)
+			}
+			msgs, _ := a.st.Messages.List(w.ID, "card:"+card.ID, "")
+			if len(msgs) == 0 || msgs[len(msgs)-1].Text != "Resumed after Hadron restarted." {
+				t.Errorf("event = %+v", msgs)
+			}
+		} else {
+			time.Sleep(300 * time.Millisecond)
+			if live := a.sess.LiveSessions(); len(live) != 0 {
+				t.Fatalf("setting off: nothing is restored, got %+v", live)
+			}
+			if rows, _ := a.st.Sessions.ListRestorable(); len(rows) != 0 {
+				t.Errorf("setting off clears the flags: %+v", rows)
+			}
+		}
 	}
 }

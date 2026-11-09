@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/GabiHert/hadron/internal/domain"
 )
@@ -564,4 +565,54 @@ func latestMigration(t *testing.T) int {
 		t.Fatal(err)
 	}
 	return len(entries)
+}
+
+func TestListRestorableReturnsThePlannerFirstAndOneSessionPerOwner(t *testing.T) {
+	s := open(t)
+	w := domain.Workspace{Name: "Acme", Root: t.TempDir()}
+	if err := s.Workspaces.Create(&w); err != nil {
+		t.Fatal(err)
+	}
+	col := domain.Column{WorkspaceID: w.ID, Name: "Working", Role: "active"}
+	if err := s.Columns.Create(&col); err != nil {
+		t.Fatal(err)
+	}
+	mk := func(nick string) domain.Card {
+		c := domain.Card{WorkspaceID: w.ID, ColumnID: col.ID, Nick: nick}
+		if err := s.Cards.Create(&c); err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	a, b := mk("billing-fix"), mk("invoice-sync")
+	add := func(card string, restore bool, at time.Time) domain.Session {
+		kind := "card"
+		if card == "" {
+			kind = "planner"
+		}
+		x := domain.Session{WorkspaceID: w.ID, CardID: card, Kind: kind, Command: "claude", Cwd: "/", Status: "exited", StartedAt: at, Restore: restore}
+		if err := s.Sessions.Create(&x); err != nil {
+			t.Fatal(err)
+		}
+		return x
+	}
+	t0 := time.Now().Add(-time.Hour)
+	add(a.ID, true, t0.Add(1*time.Minute))
+	add(b.ID, true, t0.Add(2*time.Minute))
+	newerA := add(a.ID, true, t0.Add(3*time.Minute)) // the newest row of an owner wins
+	add(b.ID, false, t0.Add(4*time.Minute))          // not flagged: ignored
+	pl := add("", true, t0.Add(5*time.Minute))
+	got, err := s.Sessions.ListRestorable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3 || got[0].ID != pl.ID || got[1].CardID != b.ID || got[2].ID != newerA.ID {
+		t.Fatalf("restorable = %+v", got)
+	}
+	if err := s.Sessions.ClearRestore(); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.Sessions.ListRestorable(); len(got) != 0 {
+		t.Errorf("after ClearRestore: %+v", got)
+	}
 }

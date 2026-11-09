@@ -211,7 +211,9 @@ func TestRestartResumesOnlyConversationsThatExist(t *testing.T) {
 	waitUntil(t, "planner", func() bool { return strings.Contains(h.file(".argv"), "You are the planner") })
 	p1 := h.latest(w.ID, "")
 	h.do("planner_restart", m{"workspace_id": w.ID}, nil)
-	waitUntil(t, "planner again", func() bool { return h.latest(w.ID, "").ID != p1.ID && hasPair(argvOf(h), "--session-id", p1.ClaudeSessionID) })
+	waitUntil(t, "planner again", func() bool {
+		return h.latest(w.ID, "").ID != p1.ID && hasPair(argvOf(h), "--session-id", p1.ClaudeSessionID)
+	})
 	if strings.Contains(h.file(".argv"), "--resume") {
 		t.Fatalf("planner without a transcript: %q", argvOf(h))
 	}

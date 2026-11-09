@@ -103,7 +103,35 @@ type ScreenOut struct {
 // KeyNames is the list of key names session_keys accepts, for the UI.
 var KeyNames = pty.KeyNames
 
+// RunningSessionsOut is the result of sessions_running.
+type RunningSessionsOut struct {
+	Count int `json:"count"`
+	// Sessions names them: "planner" or the card's nickname.
+	Sessions []string `json:"sessions"`
+	// RestoreOnLaunch says whether they come back after Hadron restarts or updates.
+	RestoreOnLaunch bool `json:"restore_on_launch"`
+}
+
 func registerSessions(r *Registry) {
+	Register(r, Spec{Name: "sessions_running", Description: "Count the sessions that are running now (the planners and the cards), with their names, and whether they come back after Hadron restarts or updates (the setting sessions.restore_on_launch)."},
+		func(ctx context.Context, c *Call, in struct{}) (RunningSessionsOut, error) {
+			out := RunningSessionsOut{Sessions: []string{}, RestoreOnLaunch: sessions.RestoreOnLaunch(c.Store)}
+			if c.Deps.Sessions == nil {
+				return out, nil
+			}
+			for _, row := range c.Deps.Sessions.LiveSessions() {
+				name := "planner"
+				if row.CardID != "" {
+					if card, err := c.Store.Cards.Get(row.CardID); err == nil {
+						name = card.Nick
+					}
+				}
+				out.Sessions = append(out.Sessions, name)
+			}
+			out.Count = len(out.Sessions)
+			return out, nil
+		})
+
 	Register(r, Spec{Name: "session_start", Description: "Start the Claude Code session of a card. It is an error if the card already has a running session; use session_restart then.",
 		Mutates: true, Entities: []string{"sessions", "cards"}},
 		func(ctx context.Context, c *Call, in SessionStartIn) (SessionStatus, error) {

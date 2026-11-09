@@ -225,6 +225,13 @@ export const session_status = (a: { card: string }) => call<SessionStatus>("sess
 export const planner_get = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_get", a);
 export const planner_set_profile = (a: { workspace_id?: string; launch_profile?: string }) => call<SessionStatus>("planner_set_profile", a);
 export const planner_start = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_start", a);
+export interface RunningSessions {
+  count: number;
+  /** "planner" or a card nickname */
+  sessions: string[];
+  restore_on_launch: boolean;
+}
+export const sessions_running = () => call<RunningSessions>("sessions_running", {});
 export const planner_stop = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_stop", a);
 export const planner_restart = (a: { workspace_id?: string; fresh?: boolean } = {}) => call<SessionStatus>("planner_restart", a);
 export const planner_send = (a: { workspace_id?: string; text: string; enter?: boolean }) => call<SessionStatus>("planner_send", a);

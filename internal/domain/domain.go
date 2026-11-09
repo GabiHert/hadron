@@ -100,6 +100,9 @@ type Session struct {
 	ClaudeSessionID string     `json:"claude_session_id"`
 	StartedAt       time.Time  `json:"started_at"`
 	EndedAt         *time.Time `json:"ended_at"`
+	// Restore means the session is meant to be running: Hadron brings it back after a restart,
+	// an update or a crash. It is cleared when the session ends on its own or the user stops it.
+	Restore bool `json:"restore"`
 }
 
 // Message is one line of a chat channel ("planner" or "card:<id>").

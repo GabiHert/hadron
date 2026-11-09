@@ -129,6 +129,8 @@ export const state: {
   policyGlobal: string;
   /** a workspace's own planner policy, by workspace id */
   policyOverride: Record<string, string>;
+  /** what sessions_running answers: the running sessions ("planner" or a nick) and the restore setting */
+  running: { sessions: string[]; restore_on_launch: boolean };
   /** session_status by card id; planner_get reads "planner". A card with no entry has never run. */
   sessions: Record<string, SessionStatus>;
   mcp: McpInfo;
@@ -142,7 +144,7 @@ export const state: {
   links: Link[];
   remoteSessions: RemoteSession[];
   models: ModelOption[];
-} = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, sessions: {},
+} = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
   mcp: { running: true, url: "http://127.0.0.1:47820/mcp", port: 47820, token: "tok-0123456789abcdef", tool_count: 61, connect_command: "" },
   mcpCalls: [],
   messages: [],
@@ -178,6 +180,7 @@ export const reset = (fx: Fixture = defaultFixture()) => {
   state.plannerProfile = {};
   state.policyGlobal = "decisions_only";
   state.policyOverride = {};
+  state.running = { sessions: [], restore_on_launch: true };
   state.sessions = { planner: running("sess-planner", { liveness: "working" }) };
   state.fx = fx;
   for (const f of Object.values(fns)) f.mockClear();
@@ -202,6 +205,7 @@ const fns = {
     Object.assign(state.fx.settings, a.values);
     return clone(state.fx.settings);
   }),
+  sessions_running: vi.fn(async () => ({ count: state.running.sessions.length, sessions: [...state.running.sessions], restore_on_launch: state.running.restore_on_launch })),
   workspace_list: vi.fn(async () => clone(state.fx.workspaces)),
   workspace_get: vi.fn(async (a: { workspace_id: string }) => clone(state.fx.workspaces.find((w) => w.id === a.workspace_id)!)),
   workspace_create: vi.fn(async (a: { name: string; template?: string }) => {

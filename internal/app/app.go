@@ -135,7 +135,7 @@ func (a *App) startup(ctx context.Context) {
 	// Check for a new release a minute after launch, then every six hours.
 	go a.upd.Watch(watchCtx, time.Minute, 6*time.Hour)
 	go a.ruleTimer(watchCtx)
-	go a.autostartPlanner(ctx)
+	go a.restoreSessions(ctx)
 }
 
 // ruleTimer fires the idle_for and cron rules that come due. The first tick only starts the clock.
@@ -160,6 +160,21 @@ func (a *App) ruleTimer(ctx context.Context) {
 	}
 }
 
+// restoreSessions brings back the sessions that were running when Hadron last quit, crashed or
+// updated (the planners first), one second apart, then lets the planner autostart cover a
+// workspace that had none.
+func (a *App) restoreSessions(ctx context.Context) {
+	n := a.sess.RestoreAll(ctx, restoreStagger)
+	if n > 0 {
+		a.log.Info("restored sessions", "count", n)
+	}
+	a.autostartPlanner(ctx)
+}
+
+// restoreStagger is the pause between two restored sessions, so a dozen claude processes do not
+// start at once.
+var restoreStagger = time.Second
+
 // autostartPlanner starts the active workspace's planner when planner.autostart allows it. The
 // login shell environment is read first, off the UI path, because it is slow.
 func (a *App) autostartPlanner(ctx context.Context) {
@@ -173,6 +188,9 @@ func (a *App) autostartPlanner(ctx context.Context) {
 	var id string
 	if json.Unmarshal(raw, &id) != nil || id == "" {
 		return
+	}
+	if t, err := a.sess.Find(a.st, id, ""); err == nil && t.Live != nil {
+		return // a restored planner is already running
 	}
 	if _, err := a.reg.Invoke(ctx, actions.You, "planner_start", `{"workspace_id":`+strconv.Quote(id)+`}`); err != nil {
 		log.Printf("planner autostart: %v", err)
@@ -198,10 +216,13 @@ func (a *App) context() context.Context {
 	return a.ctx
 }
 
+// emitEvent is Wails' event call; tests replace it, because Wails insists on its own context.
+var emitEvent = wruntime.EventsEmit
+
 // emit sends a Wails event once the window exists.
 func (a *App) emit(event string, data any) {
 	if c := a.context(); c != nil {
-		wruntime.EventsEmit(c, event, data)
+		emitEvent(c, event, data)
 	}
 }
 

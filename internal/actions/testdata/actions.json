@@ -2689,6 +2689,11 @@
     ]
   },
   {
+    "name": "sessions_running",
+    "mutates": false,
+    "fields": null
+  },
+  {
     "name": "set_update_token",
     "mutates": true,
     "fields": [

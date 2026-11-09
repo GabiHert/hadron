@@ -3,7 +3,7 @@
 // instead of injected bindings.
 import { useEffect, useRef, useState } from "react";
 import * as api from "../api";
-import type { UpdateStatus } from "../api";
+import type { RunningSessions, UpdateStatus } from "../api";
 
 const RUNNING = ["checking", "downloading", "verifying", "installing"];
 const MAX_LINES = 5000;
@@ -18,6 +18,8 @@ interface Props {
     start: () => Promise<unknown>;
     setToken: (token: string) => Promise<UpdateStatus>;
   };
+  /** Replaceable in tests. */
+  sessions?: () => Promise<RunningSessions>;
   on?: (event: string, cb: (data: any) => void) => () => void;
   onWhatsNew?: () => void;
 }
@@ -29,13 +31,15 @@ const defaultClient = {
   setToken: (token: string) => api.set_update_token({ token }),
 };
 
-export function UpdatesCard({ appName = "Hadron", client = defaultClient, on = api.onEvent, onWhatsNew }: Props) {
+export function UpdatesCard({ appName = "Hadron", client = defaultClient, sessions = api.sessions_running, on = api.onEvent, onWhatsNew }: Props) {
   const [u, setU] = useState<UpdateStatus | null>(null);
   const [lines, setLines] = useState<string[]>([]);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [token, setToken] = useState("");
   const [tokenOpen, setTokenOpen] = useState(false);
+  const [run, setRun] = useState<RunningSessions | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const lastSeq = useRef(0);
   const logRef = useRef<HTMLPreElement>(null);
 
@@ -46,7 +50,11 @@ export function UpdatesCard({ appName = "Hadron", client = defaultClient, on = a
       lastSeq.current = s.seq;
     }
   };
-  const refresh = () => client.getStatus().then(load).catch((e) => setErr(errText(e)));
+  const loadRunning = () => sessions().then(setRun).catch(() => undefined);
+  const refresh = () => {
+    void loadRunning();
+    return client.getStatus().then(load).catch((e) => setErr(errText(e)));
+  };
 
   useEffect(() => {
     void refresh();
@@ -91,6 +99,21 @@ export function UpdatesCard({ appName = "Hadron", client = defaultClient, on = a
   const running = RUNNING.includes(state);
   const latest = u?.latest;
   const translocated = !!u?.installedApp?.includes("/AppTranslocation/");
+  const n = run?.count ?? 0;
+  const runningText =
+    n === 0
+      ? ""
+      : run?.restore_on_launch === false
+        ? `${n} ${n === 1 ? "session is" : "sessions are"} running and will stop for the update: turn on Resume running sessions in Settings, General to bring them back.`
+        : n === 1
+          ? "1 session is running. It resumes automatically after the update."
+          : `${n} sessions are running. They resume automatically after the update.`;
+  const startUpdate = () =>
+    void act("update", async () => {
+      setConfirming(false);
+      await client.start();
+      await refresh();
+    });
   const stateText: Record<string, string> = {
     checking: "Checking GitHub…",
     downloading: "Downloading…",
@@ -122,12 +145,10 @@ export function UpdatesCard({ appName = "Hadron", client = defaultClient, on = a
               className="btn pri"
               type="button"
               disabled={!!busy || running || !u?.installedApp || translocated}
-              onClick={() =>
-                void act("update", async () => {
-                  await client.start();
-                  await refresh();
-                })
-              }
+              onClick={() => {
+                if (n > 0) setConfirming(true);
+                else startUpdate();
+              }}
             >
               {running ? "Updating…" : `Update to ${latest.tag}`}
             </button>
@@ -136,6 +157,16 @@ export function UpdatesCard({ appName = "Hadron", client = defaultClient, on = a
           {latest && u?.upToDate && !running && state !== "failed" ? <span className="pill ok">{appName} is up to date</span> : null}
         </div>
       </div>
+      {latest && !u?.upToDate && n > 0 && !confirming && !running ? (
+        <p className="hint" role="status" aria-label="Running sessions">{runningText}</p>
+      ) : null}
+      {confirming && n > 0 ? (
+        <div className="inline" role="group" aria-label="Confirm update">
+          <span>{runningText}</span>
+          <button className="btn pri" type="button" disabled={!!busy} onClick={startUpdate}>Install and restart</button>
+          <button className="btn" type="button" onClick={() => setConfirming(false)}>Cancel</button>
+        </div>
+      ) : null}
       {translocated ? (
         <p className="hint" style={{ color: "var(--bad)" }}>
           macOS is running {appName} from a temporary read-only copy, so it can&apos;t update itself. Quit {appName}, drag {appName}.app into Applications in Finder, then open it from there.

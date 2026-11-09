@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Running sessions come back after Hadron restarts, updates or crashes: the planner first, then the cards, one second apart, each resuming its conversation. A session you stopped yourself, or ended with /exit, stays stopped. Turn it off in Settings, General. Settings, Updates tells you how many sessions will resume before you install.
+
 ## [0.2.4] - 2026-11-09
 
 ### Fixed

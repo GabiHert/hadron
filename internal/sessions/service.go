@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/GabiHert/hadron/internal/dlog"
@@ -68,6 +69,8 @@ type Service struct {
 
 	mu       sync.Mutex
 	failures map[string]string // session id -> why it never started
+	// closing is set when Hadron is quitting: sessions that end after that are meant to come back.
+	closing atomic.Bool
 }
 
 // New returns a Service.
@@ -96,6 +99,8 @@ type Request struct {
 	Strict bool
 	// Restart stops the target's running session first instead of refusing to start.
 	Restart bool
+	// Restore is a restart after Hadron itself restarted: no first prompt and no handoff.
+	Restore bool
 }
 
 // Prepare writes the session row inside tx and returns it with the function that spawns the
@@ -161,7 +166,7 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 		}
 	}
 
-	row := domain.Session{WorkspaceID: ws.ID, CardID: cardID, Kind: kind, Command: command, Cwd: cwd, Status: "running"}
+	row := domain.Session{WorkspaceID: ws.ID, CardID: cardID, Kind: kind, Command: command, Cwd: cwd, Status: "running", Restore: true}
 	resume := ""
 	if prevErr == nil && !req.Fresh && prev.ClaudeSessionID != "" && isClaude(command) {
 		resume = prev.ClaudeSessionID
@@ -219,6 +224,9 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 	}
 	if req.Handoff != "" {
 		first = req.Handoff
+	}
+	if req.Restore {
+		first = "" // a restore brings back a conversation; it never types anything into it
 	}
 	if err := tx.Sessions.Create(&row); err != nil {
 		return row, nil, err
@@ -340,6 +348,11 @@ func (s *Service) onExit(row domain.Session, cardID string, code int) {
 
 func (s *Service) markExited(row domain.Session, cardID string, code int) {
 	s.cfg.Log.Debug("pty exit", "session", row.ID, "kind", row.Kind, "exit_code", code)
+	// A session that ends while Hadron runs ended on purpose or on its own, so it stays down.
+	// Quitting Hadron (and an update, which quits it) keeps the flag: those sessions come back.
+	if !s.closing.Load() {
+		_ = s.cfg.Store.Sessions.SetRestore(row.ID, false)
+	}
 	if cur, err := s.cfg.Store.Sessions.Get(row.ID); err == nil {
 		now := time.Now().UTC()
 		cur.Status, cur.ExitCode, cur.EndedAt = "exited", code, &now
@@ -438,7 +451,10 @@ func (s *Service) Running(st *store.Store, workspaceID string) []func() {
 }
 
 // StopAll hangs up every running session. Call it when the app quits.
-func (s *Service) StopAll() { s.pty.StopAll() }
+func (s *Service) StopAll() {
+	s.closing.Store(true)
+	s.pty.StopAll()
+}
 
 // SetWaiting marks a card's session as waiting on an open question, or clears it. The chat layer
 // calls it when a question opens or is answered.
@@ -610,3 +626,18 @@ func RedactArgs(args []string) []string {
 
 // SetLogForTest swaps the log. Tests use it.
 func (s *Service) SetLogForTest(l *dlog.Logger) { s.cfg.Log = l }
+
+// LiveSessions lists the sessions whose process is alive.
+func (s *Service) LiveSessions() []domain.Session {
+	rows, err := s.cfg.Store.Sessions.ListRunning()
+	if err != nil {
+		return nil
+	}
+	var out []domain.Session
+	for _, r := range rows {
+		if _, ok := s.pty.Get(r.ID); ok {
+			out = append(out, r)
+		}
+	}
+	return out
+}
