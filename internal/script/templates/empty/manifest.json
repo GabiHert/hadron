@@ -1,0 +1,24 @@
+{
+  "name": "empty",
+  "version": "0.1.0",
+  "description": "A blank integration. Rename it, declare what it needs, and write the ops.",
+  "fields": [
+    {"name": "status", "label": "Status", "type": "text", "filterable": true, "card_chip": true}
+  ],
+  "ops": {
+    "get": {"description": "Read one item."}
+  },
+  "permissions": {
+    "network": [],
+    "secrets": [],
+    "api": []
+  },
+  "tests": [
+    {
+      "name": "get echoes the id",
+      "op": "get",
+      "input": {"item_id": "1"},
+      "expect": {"item_id": "1", "fields": {"status": "open"}}
+    }
+  ]
+}

@@ -1,0 +1,2627 @@
+[
+  {
+    "name": "app_status",
+    "mutates": false,
+    "fields": null
+  },
+  {
+    "name": "card_archive",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "archived",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "card_chips",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "card_create",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "nick",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "key",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "title",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "column_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "assignee",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "launch_profile",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "start",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "card_delete",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "card_field_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "path",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "value",
+        "required": true,
+        "type": "object"
+      }
+    ]
+  },
+  {
+    "name": "card_fields_get",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "card_get",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "card_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "card_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "column_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "role",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "liveness",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "expr",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "include_archived",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "card_move",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "column_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "position",
+        "required": false,
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "card_report",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "text",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "card_update",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "nick",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "key",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "title",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "assignee",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "stage",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "launch_profile",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "chat_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "chat_post",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "channel",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "text",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "chat_read",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "channel",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "since",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "chat_send",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "channel",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "text",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "check_for_update",
+    "mutates": false,
+    "fields": null
+  },
+  {
+    "name": "column_create",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "role",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "wip",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "color",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "column_delete",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "column_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "move_to",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "column_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "column_reorder",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "column_ids",
+        "required": true,
+        "type": "array"
+      }
+    ]
+  },
+  {
+    "name": "column_update",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "column_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "role",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "wip",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "fold",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "color",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "config_diff",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "change_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "config_history",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "actor",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "config_revert",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "change_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "custom_field_create",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "label",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "options",
+        "required": false,
+        "type": "array"
+      },
+      {
+        "name": "card_chip",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "custom_field_delete",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "custom_field_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "custom_field_update",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "label",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "options",
+        "required": false,
+        "type": "array"
+      },
+      {
+        "name": "card_chip",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "dash_block_add",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "title",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "span",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "source",
+        "required": false,
+        "type": "object"
+      },
+      {
+        "name": "html",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "text",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "schedule",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "position",
+        "required": false,
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "dash_block_move",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "block_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "position",
+        "required": true,
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "dash_block_refresh",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "block_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "dash_block_remove",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "block_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "dash_block_update",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "block_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "title",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "span",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "source",
+        "required": false,
+        "type": "object"
+      },
+      {
+        "name": "html",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "text",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "schedule",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "dash_get",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "dash_query_run",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "query",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "args",
+        "required": false,
+        "type": "object"
+      }
+    ]
+  },
+  {
+    "name": "dash_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "blocks",
+        "required": true,
+        "type": "array"
+      }
+    ]
+  },
+  {
+    "name": "field_schema_get",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "filter_bar_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "fields",
+        "required": true,
+        "type": "array"
+      }
+    ]
+  },
+  {
+    "name": "filter_eval",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "expr",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "vals",
+        "required": false,
+        "type": "object"
+      },
+      {
+        "name": "q",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "include_archived",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "gate_clear",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "gate_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "gate_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "gate_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "summary",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "get_update_status",
+    "mutates": false,
+    "fields": null
+  },
+  {
+    "name": "integration_approve",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_config_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "config",
+        "required": true,
+        "type": "object"
+      }
+    ]
+  },
+  {
+    "name": "integration_disable",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_logs",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "name",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "integration_read_file",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "path",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_remove",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_run_op",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "op",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "input",
+        "required": false,
+        "type": "object"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_scaffold",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "template",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "global",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_secret_clear",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "secret",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_secret_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "secret",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "value",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_templates",
+    "mutates": false,
+    "fields": null
+  },
+  {
+    "name": "integration_test",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_use",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "enabled",
+        "required": true,
+        "type": "boolean"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_validate",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_write_file",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "path",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "content",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "launch_profile_create",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "command",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "args",
+        "required": false,
+        "type": "array"
+      },
+      {
+        "name": "first_prompt",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "env",
+        "required": false,
+        "type": "object"
+      },
+      {
+        "name": "worktree",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "launch_profile_delete",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "profile_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "launch_profile_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "launch_profile_update",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "profile_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "command",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "args",
+        "required": false,
+        "type": "array"
+      },
+      {
+        "name": "first_prompt",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "env",
+        "required": false,
+        "type": "object"
+      },
+      {
+        "name": "worktree",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "link_action_run",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "link_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "action",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "input",
+        "required": false,
+        "type": "object"
+      }
+    ]
+  },
+  {
+    "name": "link_add",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "integration",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "item_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "title",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "url",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "link_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "link_refresh",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "link_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "link_remove",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "link_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "link_search",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "integration",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "q",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "mcp_calls",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "mcp_info",
+    "mutates": false,
+    "fields": null
+  },
+  {
+    "name": "notify",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "title",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "body",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "planner_get",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "planner_policy_get",
+    "mutates": false,
+    "fields": null
+  },
+  {
+    "name": "planner_policy_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "policy",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "planner_read_screen",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "lines",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "scrollback",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "planner_restart",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "fresh",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "planner_send",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "text",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "enter",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "planner_start",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "prompt_get",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "prompt_render",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "template",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "prompt_reset",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "prompt_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "template",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "question_answer",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "question_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "selections",
+        "required": false,
+        "type": "array"
+      },
+      {
+        "name": "notes",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "question_ask",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "text",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "context",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "options",
+        "required": false,
+        "type": "array"
+      },
+      {
+        "name": "multi",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "approval",
+        "required": false,
+        "type": "object"
+      }
+    ]
+  },
+  {
+    "name": "question_get",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "question_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "question_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "question_withdraw",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "question_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "reason",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "remote_session_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "integration",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "remote_session_output",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "integration",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "remote_session_send",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "integration",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "text",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "remote_session_start",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "integration",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "item_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "prompt",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "remote_session_stop",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "integration",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "rule_create",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "trigger",
+        "required": true,
+        "type": "object"
+      },
+      {
+        "name": "condition",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "actions",
+        "required": true,
+        "type": "array"
+      },
+      {
+        "name": "enabled",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "rule_delete",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "rule_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "rule_dry_run",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "rule_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "rule_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "rule_log",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "rule_reorder",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "rule_ids",
+        "required": true,
+        "type": "array"
+      }
+    ]
+  },
+  {
+    "name": "rule_update",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "rule_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "trigger",
+        "required": false,
+        "type": "object"
+      },
+      {
+        "name": "condition",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "actions",
+        "required": false,
+        "type": "array"
+      },
+      {
+        "name": "enabled",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "script_approve",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "script_disable",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "script_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "script_logs",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "name",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "script_read_file",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "path",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "script_remove",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "script_run_op",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "op",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "input",
+        "required": false,
+        "type": "object"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "script_scaffold",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "template",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "global",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "script_test",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "script_validate",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "script_write_file",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "path",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "content",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "session_interrupt",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "session_keys",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "keys",
+        "required": true,
+        "type": "array"
+      }
+    ]
+  },
+  {
+    "name": "session_read_screen",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "lines",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "scrollback",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "session_restart",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "launch_profile",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "fresh",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "session_send",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "text",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "enter",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "session_start",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "launch_profile",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "session_status",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "session_stop",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "set_update_token",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "token",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "settings_get",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "key",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "settings_update",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "values",
+        "required": true,
+        "type": "object"
+      }
+    ]
+  },
+  {
+    "name": "start_update",
+    "mutates": true,
+    "fields": null
+  },
+  {
+    "name": "ui_fullscreen",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "panel",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "ui_main_view",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "view",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "ui_panel_collapse",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "panel",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "collapsed",
+        "required": true,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "view_apply",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "view_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "view_delete",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "view_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "view_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "view_save",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "view_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "filters",
+        "required": true,
+        "type": "object"
+      }
+    ]
+  },
+  {
+    "name": "widget_pin",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "message_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "title",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "widget_post",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "channel",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "title",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "html",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "workspace_archive",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "archived",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "workspace_create",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "root",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "color",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "template",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "copy_from",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "integrations",
+        "required": false,
+        "type": "array"
+      }
+    ]
+  },
+  {
+    "name": "workspace_delete",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "workspace_get",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "workspace_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "include_archived",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "workspace_switch",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "workspace_update",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "root",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "color",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "integrations",
+        "required": false,
+        "type": "array"
+      },
+      {
+        "name": "filter_bar",
+        "required": false,
+        "type": "array"
+      }
+    ]
+  },
+  {
+    "name": "worktree_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "worktree_remove",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "force",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  }
+]

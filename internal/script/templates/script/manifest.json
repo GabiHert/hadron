@@ -1,0 +1,21 @@
+{
+  "name": "script",
+  "version": "0.1.0",
+  "description": "A script a rule can run with run_action. It gets the card and its links, and acts through host.",
+  "ops": {
+    "actions": {
+      "notify_done": {"description": "Tell the user a card is finished.", "input": {"type": "object"}}
+    }
+  },
+  "permissions": {
+    "api": ["notify"]
+  },
+  "tests": [
+    {
+      "name": "notify_done returns what it said",
+      "op": "actions.notify_done",
+      "input": {"card": {"id": "c1", "nick": "billing-fix", "title": "Fix billing"}, "links": []},
+      "expect": {"text": "billing-fix is done"}
+    }
+  ]
+}

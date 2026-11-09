@@ -1,0 +1,89 @@
+/* Design tokens. Same palette as Deputy and Notted (the Ledger look), named as in the Hadron prototype. */
+:root {
+  --bg: #fbfbf8;
+  --side: #f1f2ee;
+  --card: #ffffff;
+  --fg: #1d2330;
+  --fg2: #4b5263;
+  --fg3: #686e7e;
+  --border: #dfe1da;
+  --row: #eceee8;
+  --sel: #e3e7f5;
+  --acc: #24408e;
+  --on: #ffffff;
+  --ok: #2f7a4b;
+  --okb: #e2f1e7;
+  --warn: #8a5700;
+  --warnb: #f8ecd4;
+  --bad: #b4322a;
+  --badb: #f6e3e1;
+  --dot: #d3d5cd;
+  --muted: #f6f7f3;
+  --term: #151412;
+  --termbar: #1f1e1c;
+  --tfg: #ece8df;
+  --tdim: #9c9da6;
+  --tb: #8fa3e8;
+  --tg: #7fcf9b;
+  --ty: #e6b65c;
+  --tr: #f0877d;
+  --shadow: 0 1px 2px rgba(29, 35, 48, 0.06), 0 14px 30px -14px rgba(29, 35, 48, 0.22);
+  --scrim: rgba(29, 35, 48, 0.32);
+  --sans: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+  --serif: "Newsreader", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1a18;
+    --side: #151412;
+    --card: #232220;
+    --fg: #ece8df;
+    --fg2: #bab6ab;
+    --fg3: #9c9da6;
+    --border: #35332f;
+    --row: #2c2a27;
+    --sel: #2b3142;
+    --acc: #8fa3e8;
+    --on: #12162a;
+    --ok: #7fcf9b;
+    --okb: #1f3327;
+    --warn: #e6b65c;
+    --warnb: #3a2e17;
+    --bad: #f0877d;
+    --badb: #3b2220;
+    --dot: #4a4843;
+    --muted: #1f1e1c;
+    --term: #121110;
+    --termbar: #191817;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px -14px rgba(0, 0, 0, 0.7);
+    --scrim: rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1a18;
+  --side: #151412;
+  --card: #232220;
+  --fg: #ece8df;
+  --fg2: #bab6ab;
+  --fg3: #9c9da6;
+  --border: #35332f;
+  --row: #2c2a27;
+  --sel: #2b3142;
+  --acc: #8fa3e8;
+  --on: #12162a;
+  --ok: #7fcf9b;
+  --okb: #1f3327;
+  --warn: #e6b65c;
+  --warnb: #3a2e17;
+  --bad: #f0877d;
+  --badb: #3b2220;
+  --dot: #4a4843;
+  --muted: #1f1e1c;
+  --term: #121110;
+  --termbar: #191817;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px -14px rgba(0, 0, 0, 0.7);
+  --scrim: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}

@@ -1,0 +1,268 @@
+{
+  "name": "jira",
+  "version": "1.0.0",
+  "description": "Link cards to Jira Cloud issues. Reads status, summary, assignee and priority; changing the status moves the issue through its workflow.",
+  "fields": [
+    {
+      "name": "status",
+      "label": "Jira status",
+      "type": "text",
+      "filterable": true,
+      "editable": true,
+      "card_chip": true
+    },
+    {
+      "name": "summary",
+      "label": "Jira summary",
+      "type": "text",
+      "filterable": true
+    },
+    {
+      "name": "assignee",
+      "label": "Jira assignee",
+      "type": "user",
+      "filterable": true
+    },
+    {
+      "name": "priority",
+      "label": "Jira priority",
+      "type": "text",
+      "filterable": true
+    }
+  ],
+  "ops": {
+    "search": {
+      "description": "Find issues by key or text."
+    },
+    "get": {
+      "description": "Read one issue."
+    },
+    "update": {
+      "description": "Change an issue's status by running the matching workflow transition."
+    },
+    "poll": {
+      "description": "Re-read every linked issue."
+    },
+    "actions": {
+      "comment": {
+        "description": "Add a comment to an issue.",
+        "input": {
+          "type": "object",
+          "required": [
+            "item_id",
+            "text"
+          ],
+          "properties": {
+            "item_id": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "config": {
+    "site": {
+      "type": "string",
+      "label": "Jira site",
+      "description": "Your Jira Cloud host, such as acme.atlassian.net",
+      "required": true
+    },
+    "email": {
+      "type": "string",
+      "label": "Account email",
+      "required": true
+    }
+  },
+  "permissions": {
+    "network": [
+      "https://*.atlassian.net/*"
+    ],
+    "secrets": [
+      "token"
+    ],
+    "api": []
+  },
+  "poll_seconds": 300,
+  "tests": [
+    {
+      "name": "search by key",
+      "op": "search",
+      "input": {
+        "q": "ACME-12"
+      },
+      "config": {
+        "site": "acme.atlassian.net",
+        "email": "me@acme.com"
+      },
+      "http_fixtures": [
+        {
+          "method": "GET",
+          "url": "https://acme.atlassian.net/rest/api/3/search/jql*",
+          "json": {
+            "issues": [
+              {
+                "key": "ACME-12",
+                "fields": {
+                  "summary": "Fix billing",
+                  "status": {
+                    "name": "In progress"
+                  },
+                  "assignee": {
+                    "displayName": "Ana"
+                  },
+                  "priority": {
+                    "name": "High"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "items": [
+          {
+            "item_id": "ACME-12",
+            "title": "ACME-12 Fix billing",
+            "url": "https://acme.atlassian.net/browse/ACME-12",
+            "fields": {
+              "status": "In progress",
+              "assignee": "Ana",
+              "priority": "High"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "get an issue",
+      "op": "get",
+      "input": {
+        "item_id": "ACME-12"
+      },
+      "config": {
+        "site": "acme.atlassian.net",
+        "email": "me@acme.com"
+      },
+      "http_fixtures": [
+        {
+          "method": "GET",
+          "url": "https://acme.atlassian.net/rest/api/3/issue/ACME-12*",
+          "json": {
+            "key": "ACME-12",
+            "fields": {
+              "summary": "Fix billing",
+              "status": {
+                "name": "To Do"
+              },
+              "assignee": null,
+              "priority": {
+                "name": "Low"
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "item_id": "ACME-12",
+        "fields": {
+          "status": "To Do",
+          "assignee": "",
+          "priority": "Low"
+        }
+      }
+    },
+    {
+      "name": "move to Finished runs the transition",
+      "op": "update",
+      "input": {
+        "item_id": "ACME-12",
+        "field": "status",
+        "value": "Finished"
+      },
+      "config": {
+        "site": "acme.atlassian.net",
+        "email": "me@acme.com"
+      },
+      "http_fixtures": [
+        {
+          "method": "GET",
+          "url": "https://acme.atlassian.net/rest/api/3/issue/ACME-12/transitions",
+          "json": {
+            "transitions": [
+              {
+                "id": "31",
+                "name": "Finish",
+                "to": {
+                  "name": "Finished"
+                }
+              },
+              {
+                "id": "21",
+                "name": "Start",
+                "to": {
+                  "name": "In progress"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "method": "POST",
+          "url": "https://acme.atlassian.net/rest/api/3/issue/ACME-12/transitions",
+          "status": 204
+        },
+        {
+          "method": "GET",
+          "url": "https://acme.atlassian.net/rest/api/3/issue/ACME-12*",
+          "json": {
+            "key": "ACME-12",
+            "fields": {
+              "summary": "Fix billing",
+              "status": {
+                "name": "Finished"
+              },
+              "priority": {
+                "name": "Low"
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "fields": {
+          "status": "Finished"
+        }
+      }
+    },
+    {
+      "name": "comment on an issue",
+      "op": "actions.comment",
+      "input": {
+        "item_id": "ACME-12",
+        "text": "Deployed"
+      },
+      "config": {
+        "site": "acme.atlassian.net",
+        "email": "me@acme.com"
+      },
+      "http_fixtures": [
+        {
+          "method": "POST",
+          "url": "https://acme.atlassian.net/rest/api/3/issue/ACME-12/comment",
+          "status": 201,
+          "json": {
+            "id": "9001"
+          }
+        }
+      ],
+      "expect": {
+        "comment_id": "9001"
+      }
+    }
+  ]
+}

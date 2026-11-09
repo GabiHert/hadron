@@ -1,0 +1,55 @@
+{
+  "name": "github",
+  "version": "1.0.0",
+  "description": "Link cards to GitHub pull requests through the gh CLI. Read-only: it shows state, review decision and checks.",
+  "fields": [
+    {"name": "state", "label": "PR state", "type": "enum", "options": ["OPEN", "MERGED", "CLOSED"], "filterable": true, "card_chip": true},
+    {"name": "review", "label": "PR review", "type": "text", "filterable": true},
+    {"name": "title", "label": "PR title", "type": "text", "filterable": true}
+  ],
+  "ops": {
+    "search": {"description": "Find pull requests by text."},
+    "get": {"description": "Read one pull request."},
+    "poll": {"description": "Re-read every linked pull request."},
+    "actions": {
+      "comment": {"description": "Comment on a pull request.", "input": {"type": "object", "required": ["item_id", "text"], "properties": {"item_id": {"type": "string"}, "text": {"type": "string"}}}}
+    }
+  },
+  "config": {
+    "repo": {"type": "string", "label": "Repository", "description": "owner/name, such as GabiHert/hadron", "required": true}
+  },
+  "permissions": {"exec": ["gh"]},
+  "poll_seconds": 300,
+  "tests": [
+    {
+      "name": "search",
+      "op": "search",
+      "input": {"q": "billing"},
+      "config": {"repo": "acme/app"},
+      "exec_fixtures": [
+        {"binary": "gh", "args": ["pr", "list", "--repo", "acme/app", "--search", "billing", "--state", "all", "--limit", "20", "--json", "number,title,state,url,reviewDecision"], "stdout": "[{\"number\":7,\"title\":\"Fix billing\",\"state\":\"OPEN\",\"url\":\"https://github.com/acme/app/pull/7\",\"reviewDecision\":\"APPROVED\"}]"}
+      ],
+      "expect": {"items": [{"item_id": "7", "title": "#7 Fix billing", "fields": {"state": "OPEN", "review": "APPROVED"}}]}
+    },
+    {
+      "name": "get",
+      "op": "get",
+      "input": {"item_id": "7"},
+      "config": {"repo": "acme/app"},
+      "exec_fixtures": [
+        {"binary": "gh", "args": ["pr", "view", "7", "--repo", "acme/app", "--json", "number,title,state,url,reviewDecision"], "stdout": "{\"number\":7,\"title\":\"Fix billing\",\"state\":\"MERGED\",\"url\":\"https://github.com/acme/app/pull/7\",\"reviewDecision\":\"\"}"}
+      ],
+      "expect": {"item_id": "7", "fields": {"state": "MERGED", "review": ""}}
+    },
+    {
+      "name": "comment",
+      "op": "actions.comment",
+      "input": {"item_id": "7", "text": "Deployed"},
+      "config": {"repo": "acme/app"},
+      "exec_fixtures": [
+        {"binary": "gh", "args": ["pr", "comment", "7", "--repo", "acme/app", "--body", "Deployed"], "stdout": "https://github.com/acme/app/pull/7#issuecomment-1\n"}
+      ],
+      "expect": {"ok": true}
+    }
+  ]
+}

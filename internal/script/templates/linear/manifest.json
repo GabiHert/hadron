@@ -1,0 +1,51 @@
+{
+  "name": "linear",
+  "version": "1.0.0",
+  "description": "Link cards to Linear issues through the Linear MCP server in your Claude config (claude mcp add linear). Hosted servers that need an OAuth sign-in are not reachable from Hadron yet; use a server with a token header or a local command.",
+  "fields": [
+    {"name": "status", "label": "Linear status", "type": "text", "filterable": true, "editable": true, "card_chip": true},
+    {"name": "title", "label": "Linear title", "type": "text", "filterable": true},
+    {"name": "assignee", "label": "Linear assignee", "type": "user", "filterable": true},
+    {"name": "priority", "label": "Linear priority", "type": "text", "filterable": true}
+  ],
+  "ops": {
+    "search": {"description": "Find issues by text."},
+    "get": {"description": "Read one issue by id or identifier."},
+    "update": {"description": "Change an issue's status."},
+    "poll": {"description": "Re-read every linked issue."}
+  },
+  "config": {
+    "server": {"type": "string", "label": "MCP server name", "description": "The name in your Claude config", "default": "linear"}
+  },
+  "permissions": {"network": ["mcp:linear"]},
+  "poll_seconds": 300,
+  "tests": [
+    {
+      "name": "search",
+      "op": "search",
+      "input": {"q": "billing"},
+      "mcp_fixtures": [
+        {"server": "linear", "tool": "list_issues", "result": {"json": {"issues": [{"identifier": "ENG-4", "title": "Fix billing", "status": "In Progress", "assignee": "Ana", "priority": {"name": "High"}, "url": "https://linear.app/acme/issue/ENG-4"}]}}}
+      ],
+      "expect": {"items": [{"item_id": "ENG-4", "title": "ENG-4 Fix billing", "fields": {"status": "In Progress", "priority": "High"}}]}
+    },
+    {
+      "name": "get",
+      "op": "get",
+      "input": {"item_id": "ENG-4"},
+      "mcp_fixtures": [
+        {"server": "linear", "tool": "get_issue", "result": {"json": {"identifier": "ENG-4", "title": "Fix billing", "status": "Done", "assignee": null, "priority": "Low", "url": "https://linear.app/acme/issue/ENG-4"}}}
+      ],
+      "expect": {"item_id": "ENG-4", "fields": {"status": "Done", "assignee": ""}}
+    },
+    {
+      "name": "update the status",
+      "op": "update",
+      "input": {"item_id": "ENG-4", "field": "status", "value": "Done"},
+      "mcp_fixtures": [
+        {"server": "linear", "tool": "save_issue", "result": {"json": {"identifier": "ENG-4", "title": "Fix billing", "status": "Done"}}}
+      ],
+      "expect": {"fields": {"status": "Done"}}
+    }
+  ]
+}
