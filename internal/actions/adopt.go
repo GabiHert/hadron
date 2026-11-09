@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/GabiHert/hadron/internal/chat"
@@ -184,7 +185,7 @@ func checkAdoptable(c *Call, w domain.Workspace, id string) error {
 		return errors.New("claude_session_id is required. session_adoptable_list shows the ids")
 	}
 	if !sessions.HasConversation(claudeDir(), w.Root, id) {
-		return fmt.Errorf("no Claude Code conversation %q was run in %s. session_adoptable_list shows what is there", id, w.Root)
+		return fmt.Errorf("that conversation has no transcript in %s (looked for %s.jsonl). session_adoptable_list shows the conversations that were run in %s", filepath.Join(claudeDir(), "projects", sessions.EncodeProjectDir(w.Root)), id, w.Root)
 	}
 	if who, held := holder(c.Store, id); held {
 		return fmt.Errorf("that conversation is already in Hadron (%s). Open that card instead", who)

@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Fixed
+- Starting or restarting a session no longer fails with "No conversation found with session ID" when the previous run never got as far as a first message. Hadron resumes a conversation only when it exists, and otherwise starts it again under the same id. Bringing in a conversation that has no transcript now says where it looked.
+
 ## [0.2.3] - 2026-11-09
 
 ### Fixed

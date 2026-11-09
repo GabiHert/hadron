@@ -212,8 +212,11 @@ func TestImportPlannerDirErrors(t *testing.T) {
 }
 
 func TestAnImportedCardResumesItsClaudeConversation(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", cfg)
 	h := newSessionHarness(t, false)
 	w := h.workspace("W")
+	writeConversation(t, cfg, w.Root, "0a1b2c3d-1111-2222-3333-444455556666", "hello", 3000, time.Minute)
 	dir := plannerFixture(t)
 	h.do("workspace_import_planner_dir", m{"workspace_id": w.ID, "dir": dir, "dry_run": false}, nil)
 	time.Sleep(100 * time.Millisecond)

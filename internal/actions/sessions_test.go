@@ -290,6 +290,8 @@ func TestStartFalseCreatesNoSessionAndSessionStartRunsIt(t *testing.T) {
 }
 
 func TestSendKeysScreenInterruptStopAndRestartResume(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", cfg)
 	h := newSessionHarness(t, false)
 	w := h.workspace("W")
 	var card domain.Card
@@ -336,6 +338,8 @@ func TestSendKeysScreenInterruptStopAndRestartResume(t *testing.T) {
 	if first.ClaudeSessionID == "" || !strings.Contains(h.file(".argv"), "--session-id\x00"+first.ClaudeSessionID) {
 		t.Fatalf("the first launch must pass and store --session-id: %+v\n%q", first, h.file(".argv"))
 	}
+	// Claude writes the transcript after the first message; once it exists a restart resumes it.
+	writeConversation(t, cfg, w.Root, first.ClaudeSessionID, "hello", 3000, time.Minute)
 	h.do("session_restart", m{"card": "talker"}, nil)
 	waitUntil(t, "the second run", func() bool { return h.latest(w.ID, card.ID).ID != first.ID })
 	waitUntil(t, "claude to start again", func() bool { return h.card(card.ID).Liveness != domain.LivenessEnded })
@@ -344,17 +348,18 @@ func TestSendKeysScreenInterruptStopAndRestartResume(t *testing.T) {
 	if second.ClaudeSessionID != first.ClaudeSessionID || !strings.Contains(h.file(".argv"), "--resume\x00"+first.ClaudeSessionID) || strings.Contains(h.file(".argv"), "--session-id") {
 		t.Fatalf("a restart must resume the stored conversation, not start a new one: %q", h.file(".argv"))
 	}
-	second.ClaudeSessionID = "abc-123"
+	second.ClaudeSessionID = "abc-123-conversation"
+	writeConversation(t, cfg, w.Root, second.ClaudeSessionID, "hello", 3000, time.Minute)
 	if err := h.reg.Deps().Store.Sessions.Update(&second); err != nil {
 		t.Fatal(err)
 	}
 	h.do("session_restart", m{"card": "talker"}, nil) // the second run is still alive: restart stops it
 	waitUntil(t, "the resumed run", func() bool {
 		a := strings.Split(strings.TrimSuffix(h.file(".argv"), "\x00"), "\x00")
-		return len(a) == 6 && a[4] == "--resume" && a[5] == "abc-123"
+		return len(a) == 6 && a[4] == "--resume" && a[5] == "abc-123-conversation"
 	})
 	third := h.latest(w.ID, card.ID)
-	if third.ID == second.ID || third.ClaudeSessionID != "abc-123" {
+	if third.ID == second.ID || third.ClaudeSessionID != "abc-123-conversation" {
 		t.Fatalf("third = %+v", third)
 	}
 	// The old process's exit must not mark the card ended while the new one runs.
@@ -368,7 +373,7 @@ func TestSendKeysScreenInterruptStopAndRestartResume(t *testing.T) {
 		argv := h.file(".argv")
 		return strings.Contains(argv, "--session-id\x00") && !strings.Contains(argv, "--resume") && h.latest(w.ID, card.ID).ID != third.ID
 	})
-	if fresh := h.latest(w.ID, card.ID); fresh.ClaudeSessionID == "" || fresh.ClaudeSessionID == "abc-123" || fresh.ClaudeSessionID == first.ClaudeSessionID {
+	if fresh := h.latest(w.ID, card.ID); fresh.ClaudeSessionID == "" || fresh.ClaudeSessionID == "abc-123-conversation" || fresh.ClaudeSessionID == first.ClaudeSessionID {
 		t.Fatalf("a fresh restart gets a new conversation id: %+v", fresh)
 	}
 

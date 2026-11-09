@@ -129,8 +129,8 @@ func TestAdoptWithoutStartingAndRefusals(t *testing.T) {
 	h, w, cfg := adoptHarness(t)
 	id := "33333333-aaaa-bbbb-cccc-000000000001"
 	writeConversation(t, cfg, w.Root, id, "Hello", 3000, time.Hour)
-	h.fails("session_adopt", m{"workspace_id": w.ID, "claude_session_id": "no-such-conversation-id", "nick": "x"}, "no Claude Code conversation")
-	h.fails("session_adopt", m{"workspace_id": w.ID, "claude_session_id": "../../etc/passwd", "nick": "x"}, "no Claude Code conversation")
+	h.fails("session_adopt", m{"workspace_id": w.ID, "claude_session_id": "no-such-conversation-id", "nick": "x"}, "has no transcript")
+	h.fails("session_adopt", m{"workspace_id": w.ID, "claude_session_id": "../../etc/passwd", "nick": "x"}, "has no transcript")
 	h.fails("session_adopt", m{"workspace_id": w.ID, "claude_session_id": id, "nick": "Bad Nick"}, "kebab-case")
 
 	var out AdoptOut

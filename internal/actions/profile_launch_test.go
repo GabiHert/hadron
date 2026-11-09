@@ -64,7 +64,7 @@ func TestAdoptWithALaunchProfileResumesWithItsArgsAndNoFirstPrompt(t *testing.T)
 }
 
 func TestPlannerLaunchProfileAppliesToStartRestartAndAdopt(t *testing.T) {
-	h, w, _ := adoptHarness(t)
+	h, w, cfg := adoptHarness(t)
 	h.do("launch_profile_create", m{"workspace_id": w.ID, "name": "trusted", "args": skipPerms, "first_prompt": "/brief nobody"}, nil)
 
 	var st SessionStatus
@@ -94,6 +94,7 @@ func TestPlannerLaunchProfileAppliesToStartRestartAndAdopt(t *testing.T) {
 	}
 	// Restart resumes the conversation with the same args, and sends no first prompt.
 	planner := h.latest(w.ID, "")
+	writeConversation(t, cfg, w.Root, planner.ClaudeSessionID, "hello", 3000, time.Minute)
 	h.do("planner_restart", m{"workspace_id": w.ID}, nil)
 	waitUntil(t, "restart argv", func() bool {
 		a := argvOf(h)
@@ -134,7 +135,7 @@ func TestPlannerAdoptWithALaunchProfileKeepsItForTheWorkspace(t *testing.T) {
 	if st.LaunchProfile != "trusted" {
 		t.Errorf("adopt keeps the profile for later starts: %+v", st)
 	}
-	// A restart afterwards still carries the args.
+	// A restart afterwards still carries the args (the adopted conversation has its transcript).
 	h.do("planner_restart", m{"workspace_id": w.ID}, nil)
 	waitUntil(t, "restart", func() bool {
 		return hasPair(argvOf(h), "--resume", id) && strings.Contains(h.file(".argv"), "--dangerously-skip-permissions")
@@ -174,4 +175,53 @@ func TestPlannerStop(t *testing.T) {
 		h.do("planner_get", m{"workspace_id": w.ID}, &g)
 		return !g.Running
 	})
+}
+
+// Claude writes a transcript only after the first message, so a stored id that was never used
+// cannot be resumed: the next start gives the same id to --session-id again.
+func TestRestartResumesOnlyConversationsThatExist(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", cfg)
+	h := newSessionHarness(t, false)
+	w := h.workspace("Acme")
+	var card domain.Card
+	h.do("card_create", m{"workspace_id": w.ID, "nick": "billing-fix"}, &card)
+	waitUntil(t, "first start", func() bool { return strings.Contains(h.file(".argv"), "--session-id") })
+	first := h.latest(w.ID, card.ID)
+
+	// No transcript yet: the restart keeps the id but does not resume.
+	h.do("session_restart", m{"card": "billing-fix"}, nil)
+	waitUntil(t, "second run", func() bool { return h.latest(w.ID, card.ID).ID != first.ID })
+	waitUntil(t, "restart argv", func() bool { return hasPair(argvOf(h), "--session-id", first.ClaudeSessionID) })
+	second := h.latest(w.ID, card.ID)
+	if second.ClaudeSessionID != first.ClaudeSessionID || strings.Contains(h.file(".argv"), "--resume") {
+		t.Fatalf("a missing transcript starts again with the same id: %q", argvOf(h))
+	}
+
+	// The transcript appears (the user sent a message): the next restart resumes it.
+	writeConversation(t, cfg, w.Root, first.ClaudeSessionID, "hello", 3000, time.Minute)
+	h.do("session_restart", m{"card": "billing-fix"}, nil)
+	waitUntil(t, "resume argv", func() bool { return hasPair(argvOf(h), "--resume", first.ClaudeSessionID) })
+	if strings.Contains(h.file(".argv"), "--session-id") {
+		t.Fatalf("an existing transcript is resumed, not restarted: %q", argvOf(h))
+	}
+
+	// The planner follows the same rule.
+	h.do("planner_start", m{"workspace_id": w.ID}, nil)
+	waitUntil(t, "planner", func() bool { return strings.Contains(h.file(".argv"), "You are the planner") })
+	p1 := h.latest(w.ID, "")
+	h.do("planner_restart", m{"workspace_id": w.ID}, nil)
+	waitUntil(t, "planner again", func() bool { return h.latest(w.ID, "").ID != p1.ID && hasPair(argvOf(h), "--session-id", p1.ClaudeSessionID) })
+	if strings.Contains(h.file(".argv"), "--resume") {
+		t.Fatalf("planner without a transcript: %q", argvOf(h))
+	}
+	writeConversation(t, cfg, w.Root, p1.ClaudeSessionID, "hello", 3000, time.Minute)
+	h.do("planner_restart", m{"workspace_id": w.ID}, nil)
+	waitUntil(t, "planner resumes", func() bool { return hasPair(argvOf(h), "--resume", p1.ClaudeSessionID) })
+}
+
+func TestAdoptNamesThePathWhenTheTranscriptIsMissing(t *testing.T) {
+	h, w, cfg := adoptHarness(t)
+	h.fails("session_adopt", m{"workspace_id": w.ID, "claude_session_id": "99999999-aaaa-bbbb-cccc-000000000001", "nick": "x"}, "that conversation has no transcript in", cfg, "99999999-aaaa-bbbb-cccc-000000000001.jsonl")
+	h.fails("planner_adopt", m{"workspace_id": w.ID, "claude_session_id": "99999999-aaaa-bbbb-cccc-000000000001"}, "that conversation has no transcript in")
 }

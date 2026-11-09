@@ -169,9 +169,15 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 	}
 	row.ID = uuid.NewString() // known before the row exists, so nothing fallible follows the insert
 	// Every claude launch has a conversation id Hadron knows: a fresh one is given to claude with
-	// --session-id and stored, so a restart can always resume it.
+	// --session-id and stored, so a restart can always resume it. Claude writes the transcript only
+	// after the first message, so an id whose transcript is missing (it was never used) cannot be
+	// resumed: it is given to claude again with --session-id, keeping the same id.
 	newConversation := ""
-	if resume == "" && isClaude(command) {
+	if resume != "" && !HasConversation(ClaudeConfigDir(), cwd, resume) {
+		s.cfg.Log.Debug("no transcript for the stored conversation, starting it again with the same id", "session", resume, "cwd", cwd)
+		newConversation, resume = resume, ""
+	}
+	if resume == "" && newConversation == "" && isClaude(command) {
 		newConversation = uuid.NewString()
 		row.ClaudeSessionID = newConversation
 	}
