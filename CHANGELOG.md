@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.16] - 2026-11-09
+
 ### Fixed
 - Widgets in a long chat showed as an empty line: the scrolling chat log shrank them to their border. Messages and widgets in the log now keep their full height.
 
