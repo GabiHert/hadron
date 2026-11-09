@@ -112,6 +112,13 @@ func (r *Sessions) MarkRunningExitedIf(alive func(pid int) bool) (int64, error) 
 	return marked, nil
 }
 
+// MarkExited marks one running session exited and leaves its restore flag as it is.
+func (r *Sessions) MarkExited(id string) error {
+	n := ts(now())
+	_, err := r.s.q.Exec(`UPDATE sessions SET status='exited', ended_at=?, updated_at=? WHERE id=? AND status='running'`, n, n, id)
+	return err
+}
+
 // ProcessAlive says whether a process with this pid exists (signal 0).
 func ProcessAlive(pid int) bool {
 	if pid <= 0 {

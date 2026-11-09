@@ -14,6 +14,7 @@ import (
 
 	"github.com/GabiHert/hadron/internal/board"
 	"github.com/GabiHert/hadron/internal/run"
+	"github.com/GabiHert/hadron/internal/sessions"
 	"github.com/GabiHert/hadron/internal/store"
 	"github.com/google/uuid"
 	wailsv2 "github.com/wailsapp/wails/v2"
@@ -77,8 +78,11 @@ func prepare(bindings bool, home string) (*store.Store, *os.File, error) {
 
 // reconcile is the startup work on the database that only the primary instance does, before any
 // session is restored: sessions left running by a previous run whose process is gone are marked
-// exited, and launch profiles are backfilled.
-func reconcile(st *store.Store) {
+// exited (orphans that are still alive are stopped first), and launch profiles are backfilled.
+func reconcile(st *store.Store, ops sessions.ProcOps, logf func(string, ...any)) {
+	// An orphan of a crashed Hadron is stopped before anything is restored, so a conversation
+	// never has two processes.
+	sessions.ReapOrphans(st, ops, os.Getpid(), logf)
 	if _, err := st.Sessions.MarkRunningExited(); err != nil {
 		log.Printf("sessions: %v", err)
 	}

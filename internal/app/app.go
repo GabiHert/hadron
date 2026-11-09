@@ -137,7 +137,7 @@ func (a *App) startup(ctx context.Context) {
 	a.cancel = cancel
 	a.mu.Unlock()
 	a.log.Info("startup", "version", run.Version)
-	reconcile(a.st)
+	reconcile(a.st, sessions.RealProcOps(), a.log.Warn)
 	// The MCP server must be listening before any planner starts, so the config files it writes
 	// name the port the server really got.
 	if err := a.mcp.Start(); err != nil {

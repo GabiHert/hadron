@@ -7,8 +7,15 @@ import (
 	"testing"
 
 	"github.com/GabiHert/hadron/internal/domain"
+	"github.com/GabiHert/hadron/internal/sessions"
 	"github.com/GabiHert/hadron/internal/store"
 )
+
+// noProcs inspects nothing: every live pid looks like a process of this Hadron.
+var noProcs = sessions.ProcOps{
+	Inspect: func(int) (int, string, bool) { return os.Getpid(), "claude", true },
+	Stop:    func(int) bool { return false },
+}
 
 func seedRunning(t *testing.T, home string, pids ...int) []string {
 	t.Helper()
@@ -56,7 +63,7 @@ func TestASecondLaunchLeavesTheRunningSessionsAlone(t *testing.T) {
 	if err != nil || st == nil {
 		t.Fatalf("primary prepare = %v, %v", st, err)
 	}
-	reconcile(st)
+	reconcile(st, noProcs, nil)
 	defer func() { st.Close(); lock.Close() }()
 
 	// A second launch, the way `wails build` runs the binary, opens nothing.
@@ -81,8 +88,8 @@ func TestReconcileMarksOnlyRowsWhoseProcessIsGone(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { st.Close(); lock.Close() }()
-	reconcile(st)
-	reconcile(st) // calling it twice is safe
+	reconcile(st, noProcs, nil)
+	reconcile(st, noProcs, nil) // calling it twice is safe
 	for i, want := range []string{"running", "exited", "exited"} {
 		s, _ := st.Sessions.Get(ids[i])
 		if s.Status != want {

@@ -7,6 +7,10 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Fixed
+
+- After Hadron crashed, a Claude Code process it had started could still be running, and restoring that session started a second process on the same conversation. At startup Hadron now stops such leftover processes (only ones whose command line is that session's) before it restores sessions.
+
 ## [0.2.12] - 2026-11-09
 
 ### Fixed
