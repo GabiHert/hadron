@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.17] - 2026-11-09
+
 ### Added
 - A widget's "⋯" menu (it shows when you hover the widget or Tab to it) opens the widget full screen, copies its HTML, or adds it to the dashboard. Esc closes the menu and the full-screen view.
 - Widgets without scripts now size themselves: a diagram fits its drawing, and other widgets get a fitting height with a "Show more" link.
