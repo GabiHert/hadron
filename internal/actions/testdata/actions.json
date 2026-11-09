@@ -1677,6 +1677,11 @@
         "name": "handoff",
         "required": false,
         "type": "boolean"
+      },
+      {
+        "name": "launch_profile",
+        "required": false,
+        "type": "string"
       }
     ]
   },
@@ -1788,6 +1793,22 @@
       {
         "name": "model",
         "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "planner_set_profile",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "launch_profile",
+        "required": false,
         "type": "string"
       }
     ]
@@ -2509,6 +2530,11 @@
         "name": "handoff",
         "required": false,
         "type": "boolean"
+      },
+      {
+        "name": "launch_profile",
+        "required": false,
+        "type": "string"
       }
     ]
   },

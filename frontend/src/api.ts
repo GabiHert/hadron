@@ -221,6 +221,7 @@ export const session_interrupt = (a: { card: string }) => call<SessionStatus>("s
 export const session_read_screen = (a: { card: string; lines?: number; scrollback?: boolean }) => call<ScreenOut>("session_read_screen", a);
 export const session_status = (a: { card: string }) => call<SessionStatus>("session_status", a);
 export const planner_get = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_get", a);
+export const planner_set_profile = (a: { workspace_id?: string; launch_profile?: string }) => call<SessionStatus>("planner_set_profile", a);
 export const planner_start = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_start", a);
 export const planner_restart = (a: { workspace_id?: string; fresh?: boolean } = {}) => call<SessionStatus>("planner_restart", a);
 export const planner_send = (a: { workspace_id?: string; text: string; enter?: boolean }) => call<SessionStatus>("planner_send", a);
@@ -950,9 +951,9 @@ export interface AdoptResult {
   warning: string;
 }
 export const session_adoptable_list = (a: { workspace_id?: string } = {}) => call<Adoptable[]>("session_adoptable_list", a);
-export const session_adopt = (a: { workspace_id?: string; claude_session_id: string; nick: string; key?: string; column_id?: string; start?: boolean; handoff?: boolean }) =>
+export const session_adopt = (a: { workspace_id?: string; claude_session_id: string; nick: string; key?: string; column_id?: string; start?: boolean; handoff?: boolean; launch_profile?: string }) =>
   call<AdoptResult>("session_adopt", a);
-export const planner_adopt = (a: { workspace_id?: string; claude_session_id: string; handoff?: boolean }) =>
+export const planner_adopt = (a: { workspace_id?: string; claude_session_id: string; handoff?: boolean; launch_profile?: string }) =>
   call<AdoptResult>("planner_adopt", a);
 
 // ---- importing a planner folder ----

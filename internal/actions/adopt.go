@@ -36,6 +36,7 @@ type SessionAdoptIn struct {
 	ColumnID        string `json:"column_id,omitempty" jsonschema:"the column; default is the first active one"`
 	Start           *bool  `json:"start,omitempty" jsonschema:"resume it right away (default true)"`
 	Handoff         *bool  `json:"handoff,omitempty" jsonschema:"type the handoff message once it is ready (default true)"`
+	LaunchProfile   string `json:"launch_profile,omitempty" jsonschema:"the card's launch profile (name or id): its arguments such as --dangerously-skip-permissions, model, environment and prompt apply to the resumed launch and to later restarts. Its first prompt is not sent"`
 }
 
 // PlannerAdoptIn is the input of planner_adopt.
@@ -43,6 +44,7 @@ type PlannerAdoptIn struct {
 	WorkspaceID     string `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
 	ClaudeSessionID string `json:"claude_session_id" jsonschema:"the conversation's id from session_adoptable_list"`
 	Handoff         *bool  `json:"handoff,omitempty" jsonschema:"type the planner handoff message once it is ready (default true)"`
+	LaunchProfile   string `json:"launch_profile,omitempty" jsonschema:"the planner's launch profile (name or id), kept for the workspace: its arguments, model and environment apply to this and every later planner start"`
 }
 
 // AdoptOut is the result of session_adopt and planner_adopt.
@@ -104,9 +106,22 @@ func registerAdopt(r *Registry) {
 				return AdoptOut{}, err
 			}
 			start := in.Start == nil || *in.Start
+			if in.LaunchProfile != "" {
+				p, err := sessions.FindProfile(c.Store, w.ID, in.LaunchProfile)
+				if err != nil {
+					return AdoptOut{}, err
+				}
+				in.LaunchProfile = p.Name
+			}
 			card, err := createCardFor(c, w, in.Nick, in.Key, in.ColumnID)
 			if err != nil {
 				return AdoptOut{}, err
+			}
+			if in.LaunchProfile != "" {
+				card.LaunchProfile = in.LaunchProfile
+				if err := c.Store.Cards.Update(&card); err != nil {
+					return AdoptOut{}, err
+				}
 			}
 			row := domain.Session{WorkspaceID: w.ID, CardID: card.ID, Kind: "card", Command: "claude", Cwd: w.Root, Status: "exited", ClaudeSessionID: in.ClaudeSessionID}
 			if err := c.Store.Sessions.Create(&row); err != nil {
@@ -144,6 +159,11 @@ func registerAdopt(r *Registry) {
 			}
 			if err := checkAdoptable(c, w, in.ClaudeSessionID); err != nil {
 				return AdoptOut{}, err
+			}
+			if in.LaunchProfile != "" {
+				if err := setPlannerProfile(c, w, in.LaunchProfile); err != nil {
+					return AdoptOut{}, err
+				}
 			}
 			row := domain.Session{WorkspaceID: w.ID, Kind: "planner", Command: "claude", Cwd: w.Root, Status: "exited", ClaudeSessionID: in.ClaudeSessionID}
 			if err := c.Store.Sessions.Create(&row); err != nil {

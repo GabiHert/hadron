@@ -2,8 +2,10 @@ package actions
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/pty"
@@ -87,6 +89,8 @@ type SessionStatus struct {
 	Error       string          `json:"error"`
 	// Warnings are notes about how the session started, such as a worktree that was skipped.
 	Warnings []string `json:"warnings,omitempty"`
+	// LaunchProfile is the planner's own launch profile (planner_get only).
+	LaunchProfile string `json:"launch_profile,omitempty"`
 }
 
 // ScreenOut is what the read-screen actions return.
@@ -227,7 +231,28 @@ func registerSessions(r *Registry) {
 			if err != nil {
 				return SessionStatus{}, err
 			}
-			return statusOf(nil, w.ID, t), nil
+			st := statusOf(nil, w.ID, t)
+			st.LaunchProfile = sessions.PlannerProfileName(c.Store, w.ID)
+			return st, nil
+		})
+
+	Register(r, Spec{Name: "planner_set_profile", Description: "Choose the launch profile of the workspace's planner: its command, arguments (such as --dangerously-skip-permissions), model and environment apply whenever the planner starts, restarts or is adopted. Its first prompt is never sent to a planner. Empty goes back to a bare claude. Takes effect at the next start. Only the user may.",
+		Mutates: true, Entities: []string{"sessions"}},
+		func(ctx context.Context, c *Call, in PlannerSetProfileIn) (SessionStatus, error) {
+			if c.Actor.Kind == KindSession || c.Actor.Kind == KindPlanner {
+				return SessionStatus{}, errors.New("only the user changes how the planner starts")
+			}
+			w, err := c.Workspace(in.WorkspaceID)
+			if err != nil {
+				return SessionStatus{}, err
+			}
+			if err := setPlannerProfile(c, w, in.LaunchProfile); err != nil {
+				return SessionStatus{}, err
+			}
+			t, _ := target(c, w.ID, nil)
+			st := statusOf(nil, w.ID, t)
+			st.LaunchProfile = sessions.PlannerProfileName(c.Store, w.ID)
+			return st, nil
 		})
 
 	Register(r, Spec{Name: "planner_start", Description: "Start the workspace planner's Claude Code session. It is an error if it already runs; use planner_restart then.",
@@ -382,6 +407,30 @@ func statusOf(card *domain.Card, workspaceID string, t sessions.Target) SessionS
 		st.Liveness = "none"
 	}
 	return st
+}
+
+// PlannerSetProfileIn is the input of planner_set_profile.
+type PlannerSetProfileIn struct {
+	WorkspaceID   string `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
+	LaunchProfile string `json:"launch_profile,omitempty" jsonschema:"the launch profile (name or id) the planner starts with; leave out or empty for none"`
+}
+
+// setPlannerProfile stores the workspace's planner launch profile after checking it exists.
+func setPlannerProfile(c *Call, w domain.Workspace, ref string) error {
+	name := strings.TrimSpace(ref)
+	if name != "" {
+		p, err := sessions.FindProfile(c.Store, w.ID, name)
+		if err != nil {
+			return err
+		}
+		name = p.Name
+	}
+	before := sessions.PlannerProfileName(c.Store, w.ID)
+	if err := c.Store.Settings.Set(sessions.SettingPlannerProfilePrefix+w.ID, json.RawMessage(toJSON(name))); err != nil {
+		return err
+	}
+	c.RecordChange(w.ID, map[string]any{"name": "planner launch profile", "launch_profile": before}, map[string]any{"name": "planner launch profile", "launch_profile": name})
+	return nil
 }
 
 func startSession(c *Call, card domain.Card, profile string, fresh, restart bool) (SessionStatus, error) {

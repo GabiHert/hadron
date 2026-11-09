@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Fixed
+- Adopted sessions and the planner can now start with a launch profile, so arguments such as `--dangerously-skip-permissions`, the model and the environment apply when they resume. `session_adopt` and `planner_adopt` take `launch_profile`, and `planner_set_profile` sets the planner's. The model setting is no longer passed twice when a profile's arguments also name one.
+
 ## [0.2.0] - 2026-11-09
 
 ### Added

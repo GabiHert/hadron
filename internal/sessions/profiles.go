@@ -43,8 +43,34 @@ func (s *Service) profile(st *store.Store, ws domain.Workspace, card *domain.Car
 	if ref == "" && card != nil {
 		ref = card.LaunchProfile
 	}
-	if card == nil || ref == "" {
+	if card == nil {
+		// The planner uses the workspace's own launch profile, when one is set and still exists.
+		if name := PlannerProfileName(st, ws.ID); name != "" {
+			if p, err := FindProfile(st, ws.ID, name); err == nil {
+				p.FirstPrompt = "" // a planner never gets a first prompt
+				return p, nil
+			}
+		}
+		return domain.LaunchProfile{Command: "claude"}, nil
+	}
+	if ref == "" {
 		return domain.LaunchProfile{Command: "claude"}, nil
 	}
 	return FindProfile(st, ws.ID, ref)
+}
+
+// SettingPlannerProfilePrefix starts the key of a workspace's planner launch profile setting.
+const SettingPlannerProfilePrefix = "planner.launch_profile."
+
+// PlannerProfileName is the launch profile the workspace's planner starts with, or "".
+func PlannerProfileName(st *store.Store, workspaceID string) string {
+	raw, err := st.Settings.Get(SettingPlannerProfilePrefix + workspaceID)
+	if err != nil {
+		return ""
+	}
+	var v string
+	if json.Unmarshal(raw, &v) != nil {
+		return ""
+	}
+	return v
 }

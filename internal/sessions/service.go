@@ -193,11 +193,15 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 		if newConversation != "" {
 			args = append(args, "--session-id", newConversation)
 		}
+		profileArgs := profile.Args
 		if model, _ := ResolveModel(ws, card, profile); model != "" {
 			args = append(args, "--model", model)
+			profileArgs = dropModelArg(profileArgs) // the model setting wins; never pass --model twice
 		}
+		args = append(args, profileArgs...)
+	} else {
+		args = append(args, profile.Args...)
 	}
-	args = append(args, profile.Args...)
 
 	env = withEnv(env, "HADRON_SESSION_ID="+row.ID, "HADRON_WORKSPACE_ID="+ws.ID, "HADRON_CARD_ID="+cardID)
 	for k, v := range profile.Env {
@@ -539,6 +543,21 @@ func (s *Service) port(st *store.Store) int {
 		}
 	}
 	return DefaultMCPPort
+}
+
+// dropModelArg removes "--model X" and "--model=X" from a profile's arguments.
+func dropModelArg(args []string) []string {
+	out := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "--model":
+			i++ // and its value
+		case strings.HasPrefix(args[i], "--model="):
+		default:
+			out = append(out, args[i])
+		}
+	}
+	return out
 }
 
 // IsClaude says whether command is the claude CLI, the only program Hadron gives its prompt and model flags, and types slash commands into.
