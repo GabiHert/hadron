@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-11-09
+
 ### Changed
 - Clicking a card (on the board, in the dashboard, or from the command palette) opens the card panel again if you had collapsed it. Background refreshes still leave it collapsed.
 
