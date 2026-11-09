@@ -116,17 +116,23 @@ func (l Live) HTTP(ctx context.Context, req HTTPRequest, allowed func(string) bo
 func (l Live) Exec(ctx context.Context, binary string, args []string) (ExecResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, ExecTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, binary, args...)
-	if l.Env == nil {
-		cmd.Env = os.Environ()
-	} else if env := l.Env(); len(env) > 0 {
-		cmd.Env = env
-		if p := envValue(env, "PATH"); p != "" {
-			if full := lookIn(binary, p); full != "" {
-				cmd.Path = full
-			}
+	// Resolve the binary on the login shell's PATH before building the command: a GUI app's own
+	// PATH lacks Homebrew and the like, and exec.Command records a failed lookup in cmd.Err, which
+	// Run returns even if cmd.Path is set afterwards.
+	env := os.Environ()
+	if l.Env != nil {
+		if e := l.Env(); len(e) > 0 {
+			env = e
 		}
 	}
+	name := binary
+	if p := envValue(env, "PATH"); p != "" {
+		if full := lookIn(binary, p); full != "" {
+			name = full
+		}
+	}
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = env
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &limited{b: &stdout}, &limited{b: &stderr}
 	err := cmd.Run()

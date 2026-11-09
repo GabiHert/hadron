@@ -391,3 +391,22 @@ func TestSamePermissionsIgnoresOrder(t *testing.T) {
 		t.Error("a removed permission is a change")
 	}
 }
+
+// A GUI app's own PATH lacks the user's tools (Homebrew), so Exec must find a binary on the login
+// shell's PATH even when the process PATH cannot.
+func TestLiveExecFindsBinaryOnLoginShellPath(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "hadron-fake-tool")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\necho found \"$1\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", "/usr/bin:/bin")
+	live := Live{Env: func() []string { return []string{"PATH=" + dir + ":/usr/bin:/bin", "HOME=" + dir} }}
+	res, err := live.Exec(context.Background(), "hadron-fake-tool", []string{"ok"})
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	if res.Code != 0 || strings.TrimSpace(res.Stdout) != "found ok" {
+		t.Fatalf("got code %d stdout %q stderr %q", res.Code, res.Stdout, res.Stderr)
+	}
+}

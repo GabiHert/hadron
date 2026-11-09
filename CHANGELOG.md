@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Fixed
+- Integrations that run a command-line tool (such as gh from Homebrew) failed inside the installed app with "executable file not found in $PATH": the tool is now found on your login shell's PATH.
+
 ## [0.2.11] - 2026-11-09
 
 ### Added
