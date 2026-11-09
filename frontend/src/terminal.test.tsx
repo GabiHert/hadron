@@ -1,16 +1,63 @@
 import { act, render, waitFor } from "@testing-library/react";
 import { Terminal } from "./components/Terminal";
-import { FakeXTerm, emitPty, ptyMock, resetTerm, resolveAttach, subscribed } from "./test/fakeTerm";
+import { FakeFit, FakeXTerm, emitPty, ptyMock, resetTerm, resolveAttach, subscribed } from "./test/fakeTerm";
+import { publishZoomForTests, resetZoomForTests } from "./state/useZoom";
+import { routeKey } from "./components/Terminal";
 
 vi.mock("@xterm/xterm", async () => (await import("./test/fakeTerm")).xtermModule);
 vi.mock("@xterm/addon-fit", async () => (await import("./test/fakeTerm")).fitModule);
 vi.mock("./pty", async () => (await import("./test/fakeTerm")).ptyMock);
 
-beforeEach(() => resetTerm());
+beforeEach(() => {
+  resetTerm();
+  resetZoomForTests();
+});
 
 const term = () => FakeXTerm.instances[FakeXTerm.instances.length - 1];
 
 describe("Terminal", () => {
+  it("follows the zoom: a bigger font in an unzoomed host, then a refit that reaches the PTY", async () => {
+    const view = render(<Terminal sessionId="s1" label="planner" />);
+    await act(async () => resolveAttach(""));
+    expect(term().options.fontSize).toBe(12);
+    const fit = FakeFit.instances[FakeFit.instances.length - 1];
+    const before = fit.fit.mock.calls.length;
+    // jsdom drops the zoom property, so watch the call that sets it.
+    const set = vi.spyOn(CSSStyleDeclaration.prototype, "setProperty");
+    act(() => publishZoomForTests(1.5));
+    expect(term().options.fontSize).toBe(18);
+    const host = view.container.querySelector(".xterm-host") as HTMLElement;
+    const zoomCall = set.mock.calls.find((c) => c[0] === "zoom");
+    expect(parseFloat(String(zoomCall?.[1]))).toBeCloseTo(1 / 1.5);
+    expect(host).toBeInTheDocument();
+    expect(fit.fit.mock.calls.length).toBeGreaterThan(before);
+    // The refit's new size goes out through onResize, as any resize does.
+    act(() => term().resizeHandlers.forEach((h) => h({ cols: 66, rows: 20 })));
+    expect(ptyMock.resize).toHaveBeenLastCalledWith("s1", 66, 20);
+    act(() => publishZoomForTests(1));
+    expect(term().options.fontSize).toBe(12);
+    expect(set.mock.calls[set.mock.calls.length - 1]).toEqual(["zoom", ""]);
+    set.mockRestore();
+  });
+
+  it("a terminal opened while zoomed starts at the zoomed font", () => {
+    publishZoomForTests(0.8);
+    render(<Terminal sessionId="s1" label="planner" />);
+    expect(term().options.fontSize).toBe(10);
+  });
+
+  it("lets the reserved ⌘ chords out to Hadron and keeps the rest for the program", () => {
+    expect(routeKey({ type: "keydown", key: "Escape", metaKey: true })).toBe("app");
+    expect(routeKey({ type: "keydown", key: "=", metaKey: true })).toBe("app");
+    expect(routeKey({ type: "keydown", key: "-", metaKey: true })).toBe("app");
+    expect(routeKey({ type: "keydown", key: "]", metaKey: true })).toBe("app");
+    expect(routeKey({ type: "keydown", key: "1", code: "Digit1", metaKey: true })).toBe("app");
+    expect(routeKey({ type: "keydown", key: "ArrowLeft", code: "ArrowLeft", metaKey: true, altKey: true })).toBe("app");
+    expect(routeKey({ type: "keydown", key: "ArrowLeft", metaKey: true })).toBe("terminal");
+    expect(routeKey({ type: "keydown", key: "Escape" })).toBe("terminal");
+    expect(routeKey({ type: "keydown", key: "]", ctrlKey: true })).toBe("terminal");
+  });
+
   it("replays the scrollback, then applies live output without repeating what the replay holds", async () => {
     render(<Terminal sessionId="s1" label="planner" />);
     expect(ptyMock.attach).toHaveBeenCalledWith("s1");

@@ -124,7 +124,7 @@ func GuideTopics() []string {
 	for _, e := range entries {
 		out = append(out, strings.TrimSuffix(e.Name(), ".md"))
 	}
-	order := []string{"overview", "chat", "questions", "reports", "widgets", "dashboard", "fields-links", "rules-filters", "integrations", "prompts", "feedback", "debugging"}
+	order := []string{"overview", "chat", "questions", "reports", "widgets", "dashboard", "fields-links", "rules-filters", "integrations", "prompts", "keyboard", "feedback", "debugging"}
 	rank := map[string]int{}
 	for i, n := range order {
 		rank[n] = i

@@ -8,6 +8,11 @@ import type { PtyChunk } from "../pty";
 import * as api from "../api";
 import { ACCEPT, filesOf, nativeFileDrop, onPathDrop, saveFiles, typedPaths } from "../attach";
 import { Icon } from "./ui";
+import { escapesTerminal } from "../keys";
+import { currentZoom, onZoom } from "../state/useZoom";
+
+/** The terminal's font size at 100%; the zoom scales it. */
+export const TERM_FONT = 12;
 
 /** The setting that makes Option act as Meta in every terminal (Option+B is ESC b, not ∫). */
 export const SETTING_OPTION_META = "terminal.mac_option_is_meta";
@@ -21,13 +26,15 @@ export type KeyRoute =
 /**
  * Routes a key press in a focused terminal. Everything belongs to the program running in it (so
  * Claude Code gets @, /, Esc, Shift+Tab, Ctrl+C/D/R/L/V, arrows and Tab) except Cmd+letter, which
- * is the app's and the webview's: the palette, a new session, copy, paste, select all.
+ * is the app's and the webview's (the palette, a new session, copy, paste, select all), and the
+ * reserved ⌘ chords of the keyboard registry: zones, panels, workspaces, zoom, and ⌘Esc to leave.
  * Shift+Enter sends ESC CR, which Claude Code reads as a new line, as Option+Enter does.
  */
 export function routeKey(e: Pick<KeyboardEvent, "type" | "key"> & Partial<KeyboardEvent>): KeyRoute {
   if (e.type !== "keydown") return "terminal";
   if (e.key === "Enter" && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing) return { send: "\x1b\r" };
   if (e.metaKey && !e.ctrlKey && /^[a-z]$/i.test(e.key)) return "app";
+  if (e.metaKey && escapesTerminal(e)) return "app";
   return "terminal";
 }
 
@@ -113,7 +120,7 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
     let dead = false;
     const term = new XTerm({
       fontFamily: '"IBM Plex Mono", ui-monospace, Menlo, monospace',
-      fontSize: 12,
+      fontSize: Math.round(TERM_FONT * currentZoom()),
       lineHeight: 1.3,
       cursorBlink: true,
       scrollback: 5000,
@@ -124,6 +131,13 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
       theme: termTheme(),
     });
     termRef.current = term;
+    // The window is zoomed with CSS zoom. The terminal undoes it and takes a bigger font instead,
+    // so its glyphs stay sharp and xterm's mouse and size measures stay in plain pixels.
+    const applyZoom = (z: number) => {
+      el.style.setProperty("zoom", z === 1 ? "" : String(1 / z));
+      term.options.fontSize = Math.round(TERM_FONT * z);
+    };
+    applyZoom(currentZoom());
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(el);
@@ -201,6 +215,12 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
       })
       .catch(() => {});
 
+    // A new zoom refits: fewer or more columns and rows, which onResize sends to the PTY.
+    const offZoom = onZoom((z) => {
+      applyZoom(z);
+      refit();
+    });
+
     const typed = term.onData((data) => void pty.write(sessionId, data).catch(() => {}));
     const resized = term.onResize(({ cols, rows }) => void pty.resize(sessionId, cols, rows).catch(() => {}));
 
@@ -231,6 +251,7 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
       el.removeEventListener("drop", onDrop);
       offDrop();
       off();
+      offZoom();
       typed.dispose();
       resized.dispose();
       ro.disconnect();

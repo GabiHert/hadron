@@ -7,7 +7,9 @@ import type { Board as BoardState } from "../state/useBoard";
 import { useFilters } from "../state/useFilters";
 import { Dashboard } from "./Dashboard";
 import { FilterBar } from "./FilterBar";
-import { Icon } from "./ui";
+import { Icon, closeOnEscape } from "./ui";
+import { withChord } from "../keys";
+import { attrEsc } from "../commands";
 
 interface Props {
   board: BoardState;
@@ -48,23 +50,23 @@ export function Board({ board, onNewSession, onNewWorkspace }: Props) {
 
   const viewSeg = (
     <div className="seg mview" role="tablist" aria-label="Main view">
-      <button className={!dash ? "on" : ""} role="tab" aria-selected={!dash} onClick={() => void actions.setMainView("board")}>
+      <button className={!dash ? "on" : ""} role="tab" aria-selected={!dash} title={withChord("Board", "view.dashboard")} onClick={() => void actions.setMainView("board")}>
         <Icon name="board" size={13} />Board
       </button>
-      <button className={dash ? "on" : ""} role="tab" aria-selected={dash} onClick={() => void actions.setMainView("dashboard")}>
+      <button className={dash ? "on" : ""} role="tab" aria-selected={dash} title={withChord("Dashboard", "view.dashboard")} onClick={() => void actions.setMainView("dashboard")}>
         <Icon name="dash" size={13} />Dashboard
       </button>
     </div>
   );
   const newBtn = (
-    <button className="btn" onClick={onNewSession}>
+    <button className="btn" onClick={onNewSession} title={withChord("New session", "card.new")}>
       <Icon name="plus" size={13} />New session
     </button>
   );
 
   if (dash)
     return (
-      <main className="board">
+      <main className="board" data-zone="dashboard" tabIndex={-1} aria-label="Dashboard">
         <div className="bhead">
           <div className="r1"><h1>{ws.name}</h1>{viewSeg}<div className="spacer" />{newBtn}</div>
         </div>
@@ -78,12 +80,12 @@ export function Board({ board, onNewSession, onNewWorkspace }: Props) {
   };
 
   return (
-    <main className="board">
+    <main className="board" data-zone="board" tabIndex={-1} aria-label="Board">
       <div className="bhead">
         <div className="r1">
           <h1>{ws.name}</h1>
           {viewSeg}
-          <span className="cap" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>each card is one Claude session</span>
+          <span className="cap" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>each card is one Claude session · <kbd className="kbd" title="Keyboard shortcuts">?</kbd> for keys</span>
           <div className="spacer" />
           {newBtn}
         </div>
@@ -110,7 +112,7 @@ export function Board({ board, onNewSession, onNewWorkspace }: Props) {
             setOver={(on) => setOverId((o) => (on ? col.id : o === col.id ? null : o))}
           />
         ))}
-        <button className="addcol" onClick={() => void addColumn()}>
+        <button className="addcol" onClick={() => void addColumn()} title={withChord("Add a column", "column.new")}>
           <Icon name="plus" size={13} /> Column
         </button>
       </div>
@@ -145,7 +147,7 @@ export function ColumnView(p: ColProps) {
 
   if (col.fold)
     return (
-      <section className="col folded">
+      <section className="col folded" data-col-id={col.id} data-col-name={col.name}>
         <button className="fold" onClick={() => void actions.updateColumn(col.id, { fold: false })} aria-label={`Unfold ${col.name}`}>
           {col.name} · {all.length}
         </button>
@@ -178,6 +180,8 @@ export function ColumnView(p: ColProps) {
     <section
       className={"col" + (p.over ? " drop" : "")}
       aria-label={`Column ${col.name}`}
+      data-col-id={col.id}
+      data-col-name={col.name}
       onDragOver={(e) => {
         e.preventDefault();
         p.setOver(true);
@@ -274,8 +278,11 @@ function EditName({ name, id, cancelled, onCommit, onCancel }: { name: string; i
 
 function ColumnMenu({ col, index, count, board, setMenuOpen }: ColProps) {
   const { actions } = board;
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => ref.current?.querySelector<HTMLElement>("input, select, button")?.focus(), []);
+  const opener = { get current() { return document.querySelector<HTMLElement>(`[aria-label="Column options for ${attrEsc(col.name)}"]`); } };
   return (
-    <div className="menu">
+    <div className="menu" ref={ref} onKeyDown={closeOnEscape(() => setMenuOpen(false), opener)}>
       <label>
         Name
         <input className="in" defaultValue={col.name} id={`menu-name-${col.id}`} onBlur={(e) => { const n = e.target.value.trim(); if (n && n !== col.name) void actions.renameColumn(col.id, n); }} />
@@ -332,6 +339,8 @@ export function CardFace({ card: c, question, chips, model, selected, dragging, 
       onDrop={onDrop}
       onClick={onOpen}
       aria-label={`Open ${c.nick}`}
+      data-card-id={c.id}
+      aria-current={selected ? "true" : undefined}
     >
       <span className="l1">
         <span className={`dot ${c.liveness}${c.liveness === "working" ? " pulse" : ""}`} title={c.liveness} />

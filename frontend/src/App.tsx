@@ -4,7 +4,9 @@ import { CardPanel } from "./components/CardPanel";
 import type { CardTab } from "./components/CardPanel";
 import { FeedbackModal } from "./components/FeedbackModal";
 import { Header } from "./components/Header";
-import { NewSession, NewWorkspace, Palette, Settings } from "./components/Modals";
+import { NewSession, NewWorkspace, Settings } from "./components/Modals";
+import { CheatSheet, ConfirmDialog, Palette, paletteItems } from "./components/KeyDialogs";
+import type { ConfirmReq } from "./components/KeyDialogs";
 import { WhatsNew } from "./components/WhatsNew";
 import { PlannerPanel } from "./components/PlannerPanel";
 import { Icon } from "./components/ui";
@@ -12,17 +14,18 @@ import { useUpdateAvailable } from "./components/UpdatesCard";
 import * as api from "./api";
 import { releaseHighlights } from "./lib";
 import { useBoard } from "./state/useBoard";
+import { useKeyBindings } from "./state/useKeys";
+import { useKeyboard, useLastPanel } from "./state/useKeyboard";
+import { useZoom } from "./state/useZoom";
+import { cardEl, focusEl, whenReady } from "./commands";
+import type { Env, ModalName } from "./commands";
+import { isDark } from "./components/Header";
 
-type Modal = null | "newws" | "newsession" | "settings" | "palette" | "feedback" | "whatsnew";
+type Modal = null | ModalName;
 
 /** True when the window is narrow enough (960px, as in app.css) for the panels to be overlays. */
 function isNarrowWindow(): boolean {
   return typeof window.matchMedia === "function" && window.matchMedia("(max-width: 960px)").matches;
-}
-
-/** True when a key event comes from inside a terminal. */
-function inTerminal(target: EventTarget | null): boolean {
-  return target instanceof Element && !!target.closest(".xterm, .xterm-host");
 }
 
 /** The tooltip of the "<tag> available" pill: the first highlights of the release's notes. */
@@ -58,27 +61,44 @@ export default function App() {
     setModal("feedback");
   };
 
-  const full = ws?.ui.full;
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const k = e.key.toLowerCase();
-      // In a terminal, Ctrl+K, Ctrl+N and Esc belong to the program (Claude Code kills a line,
-      // moves down, interrupts). Only the Cmd shortcuts are the app's there.
-      if (inTerminal(e.target) && (!e.metaKey || e.key === "Escape")) return;
-      if ((e.metaKey || e.ctrlKey) && k === "k") {
-        e.preventDefault();
-        setModal((m) => (m === "palette" ? null : "palette"));
-      } else if ((e.metaKey || e.ctrlKey) && k === "n") {
-        e.preventDefault();
-        setModal("newsession");
-      } else if (e.key === "Escape") {
-        if (modal) setModal(null);
-        else if (full) void actions.setFullscreen("");
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [modal, full, actions]);
+  const { overrides } = useKeyBindings(actions.toast);
+  const { zoom, step: zoomStep } = useZoom(actions.toast);
+  const [confirmReq, setConfirmReq] = useState<ConfirmReq | null>(null);
+  const [newIn, setNewIn] = useState<string | undefined>(undefined);
+  const lastPanel = useLastPanel();
+  const openSettings = (t = "columns") => {
+    setSettingsTab(t);
+    setModal("settings");
+  };
+  const env: Env = {
+    board,
+    modal,
+    setModal,
+    openSettings,
+    openFeedback,
+    newSessionIn: (columnId) => {
+      setNewIn(columnId);
+      setModal("newsession");
+    },
+    plannerView,
+    setPlannerView,
+    cardView,
+    setCardView,
+    setTab,
+    confirm: (text, ok, run) => setConfirmReq({ text, ok, run }),
+    zoom: zoomStep,
+    lastPanel: () => lastPanel.current,
+    toggleTheme: () => void actions.setTheme(isDark(board.theme) ? "light" : "dark"),
+  };
+  // The palette's "Go to card" rows: select the card, show it and put the focus on it.
+  const run = useKeyboard(env, overrides, (id) => {
+    if (!id.startsWith("goto:")) return undefined;
+    const cid = id.slice(5);
+    actions.open(cid);
+    if (ws?.ui.main_view === "dashboard") void actions.setMainView("board");
+    whenReady(() => cardEl(cid), (el) => focusEl(el));
+    return true;
+  });
 
   useEffect(() => {
     if (!toast) return;
@@ -97,16 +117,13 @@ export default function App() {
   }, [selectedId]);
 
   return (
-    <div className="win">
+    <div className="win" style={zoom !== 1 ? { zoom } : undefined}>
       <Header
         board={board}
         onNewWorkspace={() => setModal("newws")}
         onPalette={() => setModal("palette")}
         onFeedback={openFeedback}
-        onSettings={() => {
-          setSettingsTab("columns");
-          setModal("settings");
-        }}
+        onSettings={() => openSettings()}
         updateSlot={
           update?.latest ? (
             <button
@@ -130,11 +147,11 @@ export default function App() {
         <CardPanel board={board} view={cardView} setView={setCardView} tab={tab} setTab={setTab} mobileOpen={mobile === "card"} closeMobile={() => setMobile(null)} />
       </div>
       {modal === "newws" ? <NewWorkspace board={board} onClose={() => setModal(null)} /> : null}
-      {modal === "newsession" ? <NewSession board={board} onClose={() => setModal(null)} /> : null}
+      {modal === "newsession" ? <NewSession board={board} columnId={newIn} onClose={() => { setModal(null); setNewIn(undefined); }} /> : null}
       {modal === "settings" ? <Settings board={board} initialTab={settingsTab} onTab={trackTab} onWhatsNew={() => setModal("whatsnew")} onClose={() => setModal(null)} /> : null}
-      {modal === "palette" ? (
-        <Palette board={board} onClose={() => setModal(null)} openModal={(m) => (m === "feedback" ? openFeedback() : setModal(m))} setPlannerView={setPlannerView} />
-      ) : null}
+      {modal === "palette" ? <Palette items={paletteItems(board, overrides, (id) => void run(id), openSettings)} onClose={() => setModal(null)} /> : null}
+      {modal === "keys" ? <CheatSheet overrides={overrides} onClose={() => setModal(null)} onSettings={() => openSettings("keyboard")} /> : null}
+      {confirmReq ? <ConfirmDialog req={confirmReq} onClose={() => setConfirmReq(null)} /> : null}
       {modal === "whatsnew" ? <WhatsNew onClose={() => setModal(null)} /> : null}
       {modal === "feedback" ? <FeedbackModal board={board} area={feedbackArea} onClose={() => setModal(null)} /> : null}
       {toast ? <div className="toast" role="status">{toast.text}</div> : null}

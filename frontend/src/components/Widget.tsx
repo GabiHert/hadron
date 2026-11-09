@@ -245,7 +245,7 @@ export function Widget({ title, html, height, data, scripts, onPin, pinned, vari
   const chat = variant === "chat";
   const cls = ["widget", chat ? "w-chat" : "w-block", chat && isDiagram(html) ? "w-wide" : ""].filter(Boolean).join(" ");
   return (
-    <div className={cls} role="group" aria-label={`Widget ${title}`.trim()}>
+    <div className={cls} role="group" aria-label={`Widget ${title}`.trim()} {...(chat ? { tabIndex: -1, "data-msg": "" } : {})}>
       {chat ? <WidgetMenu title={title} html={html} onPin={onPin} pinned={pinned} onFull={() => setFull(true)} /> : null}
       {title ? <div className="wcap">{title}</div> : null}
       <div className="wframe" ref={box}>

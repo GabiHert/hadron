@@ -77,10 +77,10 @@ export function Dashboard({ board }: { board: BoardState }) {
         <span className="hint" style={{ flex: 1, minWidth: 200 }}>
           Each block reads the board through a named query. The planner edits this layout too: ask it to "add a chart of cards by assignee to the dashboard".
         </span>
-        <button className="btn" type="button" aria-expanded={adding} onClick={() => setAdding(!adding)}><Icon name="plus" size={13} />Add block</button>
+        <button className="btn" type="button" data-dash-add="" title="Add block (n)" aria-expanded={adding} onClick={() => setAdding(!adding)}><Icon name="plus" size={13} />Add block</button>
       </div>
       {adding ? (
-        <div className="blk s2">
+        <div className="blk s2" data-dash-form="" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setAdding(false); } }}>
           <div className="blkb">
             <div className="inline" style={{ alignItems: "flex-end" }}>
               <label className="field" style={{ flex: "1 1 200px" }}>
@@ -110,7 +110,7 @@ export function Dashboard({ board }: { board: BoardState }) {
       ) : null}
       {dash.loaded && !blocks.length ? <div className="empty" style={{ gridColumn: "1 / -1" }}>The dashboard is empty. Add a block, or ask the planner to build one.</div> : null}
       {blocks.map((b, i) => (
-        <section key={b.id} className={"blk" + (b.span === 2 ? " s2" : "")} aria-label={b.title}>
+        <section key={b.id} className={"blk" + (b.span === 2 ? " s2" : "")} aria-label={b.title} data-block={b.id} tabIndex={0}>
           <div className="blkh">
             <h3>{b.title}</h3>
             <span className="pill">{TYPE_LABEL[b.type] ?? b.type}</span>

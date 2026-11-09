@@ -116,7 +116,7 @@ func TestHadronGuideTopics(t *testing.T) {
 	h := newSessionHarness(t, false)
 	var g GuideOut
 	h.do("hadron_guide", m{}, &g)
-	if g.Topic != "overview" || len(g.Topics) != 12 || !strings.Contains(g.Text, "Hadron overview") {
+	if g.Topic != "overview" || len(g.Topics) != 13 || !strings.Contains(g.Text, "Hadron overview") {
 		t.Fatalf("overview = %+v", g)
 	}
 	h.do("hadron_guide", m{"topic": "widgets"}, &g)

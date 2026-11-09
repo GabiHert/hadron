@@ -43,7 +43,11 @@ export class FakeXTerm {
 }
 
 export class FakeFit {
+  static instances: FakeFit[] = [];
   fit = vi.fn();
+  constructor() {
+    FakeFit.instances.push(this);
+  }
 }
 
 export const xtermModule = { Terminal: FakeXTerm };

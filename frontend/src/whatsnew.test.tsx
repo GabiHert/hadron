@@ -100,7 +100,7 @@ test("the palette has a What's new command", async () => {
   await openApp();
   await user.click(screen.getByRole("button", { name: "Command palette" }));
   await user.type(screen.getByPlaceholderText(/Jump to a card/), "what");
-  await user.click(screen.getByRole("button", { name: /What's new/ }));
+  await user.click(screen.getByRole("option", { name: /What's new/ }));
   expect(await screen.findByRole("dialog", { name: "What's new in Hadron" })).toBeInTheDocument();
 });
 

@@ -115,7 +115,7 @@ func TestComposeOrdersLayersAndSkipsEmptyOnes(t *testing.T) {
 
 func TestGuideTopics(t *testing.T) {
 	topics := GuideTopics()
-	want := []string{"overview", "chat", "questions", "reports", "widgets", "dashboard", "fields-links", "rules-filters", "integrations", "prompts", "feedback", "debugging"}
+	want := []string{"overview", "chat", "questions", "reports", "widgets", "dashboard", "fields-links", "rules-filters", "integrations", "prompts", "keyboard", "feedback", "debugging"}
 	if strings.Join(topics, ",") != strings.Join(want, ",") {
 		t.Fatalf("topics = %v", topics)
 	}

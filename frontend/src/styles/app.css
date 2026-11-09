@@ -333,3 +333,22 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
 /* Settings → Keyboard */
 .keys-list .kbd+.kbd{margin-left:4px}
 .keys-list .table td{vertical-align:middle}
+/* Keyboard: a visible focus ring in the accent colour (light and dark), only when the keyboard moved the focus. */
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.in:focus-visible{outline-offset:0}
+[data-zone]:focus{outline:none}
+[data-zone]:focus-visible{outline:2px solid color-mix(in srgb,var(--acc) 55%,transparent);outline-offset:-2px}
+.card:focus-visible{outline:2px solid var(--acc);outline-offset:1px;border-color:var(--acc)}
+[data-msg]:focus{outline:none}
+[data-msg]:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:8px}
+[data-block]:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.snav button:focus-visible,.seg button:focus-visible,.tab:focus-visible{outline-offset:-2px}
+.cheat{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 20px;max-height:min(64vh,620px);overflow:auto}
+.cheat section{break-inside:avoid}
+.cheat h5{margin:10px 0 4px}
+.cheat dl{margin:0}
+.cheat .crow{display:flex;gap:10px;align-items:baseline;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)}
+.cheat dt{color:var(--fg2);font-size:12.5px}
+.cheat dd{margin:0;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.modal.confirm{max-width:440px}
+.pal ul{max-height:min(56vh,480px);overflow:auto}

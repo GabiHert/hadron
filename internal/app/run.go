@@ -139,18 +139,6 @@ func appOptions(assets embed.FS, a *App, m *menu.Menu, primary bool) *options.Ap
 // EventWhatsNew asks the frontend to open the "What's new" window.
 const EventWhatsNew = "menu:whatsnew"
 
-// buildMenu is the standard Mac menu (the app menu, Edit and Window) plus Help, whose "What's New in
-// Hadron" opens the changelog window.
-func buildMenu(a *App) *menu.Menu {
-	m := menu.NewMenu()
-	m.Append(menu.AppMenu())
-	m.Append(menu.EditMenu())
-	m.Append(menu.WindowMenu())
-	help := m.AddSubmenu("Help")
-	help.AddText("What's New in Hadron", nil, func(*menu.CallbackData) { a.emit(EventWhatsNew, nil) })
-	return m
-}
-
 // instanceID is the single-instance lock. A separate HADRON_HOME is a separate Hadron, so it gets
 // its own lock and can run next to the installed app.
 func instanceID() string {

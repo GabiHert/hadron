@@ -35,12 +35,12 @@ export function ChatLine({ m, onPin, pinnedIds, scripts = false }: { m: Message;
         <Widget title={m.widget_title} html={m.widget_html} scripts={scripts} onPin={onPin ? () => onPin(m.id) : undefined} pinned={pinnedIds?.has(m.id)} />
       </>
     );
-  if (m.kind === "event" || m.author === "rule" || m.author === "system") return <div className="b-ev">{m.text}</div>;
+  if (m.kind === "event" || m.author === "rule" || m.author === "system") return <div className="b-ev" data-msg="" tabIndex={-1}>{m.text}</div>;
   if (m.kind === "report")
     return (
       <>
         <div className="who">session → planner · <span className={`pill ${REPORT_PILL[m.report_kind] ?? ""}`}>{m.report_kind}</span> · {when}</div>
-        <div className="b-rep"><Md text={m.text} /></div>
+        <div className="b-rep" data-msg="" tabIndex={-1}><Md text={m.text} /></div>
         {!m.delivered ? <div className="undelivered" role="note" title={m.reason}>The planner did not hear this report. {reasonText(m.reason)}</div> : null}
       </>
     );
@@ -48,7 +48,7 @@ export function ChatLine({ m, onPin, pinnedIds, scripts = false }: { m: Message;
     return (
       <>
         <div className="who r">you → terminal · {when}</div>
-        <div className="b-cmd" title="Typed into the session's terminal; the planner did not get it">
+        <div className="b-cmd" data-msg="" tabIndex={-1} title="Typed into the session's terminal; the planner did not get it">
           <span className="mono">{m.text}</span>
         </div>
       </>
@@ -57,13 +57,13 @@ export function ChatLine({ m, onPin, pinnedIds, scripts = false }: { m: Message;
     return (
       <>
         <div className="who">planner · {when}</div>
-        <div className="b-pl"><Md text={m.text} /></div>
+        <div className="b-pl" data-msg="" tabIndex={-1}><Md text={m.text} /></div>
       </>
     );
   return (
     <>
       <div className="who r">you · {when}</div>
-      <div className="b-me"><Md text={m.text} /></div>
+      <div className="b-me" data-msg="" tabIndex={-1}><Md text={m.text} /></div>
       {!m.delivered ? <div className="undelivered" role="note" title={m.reason}>{reasonText(m.reason)}</div> : null}
     </>
   );
@@ -89,7 +89,7 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
   if (q.status !== "open") {
     const a = q.answer;
     return (
-      <div className="qdone" data-testid={`question-${q.status}`}>
+      <div className="qdone" data-testid={`question-${q.status}`} data-msg="" tabIndex={-1}>
         <span className="cap">{label} · {q.kind}</span>
         <Markdown className="qtext" text={q.text} />
         {q.status === "withdrawn" ? (
@@ -123,7 +123,7 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
   const ap = q.approval;
   const rev = ap ? (ap.reversible === true || ap.reversible === "yes" ? "yes" : ap.reversible === "partial" ? "partial" : "no") : "no";
   return (
-    <div className={"qbox" + (q.kind === "approval" ? " appr" : "")} role="group" aria-label={`Question ${label}`}>
+    <div className={"qbox" + (q.kind === "approval" ? " appr" : "")} role="group" aria-label={`Question ${label}`} data-msg="" tabIndex={-1}>
       <span className="cap">{label} · {q.kind}</span>
       <Markdown className="qtext" text={q.text} />
       {q.context ? <Markdown className="hint" text={q.context} attachments /> : null}
@@ -147,7 +147,7 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
       ) : null}
       {q.options.map((o, i) => (
         <button key={o.label} type="button" className={"opt" + (picked.includes(i) ? " on" : "")} aria-pressed={picked.includes(i)} onClick={() => toggle(i)}>
-          <span className="kbd">{i + 1}</span>
+          <span className="kbd" title={i < 9 ? `Press ${i + 1}` : undefined}>{i + 1}</span>
           <span>
             <b style={{ fontWeight: 500 }}>{o.label}</b>
             {o.description ? <><br /><span className="hint">{o.description}</span></> : null}
@@ -161,7 +161,7 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
       </label>
       <div className="inline" style={{ justifyContent: "flex-end" }}>
         <span className="hint" style={{ flex: 1 }}>{q.kind === "approval" ? "The planner may also answer this under the planner policy." : ""}</span>
-        <button className="btn pri" type="button" disabled={!canAnswer || busy} onClick={() => void answer()}>Answer</button>
+        <button className="btn pri" type="button" disabled={!canAnswer || busy} title="Answer (⌘↩)" onClick={() => void answer()}>Answer</button>
       </div>
     </div>
   );

@@ -5,7 +5,10 @@ import { useChannel } from "../state/useChannel";
 import { ChatThread } from "./Chat";
 import { Composer } from "./Composer";
 import { SessionTerminal } from "./SessionTerminal";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { onUIRequest, whenReady } from "../commands";
+import { withChord } from "../keys";
+import { closeOnEscape } from "./ui";
 import { AdoptPlanner } from "./AdoptPlanner";
 import { Icon } from "./ui";
 import { ModelOptions, useModels } from "./ModelsTab";
@@ -26,6 +29,18 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
   const [adoptOpen, setAdoptOpen] = useState(false);
   const { info: modelInfo, reload: reloadModels } = useModels(wsId, actions.toast);
   const status = useSessionStatus(() => (wsId ? api.planner_get({ workspace_id: wsId }) : Promise.resolve(null)), [wsId]);
+  const menuBtn = useRef<HTMLButtonElement>(null);
+  useEffect(
+    () =>
+      onUIRequest((r) => {
+        if (r.do === "planner.adopt") setAdoptOpen(true);
+        if (r.do === "planner.model") {
+          setMenu(true);
+          whenReady(() => document.getElementById("planner-model"), (el) => el.focus());
+        }
+      }),
+    [],
+  );
   if (!ws) return null;
   // none (never started) reads as idle: there is nothing to pulse about.
   const dot = status && status.liveness !== "none" ? status.liveness : "idle";
@@ -34,29 +49,29 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
   if (collapsed)
     return (
       <nav className="rail" aria-label="Planner, collapsed">
-        <button className="ibtn" onClick={() => void actions.setCollapsed("planner", false)} aria-label="Expand the planner"><Icon name="fwd" /></button>
-        <button className="vl" onClick={() => void actions.setCollapsed("planner", false)}><span className={`dot ${dot}`} />Planner</button>
+        <button className="ibtn" onClick={() => void actions.setCollapsed("planner", false)} aria-label="Expand the planner" title={withChord("Expand the planner", "panel.planner.toggle")}><Icon name="fwd" /></button>
+        <button className="vl" onClick={() => void actions.setCollapsed("planner", false)} title={withChord("Expand the planner", "panel.planner.toggle")}><span className={`dot ${dot}`} />Planner</button>
       </nav>
     );
   return (
-    <aside className={"ppanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label="Planner">
+    <aside className={"ppanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label="Planner" data-zone="planner" tabIndex={-1}>
       <div className="phead">
         <span className={`dot ${dot}${dot === "working" ? " pulse" : ""}`} title={`Planner ${dot}`} />
         <h2>Planner{isFull ? ` · ${ws.name}` : ""}</h2>
         <div className="seg" role="tablist" aria-label="Planner view">
-          <button className={view === "chat" ? "on" : ""} onClick={() => setView("chat")}><Icon name="chat" size={13} />Chat</button>
-          <button className={view === "terminal" ? "on" : ""} onClick={() => setView("terminal")}><Icon name="term" size={13} />Terminal</button>
+          <button className={view === "chat" ? "on" : ""} aria-pressed={view === "chat"} title={withChord("Chat", "view.terminal")} onClick={() => setView("chat")}><Icon name="chat" size={13} />Chat</button>
+          <button className={view === "terminal" ? "on" : ""} aria-pressed={view === "terminal"} title={withChord("Terminal", "view.terminal")} onClick={() => setView("terminal")}><Icon name="term" size={13} />Terminal</button>
         </div>
-        <button className="ibtn hide-narrow" onClick={() => void actions.setFullscreen(isFull ? "" : "planner")} aria-label={isFull ? "Exit full screen" : "Full screen"} title={isFull ? "Exit full screen (Esc, or Shift+Esc in the terminal)" : "Full screen"}>
+        <button className="ibtn hide-narrow" onClick={() => void actions.setFullscreen(isFull ? "" : "planner")} aria-label={isFull ? "Exit full screen" : "Full screen"} title={isFull ? "Exit full screen (Esc, or ⇧Esc in the terminal)" : withChord("Full screen", "view.full")}>
           <Icon name={isFull ? "shrink" : "expand"} />
         </button>
-        {isFull ? null : <button className="ibtn hide-narrow" onClick={() => void actions.setCollapsed("planner", true)} aria-label="Collapse the planner"><Icon name="back" /></button>}
+        {isFull ? null : <button className="ibtn hide-narrow" onClick={() => void actions.setCollapsed("planner", true)} aria-label="Collapse the planner" title={withChord("Collapse the planner", "panel.planner.toggle")}><Icon name="back" /></button>}
         <div style={{ position: "relative" }}>
-          <button className="ibtn" onClick={() => setMenu(!menu)} aria-label="Planner actions" aria-expanded={menu}><Icon name="dots" size={14} /></button>
+          <button ref={menuBtn} className="ibtn" onClick={() => setMenu(!menu)} aria-label="Planner actions" aria-expanded={menu}><Icon name="dots" size={14} /></button>
           {menu ? (
-            <div className="menu">
+            <div className="menu" onKeyDown={closeOnEscape(() => setMenu(false), menuBtn)}>
               <label>Planner model
-                <select className="in" aria-label="Planner model" value={modelInfo?.planner_model ?? ""} onChange={(e) => void actions.run(() => api.planner_set_model({ workspace_id: ws.id, model: e.target.value })).then((out) => { if (out) { actions.toast(out.note); void reloadModels(); } })}>
+                <select className="in" id="planner-model" aria-label="Planner model" value={modelInfo?.planner_model ?? ""} onChange={(e) => void actions.run(() => api.planner_set_model({ workspace_id: ws.id, model: e.target.value })).then((out) => { if (out) { actions.toast(out.note); void reloadModels(); } })}>
                   <option value="">{`Use default (${modelInfo?.default_model || "Claude's own"})`}</option>
                   <ModelOptions models={modelInfo?.models ?? []} current={modelInfo?.planner_model ?? ""} />
                 </select>

@@ -367,6 +367,7 @@ const fns = {
   session_status: vi.fn(async (a: { card: string }) => clone(state.sessions[a.card] ?? { ...running("", { liveness: "none", running: false, card_id: a.card }), session: null })),
   session_start: vi.fn(async (a: { card: string }) => clone(state.sessions[a.card] ?? running("sess-" + a.card))),
   session_restart: vi.fn(async (a: { card: string }) => clone(state.sessions[a.card] ?? running("sess-" + a.card))),
+  session_stop: vi.fn(async (a: { card: string }) => clone(state.sessions[a.card] ?? running("sess-" + a.card, { running: false }))),
   chat_read: vi.fn(async (a: { channel: string }) => clone(state.messages.filter((m) => m.channel === a.channel))),
   chat_send: vi.fn(async (a: { workspace_id?: string; channel: string; text: string }) => {
     const m = message({ id: "m" + (state.messages.length + 1), workspace_id: a.workspace_id ?? "w1", channel: a.channel, author: "you", text: a.text });

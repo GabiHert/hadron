@@ -60,7 +60,7 @@ Read global settings: one by key, or all.
 
 ### `settings_update`
 
-Change global settings, such as theme (light, dark or system) or keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like "Mod+D" or "Shift+Mod+P"; see hadron_guide keyboard). Returns all settings.
+Change global settings, such as theme (light, dark or system) keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like "Mod+D" or "Shift+Mod+P"; see hadron_guide keyboard) or ui.zoom (the window zoom, 0.7 to 2, 1 is 100%). Returns all settings.
 
 *changes data*
 
@@ -740,7 +740,7 @@ Take back a gate that no longer applies, for example one set by mistake or that 
 
 ### `hadron_guide`
 
-Read how a part of Hadron works, written for you: overview, chat, questions, reports, widgets (with HTML examples that use the theme's CSS variables), dashboard, fields-links, rules-filters, integrations, prompts, feedback, debugging. Call it before guessing how a feature behaves. With no topic it returns the overview and the topic list.
+Read how a part of Hadron works, written for you: overview, chat, questions, reports, widgets (with HTML examples that use the theme's CSS variables), dashboard, fields-links, rules-filters, integrations, prompts, keyboard, feedback, debugging. Call it before guessing how a feature behaves. With no topic it returns the overview and the topic list.
 
 *reads*
 

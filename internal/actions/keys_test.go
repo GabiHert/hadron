@@ -23,3 +23,16 @@ func TestKeyBindingsAreValidatedAndStored(t *testing.T) {
 	h.fails("settings_update", m{"values": m{"keys.bindings": m{"view.dashboard": []any{"cmd-d"}}}}, "not a chord")
 	h.fails("settings_update", m{"values": m{"keys.bindings": m{"view.dashboard": []any{"Mod+Shift+D"}}}}, "order Ctrl, Alt, Shift, Mod")
 }
+
+func TestZoomIsValidatedAndStored(t *testing.T) {
+	h := newHarness(t)
+	h.do("settings_update", m{"values": m{"ui.zoom": 1.2}}, nil)
+	var got map[string]json.RawMessage
+	h.do("settings_get", m{"key": "ui.zoom"}, &got)
+	if string(got["ui.zoom"]) != "1.2" {
+		t.Fatalf("stored %s", got["ui.zoom"])
+	}
+	h.fails("settings_update", m{"values": m{"ui.zoom": 3}}, "from 0.7 to 2")
+	h.fails("settings_update", m{"values": m{"ui.zoom": 0.5}}, "from 0.7 to 2")
+	h.fails("settings_update", m{"values": m{"ui.zoom": "120%"}}, "from 0.7 to 2")
+}

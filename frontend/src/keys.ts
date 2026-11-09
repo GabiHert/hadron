@@ -50,13 +50,16 @@ export const DEFAULTS: CommandDef[] = [
   { id: "theme.toggle", title: "Switch light or dark", group: "General", scope: "global", keys: [], menu: "View" },
   { id: "feedback.open", title: "Send feedback", group: "General", scope: "global", keys: [] },
   { id: "whatsnew.open", title: "What's new", group: "General", scope: "global", keys: [] },
+  { id: "zoom.in", title: "Zoom in", group: "General", scope: "global", keys: ["Mod+=", "Mod++"], terminal: true, dialog: true, menu: "View" },
+  { id: "zoom.out", title: "Zoom out", group: "General", scope: "global", keys: ["Mod+-"], terminal: true, dialog: true, menu: "View" },
+  { id: "zoom.reset", title: "Actual size", group: "General", scope: "global", keys: ["Mod+0"], terminal: true, dialog: true, menu: "View" },
   { id: "escape", title: "Leave the text field, or full screen", group: "Zones and panels", scope: "global", keys: ["Escape"], input: true },
   { id: "zone.next", title: "Next zone", group: "Zones and panels", scope: "global", keys: ["Mod+]", "Ctrl+Tab"], terminal: true, menu: "Go" },
   { id: "zone.prev", title: "Previous zone", group: "Zones and panels", scope: "global", keys: ["Mod+[", "Ctrl+Shift+Tab"], terminal: true, menu: "Go" },
   { id: "focus.planner", title: "Focus the planner chat", group: "Zones and panels", scope: "global", keys: ["Shift+Mod+P"], terminal: true, menu: "Go" },
   { id: "focus.board", title: "Focus the board", group: "Zones and panels", scope: "global", keys: ["Shift+Mod+B"], terminal: true, menu: "Go" },
   { id: "focus.card", title: "Focus the card panel", group: "Zones and panels", scope: "global", keys: ["Shift+Mod+C"], terminal: true, menu: "Go" },
-  { id: "focus.workspaces", title: "Focus the workspace bar", group: "Zones and panels", scope: "global", keys: [] },
+  { id: "focus.workspaces", title: "Focus the workspace bar", group: "Zones and panels", scope: "global", keys: ["Shift+Mod+W"], terminal: true, menu: "Go" },
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(ws),
   { id: "panel.planner.toggle", title: "Collapse or expand the planner", group: "Zones and panels", scope: "global", keys: ["Alt+Mod+ArrowLeft"], terminal: true, menu: "View" },
   { id: "panel.card.toggle", title: "Collapse or expand the card panel", group: "Zones and panels", scope: "global", keys: ["Alt+Mod+ArrowRight"], terminal: true, menu: "View" },
@@ -91,7 +94,8 @@ export const DEFAULTS: CommandDef[] = [
   { id: "planner.restart", title: "Restart the planner", group: "Conversation", scope: "global", keys: [], confirm: true },
   { id: "planner.adopt", title: "Adopt a planner conversation", group: "Conversation", scope: "global", keys: [] },
   { id: "planner.model", title: "Change the planner's model", group: "Conversation", scope: "global", keys: [] },
-  { id: "panel.compose", title: "Write a message (or act on the focused one)", group: "Conversation", scope: "panel", keys: ["I", "Enter"] },
+  { id: "panel.compose", title: "Write a message", group: "Conversation", scope: "panel", keys: ["I"] },
+  { id: "panel.act", title: "Act on the focused message (widget menu, link, question), else write one", group: "Conversation", scope: "panel", keys: ["Enter"] },
   { id: "panel.nextMessage", title: "Next message", group: "Conversation", scope: "panel", keys: ["J"] },
   { id: "panel.prevMessage", title: "Previous message", group: "Conversation", scope: "panel", keys: ["K"] },
   { id: "panel.tab.1", title: "Card tab: Conversation", group: "Conversation", scope: "global", keys: ["Alt+Mod+1"], terminal: true, family: "Card tabs: Conversation, Links, Context" },
@@ -237,14 +241,14 @@ export function parseOverrides(v: unknown): Overrides {
 }
 
 /** The first chord of a command, as shown in a tooltip or a menu: "⌘K", or "" when it has none. */
-export function chordLabel(id: string, overrides: Overrides = {}): string {
+export function chordLabel(id: string, overrides: Overrides = activeOverrides()): string {
   const d = byId.get(id);
   const k = d ? keysOf(d, overrides)[0] : "";
   return k ? formatChord(k) : "";
 }
 
 /** A tooltip with its shortcut: "Command palette (⌘K)". */
-export function withChord(title: string, id: string, overrides: Overrides = {}): string {
+export function withChord(title: string, id: string, overrides: Overrides = activeOverrides()): string {
   const c = chordLabel(id, overrides);
   return c ? `${title} (${c})` : title;
 }

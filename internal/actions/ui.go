@@ -98,7 +98,7 @@ func registerUI(r *Registry) {
 			return c.Store.Settings.All()
 		})
 
-	Register(r, Spec{Name: "settings_update", Description: "Change global settings, such as theme (light, dark or system) or keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like \"Mod+D\" or \"Shift+Mod+P\"; see hadron_guide keyboard). Returns all settings.", Mutates: true, Entities: []string{"settings"}},
+	Register(r, Spec{Name: "settings_update", Description: "Change global settings, such as theme (light, dark or system) keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like \"Mod+D\" or \"Shift+Mod+P\"; see hadron_guide keyboard) or ui.zoom (the window zoom, 0.7 to 2, 1 is 100%). Returns all settings.", Mutates: true, Entities: []string{"settings"}},
 		func(ctx context.Context, c *Call, in SettingsUpdateIn) (map[string]json.RawMessage, error) {
 			for k, v := range in.Values {
 				if !settingKeyRe.MatchString(k) {
@@ -142,6 +142,12 @@ func registerUI(r *Registry) {
 						return nil, err
 					}
 				}
+				if k == SettingZoom {
+					z, ok := v.(float64)
+					if !ok || z < 0.7 || z > 2 {
+						return nil, fmt.Errorf("%s must be a number from 0.7 to 2 (1 is 100%%), got %v", SettingZoom, v)
+					}
+				}
 				if k == "theme" && v != "light" && v != "dark" && v != "system" {
 					return nil, fmt.Errorf("theme must be light, dark or system, got %v", v)
 				}
@@ -152,6 +158,9 @@ func registerUI(r *Registry) {
 			return c.Store.Settings.All()
 		})
 }
+
+// SettingZoom is the UI zoom, 0.7 to 2 (1 is 100%). ⌘= and ⌘- change it in steps of about 10%.
+const SettingZoom = "ui.zoom"
 
 // SettingKeyBindings holds the keyboard shortcuts the user rebound: command id → chords. A missing
 // id keeps its default; an empty list unbinds it. The frontend's keys.ts owns the command ids.

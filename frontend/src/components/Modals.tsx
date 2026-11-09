@@ -10,6 +10,7 @@ import { FeedbackTab } from "./FeedbackTab";
 import { ModelsTab, useModels } from "./ModelsTab";
 import { GeneralTab } from "./GeneralTab";
 import { KeyboardTab } from "./KeyboardTab";
+import { AppearanceTab } from "./AppearanceTab";
 import { PlannerTab } from "./PlannerTab";
 import { ProfileOptions } from "./ProfileGrant";
 import { useEffect, useRef, useState } from "react";
@@ -18,13 +19,61 @@ import * as api from "../api";
 import type { Adoptable, Column, LaunchProfile } from "../api";
 import { ROLES, SWATCHES, slug, tildePath } from "../lib";
 import type { Board } from "../state/useBoard";
-import { formatVersion, isDark } from "./Header";
+import { formatVersion } from "./Header";
 import { Icon } from "./ui";
 import { AdoptList, nickFrom } from "./AdoptList";
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * A dialog's backdrop. It keeps the focus inside the dialog (Tab and ⇧Tab wrap), closes on Esc and
+ * on a click outside, and gives the focus back to where it was when the dialog closes.
+ */
 export function Scrim({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // autoFocus fields focus themselves; otherwise the first control of the dialog does.
+    const t = setTimeout(() => {
+      const el = ref.current;
+      if (el && !el.contains(document.activeElement)) (el.querySelector<HTMLElement>("[autofocus]") ?? el.querySelector<HTMLElement>(`.mb ${FOCUSABLE}`) ?? el.querySelector<HTMLElement>(FOCUSABLE))?.focus();
+    }, 0);
+    return () => {
+      clearTimeout(t);
+      // Only when the focus was lost with the dialog: a command that moved it on keeps its place.
+      setTimeout(() => {
+        if (back && back.isConnected && (document.activeElement === document.body || document.activeElement === null)) back.focus({ preventScroll: true });
+      }, 0);
+    };
+  }, []);
   return (
-    <div className="scrim" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      className="scrim"
+      ref={ref}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !e.defaultPrevented && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          close.current();
+          return;
+        }
+        if (e.key !== "Tab") return;
+        const all = Array.from(ref.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).filter((x) => !x.closest("[hidden]"));
+        if (!all.length) return;
+        const first = all[0];
+        const last = all[all.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }}
+    >
       {children}
     </div>
   );
@@ -103,12 +152,12 @@ export function profileExplanation(p: LaunchProfile | undefined, nick: string, k
   return first ? `${base}  →  ${first}` : base;
 }
 
-export function NewSession({ board, onClose }: { board: Board; onClose: () => void }) {
+export function NewSession({ board, onClose, columnId }: { board: Board; onClose: () => void; columnId?: string }) {
   const { columns, ws } = board;
   const active = (columns.find((c) => c.role === "active") ?? columns[0])?.id ?? "";
   const [nickIn, setNick] = useState("");
   const [key, setKey] = useState("");
-  const [col, setCol] = useState(active);
+  const [col, setCol] = useState(columnId && columns.some((c) => c.id === columnId) ? columnId : active);
   const [profiles, setProfiles] = useState<LaunchProfile[]>([]);
   const [profile, setProfile] = useState("");
   const [busy, setBusy] = useState(false);
@@ -235,6 +284,7 @@ type SettingsTab = { id: string; label: string; render: (board: Board, ctx: Sett
 /** Add a tab by adding an entry. */
 export const SETTINGS_TABS: SettingsTab[] = [
   { id: "general", label: "General", render: (b) => <GeneralTab toast={b.actions.toast} /> },
+  { id: "appearance", label: "Appearance", render: (b) => <AppearanceTab board={b} /> },
   { id: "keyboard", label: "Keyboard", render: (b) => <KeyboardTab toast={b.actions.toast} /> },
   { id: "prompts", label: "Harness", render: (b) => <PromptsTab board={b} /> },
   { id: "columns", label: "Columns", render: (b) => <ColumnsTab board={b} /> },
@@ -261,7 +311,25 @@ export function Settings({ board, onClose, tabs = SETTINGS_TABS, initialTab = "c
         <ModalHead id="st-t" title={`Settings${board.ws ? ` · ${board.ws.name}` : ""}${board.version ? ` · Hadron ${formatVersion(board.version)}` : ""}`} onClose={onClose} />
         <div className="settings">
           <nav className="snav" aria-label="Settings sections">
-            {tabs.map((t) => <button key={t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}
+            {tabs.map((t, i) => (
+              <button
+                key={t.id}
+                className={tab === t.id ? "on" : ""}
+                aria-current={tab === t.id ? "page" : undefined}
+                onClick={() => setTab(t.id)}
+                onKeyDown={(e) => {
+                  // ↑ and ↓ walk the sections, as in the macOS System Settings sidebar.
+                  const d = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+                  if (!d) return;
+                  e.preventDefault();
+                  const next = tabs[(i + d + tabs.length) % tabs.length];
+                  setTab(next.id);
+                  (e.currentTarget.parentElement?.children[(i + d + tabs.length) % tabs.length] as HTMLElement | undefined)?.focus();
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
           </nav>
           <div className="sbody">{cur.render(board, { onWhatsNew })}</div>
         </div>
@@ -338,64 +406,5 @@ function ColumnsTab({ board }: { board: Board }) {
       </div>
       <div><button className="btn" onClick={() => void actions.addColumn()}><Icon name="plus" size={13} />Add column</button></div>
     </>
-  );
-}
-
-interface PaletteProps {
-  board: Board;
-  onClose: () => void;
-  openModal: (m: "newws" | "newsession" | "settings" | "feedback" | "whatsnew") => void;
-  setPlannerView: (v: "chat" | "terminal") => void;
-}
-
-export function Palette({ board, onClose, openModal, setPlannerView }: PaletteProps) {
-  const { actions, columns: _c, cards } = board;
-  void _c;
-  const [q, setQ] = useState("");
-  const [i, setI] = useState(0);
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => ref.current?.focus(), []);
-  const items = [
-    ...board.visible.map((w) => ({ label: `Switch to ${w.name}`, hint: "workspace", run: () => void actions.switchWorkspace(w.id) })),
-    ...cards.map((c) => ({ label: `Open ${c.nick}`, hint: c.key || "card", run: () => actions.open(c.id) })),
-    { label: "New session", hint: "⌘N", run: () => openModal("newsession") },
-    { label: "New workspace", hint: "", run: () => openModal("newws") },
-    { label: "Send feedback", hint: "", run: () => openModal("feedback") },
-    { label: "What's new", hint: "", run: () => openModal("whatsnew") },
-    { label: "Settings: columns", hint: "", run: () => openModal("settings") },
-    { label: "Switch light or dark", hint: "", run: () => void actions.setTheme(isDark(board.theme) ? "light" : "dark") },
-    { label: "Planner: chat", hint: "", run: () => setPlannerView("chat") },
-    { label: "Planner: terminal", hint: "", run: () => setPlannerView("terminal") },
-  ];
-  const list = items.filter((x) => x.label.toLowerCase().includes(q.toLowerCase())).slice(0, 12);
-  const go = (x?: (typeof items)[number]) => {
-    onClose();
-    x?.run();
-  };
-  return (
-    <Scrim onClose={onClose}>
-      <div className="modal pal" role="dialog" aria-modal="true" aria-label="Command palette">
-        <input
-          ref={ref}
-          id="pal-q"
-          placeholder="Jump to a card, workspace or command"
-          value={q}
-          onChange={(e) => { setQ(e.target.value); setI(0); }}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown") { e.preventDefault(); setI(Math.min(i + 1, list.length - 1)); }
-            if (e.key === "ArrowUp") { e.preventDefault(); setI(Math.max(i - 1, 0)); }
-            if (e.key === "Enter") go(list[i]);
-          }}
-        />
-        <ul>
-          {list.map((x, j) => (
-            <li key={x.label}>
-              <button className={j === i ? "on" : ""} onClick={() => go(x)}><span style={{ flex: 1 }}>{x.label}</span><span className="hint">{x.hint}</span></button>
-            </li>
-          ))}
-          {!list.length ? <li className="hint" style={{ padding: 10 }}>Nothing matches.</li> : null}
-        </ul>
-      </div>
-    </Scrim>
   );
 }

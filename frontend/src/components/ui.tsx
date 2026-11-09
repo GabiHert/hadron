@@ -58,3 +58,14 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
     </svg>
   );
 }
+
+/** A popover menu's onKeyDown: Esc closes it and gives the focus back to the button that opened it. */
+export function closeOnEscape(close: () => void, opener?: { current: HTMLElement | null }) {
+  return (e: { key: string; preventDefault: () => void; stopPropagation: () => void }) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    close();
+    opener?.current?.focus();
+  };
+}

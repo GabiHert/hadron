@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { onUIRequest, whenReady } from "../commands";
+import { withChord } from "../keys";
 import * as api from "../api";
 import type { Board } from "../state/useBoard";
 import { useSessionStatus } from "../state/useSessionStatus";
@@ -7,7 +9,7 @@ import { ChatThread } from "./Chat";
 import { Composer } from "./Composer";
 import { SessionTerminal } from "./SessionTerminal";
 import { LinksTab, useLinks } from "./LinksTab";
-import { Icon } from "./ui";
+import { Icon, closeOnEscape } from "./ui";
 import { AutoText } from "./PromptsTab";
 import { ModelOptions, useModels } from "./ModelsTab";
 import { effectiveModel } from "../state/useBoard";
@@ -37,6 +39,19 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   const status = useSessionStatus(() => (cardId ? api.session_status({ card: cardId }) : Promise.resolve(null)), [cardId]);
   const { info: modelInfo } = useModels(ws?.id ?? "", actions.toast);
   const { links, reload: reloadLinks } = useLinks(cardId, actions.toast);
+  const menuBtn = useRef<HTMLButtonElement>(null);
+  // e (edit) and m (model) on the board open the card's menu or its model picker.
+  useEffect(
+    () =>
+      onUIRequest((r) => {
+        if (r.do === "card.edit") {
+          setMenu(true);
+          whenReady(() => document.getElementById("card-nick"), (el) => (el as HTMLInputElement).focus());
+        }
+        if (r.do === "card.model") whenReady(() => document.getElementById("card-model"), (el) => el.focus());
+      }),
+    [],
+  );
   useEffect(() => {
     setMenu(false);
     setNick(c?.nick ?? "");
@@ -48,14 +63,14 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   if (ws.ui.collapsed?.card && !mobileOpen && !isFull)
     return (
       <nav className="rail r" aria-label="Card panel, collapsed">
-        <button className="ibtn" onClick={() => void actions.setCollapsed("card", false)} aria-label="Expand the card panel"><Icon name="back" /></button>
-        <button className="vl" onClick={() => void actions.setCollapsed("card", false)}>{c ? <span className={`dot ${c.liveness}`} /> : null}{c ? c.nick : "Card"}</button>
+        <button className="ibtn" onClick={() => void actions.setCollapsed("card", false)} aria-label="Expand the card panel" title={withChord("Expand the card panel", "panel.card.toggle")}><Icon name="back" /></button>
+        <button className="vl" onClick={() => void actions.setCollapsed("card", false)} title={withChord("Expand the card panel", "panel.card.toggle")}>{c ? <span className={`dot ${c.liveness}`} /> : null}{c ? c.nick : "Card"}</button>
       </nav>
     );
   if (!c)
     return (
-      <aside className={"cpanel" + (mobileOpen ? " open" : "")}>
-        <div className="empty" style={{ margin: "auto" }}>Pick a card to open its chat and terminal.</div>
+      <aside className={"cpanel" + (mobileOpen ? " open" : "")} data-zone="card" tabIndex={-1} aria-label="Card panel">
+        <div className="empty" style={{ margin: "auto" }}><p style={{ margin: 0 }}>Pick a card to open its chat and terminal.</p><p className="hint">On the board: arrows or h j k l, then ↩.</p></div>
       </aside>
     );
   const col = columns.find((x) => x.id === c.column_id);
@@ -66,12 +81,12 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   const canResume = !!claudeId && !status?.running;
   const folder = cardFolder(c.cwd, ws.root);
   return (
-    <aside className={"cpanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label={`Card ${c.nick}`}>
+    <aside className={"cpanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label={`Card ${c.nick}`} data-zone="card" data-card={c.id} tabIndex={-1}>
       <div className="cph">
         <div className="l1">
           <button className="ibtn mclose" onClick={closeMobile} aria-label="Back to the board"><Icon name="back" /></button>
-          {isFull ? null : <button className="ibtn hide-narrow" style={{ width: 26, height: 26 }} onClick={() => void actions.setCollapsed("card", true)} aria-label="Collapse the card panel"><Icon name="fwd" size={14} /></button>}
-          <button className="ibtn hide-narrow" style={{ width: 26, height: 26 }} onClick={() => void actions.setFullscreen(isFull ? "" : "card")} aria-label={isFull ? "Exit full screen" : "Full screen"} title={isFull ? "Exit full screen (Esc, or Shift+Esc in the terminal)" : "Full screen"}>
+          {isFull ? null : <button className="ibtn hide-narrow" style={{ width: 26, height: 26 }} onClick={() => void actions.setCollapsed("card", true)} aria-label="Collapse the card panel" title={withChord("Collapse the card panel", "panel.card.toggle")}><Icon name="fwd" size={14} /></button>}
+          <button className="ibtn hide-narrow" style={{ width: 26, height: 26 }} onClick={() => void actions.setFullscreen(isFull ? "" : "card")} aria-label={isFull ? "Exit full screen" : "Full screen"} title={isFull ? "Exit full screen (Esc, or ⇧Esc in the terminal)" : withChord("Full screen", "view.full")}>
             <Icon name={isFull ? "shrink" : "expand"} size={14} />
           </button>
           {c.key ? <span className="mono" style={{ fontSize: 12, color: "var(--fg3)" }}>{c.key}</span> : null}
@@ -82,9 +97,9 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
           ) : null}
           <div className="spacer" />
           <div style={{ position: "relative" }}>
-            <button className="ibtn" style={{ width: 26, height: 26 }} onClick={() => setMenu(!menu)} aria-label="Card actions" aria-expanded={menu}><Icon name="dots" size={14} /></button>
+            <button ref={menuBtn} className="ibtn" style={{ width: 26, height: 26 }} onClick={() => setMenu(!menu)} aria-label="Card actions" aria-expanded={menu} title={withChord("Card actions", "card.edit")}><Icon name="dots" size={14} /></button>
             {menu ? (
-              <div className="menu">
+              <div className="menu" onKeyDown={closeOnEscape(() => setMenu(false), menuBtn)}>
                 <label>Nickname<input className="in" value={nick} onChange={(e) => setNick(e.target.value)} id="card-nick" /></label>
                 <label>Assignee<input className="in" value={assignee} onChange={(e) => setAssignee(e.target.value)} id="card-assignee" /></label>
                 <label>Folder<input className="in mono" value={cwd} placeholder={ws.root} onChange={(e) => setCwd(e.target.value)} id="card-cwd" aria-label="Card folder" /></label>
@@ -99,20 +114,20 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
                     setMenu(false);
                   }}
                 >Save</button>
-                <button className="btn sm" onClick={() => { void actions.archiveCard(c.id); setMenu(false); }}>Archive card</button>
+                <button className="btn sm" title={withChord("Archive card", "card.archive")} onClick={() => { void actions.archiveCard(c.id); setMenu(false); }}>Archive card</button>
                 <button className="btn sm danger" onClick={() => { if (window.confirm(`Delete ${c.nick}? Its sessions, questions and links go with it. This cannot be undone.`)) void actions.deleteCard(c.id); setMenu(false); }}>Delete card</button>
               </div>
             ) : null}
           </div>
           <div className="seg" role="tablist" aria-label="Card view">
-            <button className={view === "chat" ? "on" : ""} onClick={() => setView("chat")}><Icon name="chat" size={13} />Chat</button>
-            <button className={view === "terminal" ? "on" : ""} onClick={() => setView("terminal")}><Icon name="term" size={13} />Terminal</button>
+            <button className={view === "chat" ? "on" : ""} aria-pressed={view === "chat"} title={withChord("Chat", "view.terminal")} onClick={() => setView("chat")}><Icon name="chat" size={13} />Chat</button>
+            <button className={view === "terminal" ? "on" : ""} aria-pressed={view === "terminal"} title={withChord("Terminal", "view.terminal")} onClick={() => setView("terminal")}><Icon name="term" size={13} />Terminal</button>
           </div>
         </div>
         <h2>{c.nick}</h2>
         {folder ? <div className="mono hint" aria-label="Card folder path" title={folder} style={{ fontSize: 11.5, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tildePath(folder)}</div> : null}
         <div className="inline" style={{ marginBottom: 6 }}>
-          <select className="in" style={{ width: "auto" }} aria-label="Model" value={c.model} onChange={(e) => void actions.run(() => api.card_set_model({ card: c.id, model: e.target.value })).then((out) => out && actions.toast(out.note))}>
+          <select className="in" id="card-model" style={{ width: "auto" }} aria-label="Model" title={withChord("Model", "card.model")} value={c.model} onChange={(e) => void actions.run(() => api.card_set_model({ card: c.id, model: e.target.value })).then((out) => out && actions.toast(out.note))}>
             <option value="">{`Use default (${inherited ? inherited.id : "Claude's own"})`}</option>
             <ModelOptions models={modelInfo?.models ?? []} current={c.model} />
           </select>
@@ -120,11 +135,11 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
         </div>
         {view === "chat" ? (
           <div className="tabs" role="tablist">
-            <button className={"tab" + (tab === "conv" ? " on" : "")} role="tab" onClick={() => setTab("conv")}>
+            <button className={"tab" + (tab === "conv" ? " on" : "")} role="tab" aria-selected={tab === "conv"} title={withChord("Conversation", "panel.tab.1")} onClick={() => setTab("conv")}>
               Conversation{openQ ? <> <span className={"pill " + (openQ.kind === "approval" ? "bad" : "warn")} style={{ fontSize: 10.5 }}>{`Q-${String(openQ.seq).padStart(2, "0")}`}</span></> : null}
             </button>
-            <button className={"tab" + (tab === "links" ? " on" : "")} role="tab" onClick={() => setTab("links")}>{`Links · ${links.length}`}</button>
-            <button className={"tab" + (tab === "ctx" ? " on" : "")} role="tab" onClick={() => setTab("ctx")}>Context</button>
+            <button className={"tab" + (tab === "links" ? " on" : "")} role="tab" aria-selected={tab === "links"} title={withChord("Links", "panel.tab.2")} onClick={() => setTab("links")}>{`Links · ${links.length}`}</button>
+            <button className={"tab" + (tab === "ctx" ? " on" : "")} role="tab" aria-selected={tab === "ctx"} title={withChord("Context", "panel.tab.3")} onClick={() => setTab("ctx")}>Context</button>
           </div>
         ) : (
           <div style={{ height: 8 }} />

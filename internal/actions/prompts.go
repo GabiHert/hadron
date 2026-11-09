@@ -270,7 +270,7 @@ func registerPrompts(r *Registry) {
 			return PromptLayersOut{Kind: in.Kind, CoreVersion: prompts.CoreVersion, Layers: layers, Text: prompts.Compose(layers)}, nil
 		})
 
-	Register(r, Spec{Name: "hadron_guide", Description: "Read how a part of Hadron works, written for you: overview, chat, questions, reports, widgets (with HTML examples that use the theme's CSS variables), dashboard, fields-links, rules-filters, integrations, prompts, feedback, debugging. Call it before guessing how a feature behaves. With no topic it returns the overview and the topic list."},
+	Register(r, Spec{Name: "hadron_guide", Description: "Read how a part of Hadron works, written for you: overview, chat, questions, reports, widgets (with HTML examples that use the theme's CSS variables), dashboard, fields-links, rules-filters, integrations, prompts, keyboard, feedback, debugging. Call it before guessing how a feature behaves. With no topic it returns the overview and the topic list."},
 		func(ctx context.Context, c *Call, in GuideIn) (GuideOut, error) {
 			text, err := prompts.Guide(in.Topic)
 			if err != nil {

@@ -9,6 +9,16 @@ for its "What's new" window.
 
 ### Added
 - Settings → Keyboard lists every keyboard shortcut, grouped by where it works, with a search box. Choose Change and press new keys to rebind one; Hadron warns when the keys are taken (and can move them over), refuses macOS's own shortcuts, and resets one or all to the defaults. The planner can change them too, through the keys.bindings setting.
+- Hadron works with no mouse. Move between the planner, the board and the card panel with ⌘[ and ⌘] (or ⇧⌘P, ⇧⌘B, ⇧⌘C), switch workspaces with ⌘1–⌘9, collapse panels with ⌥⌘← and ⌥⌘→, switch Chat ⇄ Terminal with ⌘J, full screen with ⇧⌘F and Board ⇄ Dashboard with ⌘D. A focus ring shows where you are.
+- On the board, arrows or h j k l move between cards, ↩ opens a card at its message box, ⌥ arrows move the card, n adds a card in that column, s starts, x stops, r restarts and ⌫ archives (asking first), e edits, m changes the model, / searches, and g then a column's number or letter jumps to it.
+- In a chat, i writes a message, j and k move between messages, ↩ opens a widget's menu or a question, and Esc steps back. On a question, 1–9 pick an option, n jumps to Notes and ⌘↩ answers; ⇧⌘A and ⇧⌘X approve or reject an approval after a confirm.
+- A focused terminal keeps every key for Claude Code except Hadron's ⌘ shortcuts; ⌘Esc leaves the terminal.
+- Zoom with ⌘= or ⌘+, ⌘- and ⌘0 (70% to 200%), terminals included. The zoom is kept, and is also in Settings → Appearance and the View menu.
+- Press ? (or ⌘/) for a sheet of every shortcut. Tooltips and the new View, Go and Card menus show the shortcuts too.
+
+### Changed
+- The command palette (⌘K) lists every command with its shortcut, Go to card, Switch workspace and each Settings section, with your recent picks first.
+- Dialogs keep Tab inside them, close with Esc, and put the focus back where it was. Menus close with Esc. Settings sections can be walked with ↑ and ↓.
 
 ## [0.2.17] - 2026-11-09
 

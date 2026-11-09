@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Board } from "../state/useBoard";
 import { Icon } from "./ui";
+import { withChord } from "../keys";
 
 export function formatVersion(v: string): string {
   if (!v) return "";
@@ -32,11 +33,26 @@ export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSetting
   return (
     <header className="top">
       <button className="ibtn only-narrow" onClick={onTogglePlanner} aria-label="Open the planner chat"><Icon name="chat" /></button>
-      <div className="wsbar" role="tablist" aria-label="Workspaces">
-        {visible.map((w) => {
+      <div
+        className="wsbar"
+        role="tablist"
+        aria-label="Workspaces"
+        data-zone="workspaces"
+        onKeyDown={(e) => {
+          // ← and → move between the workspaces; ↩ or Space opens the focused one.
+          const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+          if (!d || e.metaKey || e.altKey || e.ctrlKey) return;
+          const tabs = Array.from(e.currentTarget.querySelectorAll<HTMLElement>("button.ws"));
+          const at = tabs.indexOf(document.activeElement as HTMLElement);
+          if (at < 0) return;
+          e.preventDefault();
+          tabs[(at + d + tabs.length) % tabs.length]?.focus();
+        }}
+      >
+        {visible.map((w, i) => {
           const k = needs(w.id);
           return (
-            <button key={w.id} role="tab" aria-selected={w.id === activeId} className={"ws" + (w.id === activeId ? " on" : "")} onClick={() => void actions.switchWorkspace(w.id)}>
+            <button key={w.id} role="tab" aria-selected={w.id === activeId} className={"ws" + (w.id === activeId ? " on" : "")} title={i < 9 ? withChord(w.name, `workspace.${i + 1}`) : w.name} onClick={() => void actions.switchWorkspace(w.id)}>
               <span className="dot" style={{ background: w.color }} />
               {w.name}
               {k ? <span className="pill bad" aria-label={`${k} need you`}>{k}</span> : null}
@@ -47,10 +63,10 @@ export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSetting
       </div>
       <div className="spacer" />
       {updateSlot}
-      <button className="ibtn" onClick={onFeedback} aria-label="Send feedback"><Icon name="bubble" /></button>
-      <button className="ibtn" onClick={onPalette} aria-label="Command palette"><Icon name="search" /></button>
-      <button className="ibtn" onClick={() => void actions.setTheme(isDark(board.theme) ? "light" : "dark")} aria-label="Switch light or dark"><Icon name="moon" /></button>
-      <button className="ibtn" onClick={onSettings} aria-label="Settings"><Icon name="gear" /></button>
+      <button className="ibtn" onClick={onFeedback} aria-label="Send feedback" title="Send feedback"><Icon name="bubble" /></button>
+      <button className="ibtn" onClick={onPalette} aria-label="Command palette" title={withChord("Command palette", "palette.toggle")}><Icon name="search" /></button>
+      <button className="ibtn" onClick={() => void actions.setTheme(isDark(board.theme) ? "light" : "dark")} aria-label="Switch light or dark" title="Switch light or dark"><Icon name="moon" /></button>
+      <button className="ibtn" onClick={onSettings} aria-label="Settings" title={withChord("Settings", "settings.open")}><Icon name="gear" /></button>
     </header>
   );
 }

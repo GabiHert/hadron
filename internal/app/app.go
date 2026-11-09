@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -46,6 +47,8 @@ type App struct {
 
 	mu  sync.Mutex
 	ctx context.Context
+	// menuBindings is the keys.bindings value the menus were last built with.
+	menuBindings string
 }
 
 // New builds an App over an open store.
@@ -234,6 +237,9 @@ var emitEvent = wruntime.EventsEmit
 func (a *App) emit(event string, data any) {
 	if c := a.context(); c != nil {
 		emitEvent(c, event, data)
+	}
+	if ev, ok := data.(actions.ChangedEvent); ok && event == actions.EventChanged && slices.Contains(ev.Entities, "settings") {
+		a.refreshMenu()
 	}
 }
 
