@@ -6,9 +6,7 @@ import { ChatThread } from "./Chat";
 import { Composer } from "./Composer";
 import { SessionTerminal } from "./SessionTerminal";
 import { useState } from "react";
-import type { Adoptable } from "../api";
-import { AdoptList } from "./AdoptList";
-import { ModalHead, Scrim } from "./Modals";
+import { AdoptPlanner } from "./AdoptPlanner";
 import { Icon } from "./ui";
 import { ModelOptions, useModels } from "./ModelsTab";
 
@@ -83,36 +81,6 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
       )}
       {adoptOpen ? <AdoptPlanner board={board} onClose={() => setAdoptOpen(false)} /> : null}
     </aside>
-  );
-}
-
-function AdoptPlanner({ board, onClose }: { board: Board; onClose: () => void }) {
-  const { ws, actions } = board;
-  const [picked, setPicked] = useState<Adoptable | null>(null);
-  const [busy, setBusy] = useState(false);
-  if (!ws) return null;
-  const adopt = async () => {
-    if (!picked) return;
-    setBusy(true);
-    const out = await actions.run(() => api.planner_adopt({ workspace_id: ws.id, claude_session_id: picked.claude_session_id }));
-    setBusy(false);
-    if (!out) return;
-    actions.toast(out.warning);
-    onClose();
-  };
-  return (
-    <Scrim onClose={onClose}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="ap-t">
-        <ModalHead id="ap-t" title="Adopt planner conversation" onClose={onClose} />
-        <div className="mb">
-          <AdoptList workspaceId={ws.id} root={ws.root} picked={picked?.claude_session_id ?? ""} onPick={setPicked} onError={actions.toast} />
-        </div>
-        <div className="mf">
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn pri" disabled={!picked || busy} onClick={() => void adopt()}>Adopt as planner</button>
-        </div>
-      </div>
-    </Scrim>
   );
 }
 

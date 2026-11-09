@@ -157,3 +157,21 @@ func TestTheModelSettingWinsOverAModelInProfileArgs(t *testing.T) {
 	h.do("card_create", m{"workspace_id": w.ID, "nick": "invoice-sync", "launch_profile": "args-only"}, nil)
 	waitUntil(t, "argv 2", func() bool { return hasPair(argvOf(h), "--model", "opus") })
 }
+
+func TestPlannerStop(t *testing.T) {
+	h := newSessionHarness(t, false)
+	w := h.workspace("Acme")
+	h.fails("planner_stop", m{"workspace_id": w.ID}, "no running session")
+	h.do("planner_start", m{"workspace_id": w.ID}, nil)
+	waitUntil(t, "planner", func() bool { return h.file(".started") != "" })
+	if err := h.as(Actor{Kind: KindPlanner, WorkspaceID: w.ID}, "planner_stop", m{"workspace_id": w.ID}, nil); err == nil || !strings.Contains(err.Error(), "on itself") {
+		t.Fatalf("the planner may not stop itself: %v", err)
+	}
+	var st SessionStatus
+	h.do("planner_stop", m{"workspace_id": w.ID}, &st)
+	waitUntil(t, "stopped", func() bool {
+		var g SessionStatus
+		h.do("planner_get", m{"workspace_id": w.ID}, &g)
+		return !g.Running
+	})
+}

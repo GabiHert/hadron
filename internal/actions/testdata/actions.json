@@ -1825,6 +1825,17 @@
     ]
   },
   {
+    "name": "planner_stop",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "prompt_get",
     "mutates": false,
     "fields": [

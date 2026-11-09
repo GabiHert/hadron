@@ -268,6 +268,27 @@ func registerSessions(r *Registry) {
 			return startPlanner(c, w, false, false)
 		})
 
+	Register(r, Spec{Name: "planner_stop", Description: "Hang up the workspace planner's running session. planner_start or planner_restart starts it again. The planner may not stop itself.",
+		Mutates: true, Entities: []string{"sessions"}},
+		func(ctx context.Context, c *Call, in PlannerIn) (SessionStatus, error) {
+			w, err := c.Workspace(in.WorkspaceID)
+			if err != nil {
+				return SessionStatus{}, err
+			}
+			if err := mayControl(c, w.ID, nil, true, "planner_stop"); err != nil {
+				return SessionStatus{}, err
+			}
+			t, err := target(c, w.ID, nil)
+			if err != nil {
+				return SessionStatus{}, err
+			}
+			if t.Live == nil {
+				return SessionStatus{}, errors.New("the planner has no running session")
+			}
+			c.AfterCommit(t.Live.Stop)
+			return statusOf(nil, w.ID, t), nil
+		})
+
 	Register(r, Spec{Name: "planner_restart", Description: "Stop the planner's session if it runs and start it again, resuming its conversation when that is known.",
 		Mutates: true, Entities: []string{"sessions"}},
 		func(ctx context.Context, c *Call, in PlannerRestartIn) (SessionStatus, error) {

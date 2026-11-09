@@ -188,6 +188,8 @@ export interface SessionStatus {
   /** "none" when the card has never had a session */
   liveness: Liveness | "none";
   session: Session | null;
+  /** the planner's launch profile name (planner_get only); empty for none */
+  launch_profile?: string;
   cols: number;
   rows: number;
   error: string;
@@ -223,6 +225,7 @@ export const session_status = (a: { card: string }) => call<SessionStatus>("sess
 export const planner_get = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_get", a);
 export const planner_set_profile = (a: { workspace_id?: string; launch_profile?: string }) => call<SessionStatus>("planner_set_profile", a);
 export const planner_start = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_start", a);
+export const planner_stop = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_stop", a);
 export const planner_restart = (a: { workspace_id?: string; fresh?: boolean } = {}) => call<SessionStatus>("planner_restart", a);
 export const planner_send = (a: { workspace_id?: string; text: string; enter?: boolean }) => call<SessionStatus>("planner_send", a);
 export const planner_read_screen = (a: { workspace_id?: string; lines?: number; scrollback?: boolean }) =>

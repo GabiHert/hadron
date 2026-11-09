@@ -8,6 +8,8 @@ import { UpdatesCard } from "./UpdatesCard";
 import { DiagnosticsTab } from "./DiagnosticsTab";
 import { FeedbackTab } from "./FeedbackTab";
 import { ModelsTab, useModels } from "./ModelsTab";
+import { PlannerTab } from "./PlannerTab";
+import { ProfileOptions } from "./ProfileGrant";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import * as api from "../api";
@@ -114,10 +116,11 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
   const nick = slug(nickIn);
   const [adopting, setAdopting] = useState(false);
   const [picked, setPicked] = useState<Adoptable | null>(null);
+  const [adoptProfile, setAdoptProfile] = useState("");
   const adopt = async () => {
     if (!picked) return;
     setBusy(true);
-    const out = await board.actions.run(() => api.session_adopt({ workspace_id: ws?.id, claude_session_id: picked.claude_session_id, nick, key: key.trim() || undefined, column_id: col || undefined }));
+    const out = await board.actions.run(() => api.session_adopt({ workspace_id: ws?.id, claude_session_id: picked.claude_session_id, nick, key: key.trim() || undefined, column_id: col || undefined, ...(adoptProfile ? { launch_profile: adoptProfile } : {}) }));
     setBusy(false);
     if (!out) return;
     if (out.card) board.actions.select(out.card.id);
@@ -159,6 +162,11 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
             <>
               <label className="field"><span>Nickname</span><input id="ad-nick" className="in" autoFocus value={nickIn} onChange={(e) => setNick(e.target.value)} placeholder="billing-fix" /></label>
               <label className="field"><span>Key (optional)</span><input id="ad-key" className="in mono" value={key} onChange={(e) => setKey(e.target.value.toUpperCase())} placeholder="ACME-550" /></label>
+              <label className="field"><span>Launch profile</span>
+                <select id="ad-prof" className="in" aria-label="Adopt launch profile" value={adoptProfile} onChange={(e) => setAdoptProfile(e.target.value)}>
+                  <ProfileOptions profiles={profiles} current={adoptProfile} />
+                </select>
+              </label>
               <label className="field"><span>Column</span>
                 <select id="ad-col" className="in" value={col} onChange={(e) => setCol(e.target.value)}>{columns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
               </label>
@@ -220,6 +228,7 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "prompts", label: "Harness", render: (b) => <PromptsTab board={b} /> },
   { id: "columns", label: "Columns", render: (b) => <ColumnsTab board={b} /> },
   { id: "models", label: "Models", render: (b) => <ModelsTab board={b} /> },
+  { id: "planner", label: "Planner", render: (b) => <PlannerTab board={b} /> },
   { id: "rules", label: "Rules", render: (b) => <RulesTab board={b} /> },
   { id: "integrations", label: "Integrations", render: (b) => <IntegrationsTab board={b} /> },
   { id: "import", label: "Import", render: (b) => <ImportTab board={b} /> },

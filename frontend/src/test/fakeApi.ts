@@ -124,6 +124,11 @@ export const state: {
   /** what changelog_get answers as `show` */
   changelogShow: boolean;
   profiles: LaunchProfile[];
+  /** the planner's launch profile name, by workspace id */
+  plannerProfile: Record<string, string>;
+  policyGlobal: string;
+  /** a workspace's own planner policy, by workspace id */
+  policyOverride: Record<string, string>;
   /** session_status by card id; planner_get reads "planner". A card with no entry has never run. */
   sessions: Record<string, SessionStatus>;
   mcp: McpInfo;
@@ -137,7 +142,7 @@ export const state: {
   links: Link[];
   remoteSessions: RemoteSession[];
   models: ModelOption[];
-} = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), sessions: {},
+} = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, sessions: {},
   mcp: { running: true, url: "http://127.0.0.1:47820/mcp", port: 47820, token: "tok-0123456789abcdef", tool_count: 61, connect_command: "" },
   mcpCalls: [],
   messages: [],
@@ -170,6 +175,9 @@ export const reset = (fx: Fixture = defaultFixture()) => {
   state.remoteSessions = [];
   state.models = defaultModels();
   state.profiles = defaultProfiles();
+  state.plannerProfile = {};
+  state.policyGlobal = "decisions_only";
+  state.policyOverride = {};
   state.sessions = { planner: running("sess-planner", { liveness: "working" }) };
   state.fx = fx;
   for (const f of Object.values(fns)) f.mockClear();
@@ -178,6 +186,14 @@ export const reset = (fx: Fixture = defaultFixture()) => {
 const allCols = () => Object.values(state.fx.columns).flat();
 const allCards = () => Object.values(state.fx.cards).flat();
 const clone = <T,>(v: T): T => structuredClone(v);
+
+const policyInfo = (id: string) => {
+  const override = state.policyOverride[id];
+  return {
+    policy: override ?? state.policyGlobal, source: override ? "workspace" : "global", global: state.policyGlobal,
+    ...(override ? { override } : {}), options: ["allow_all", "decisions_only", "ask_for_prd", "user_only"],
+  } as never;
+};
 
 const fns = {
   app_status: vi.fn(async () => ({ version: state.fx.version, home: "/tmp", actions: 25, schema_version: 1 })),
@@ -305,7 +321,19 @@ const fns = {
     return { model: a.model, source: "planner", typed: false, note: "It applies the next time the planner starts." };
   }),
   launch_profile_list: vi.fn(async () => clone(state.profiles)),
-  planner_get: vi.fn(async () => clone(state.sessions.planner ?? { ...running("", { liveness: "none", running: false }), session: null })),
+  planner_get: vi.fn(async (a: { workspace_id?: string } = {}) => ({ ...clone(state.sessions.planner ?? { ...running("", { liveness: "none", running: false }), session: null }), launch_profile: state.plannerProfile[a.workspace_id ?? "w1"] ?? "" })),
+  planner_set_profile: vi.fn(async (a: { workspace_id?: string; launch_profile?: string }) => {
+    state.plannerProfile[a.workspace_id ?? "w1"] = a.launch_profile ?? "";
+    return { ...clone(state.sessions.planner), launch_profile: a.launch_profile ?? "" };
+  }),
+  planner_stop: vi.fn(async () => clone(state.sessions.planner)),
+  planner_policy_get: vi.fn(async (a: { workspace_id?: string } = {}) => policyInfo(a.workspace_id ?? "w1")),
+  planner_policy_set: vi.fn(async (a: { policy: string; workspace_id?: string }) => {
+    const id = a.workspace_id ?? "w1";
+    if (a.policy === "inherit") delete state.policyOverride[id];
+    else state.policyOverride[id] = a.policy;
+    return policyInfo(id);
+  }),
   planner_start: vi.fn(async () => clone(state.sessions.planner)),
   planner_restart: vi.fn(async () => clone(state.sessions.planner)),
   session_status: vi.fn(async (a: { card: string }) => clone(state.sessions[a.card] ?? { ...running("", { liveness: "none", running: false, card_id: a.card }), session: null })),

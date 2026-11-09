@@ -7,10 +7,16 @@ for its "What's new" window.
 
 ## [Unreleased]
 
-## [0.2.1] - 2026-11-09
+### Added
+- Settings, Planner (per workspace): choose the planner's launch profile (with the exact command and arguments it will run shown), its policy (with a one-line explanation of each and "inherit the global policy"), its model, whether it starts when Hadron opens, and adopt a conversation, start, restart or stop it. "Bring in a session" and "Adopt planner conversation" offer a launch profile too.
+- `planner_stop` stops the planner's session.
 
 ### Fixed
 - Importing a large planner folder could freeze the whole app, including every MCP call. The import now reads the folder without holding any database lock, writes in one short transaction, stops at a time budget (`timeout_seconds`, default 120), and logs its progress when debug logging is on. A slow or stuck write no longer blocks reads: the database uses a small connection pool, and the call log never delays an answer.
+
+## [0.2.1] - 2026-11-09
+
+### Fixed
 - Adopted sessions and the planner can now start with a launch profile, so arguments such as `--dangerously-skip-permissions`, the model and the environment apply when they resume. `session_adopt` and `planner_adopt` take `launch_profile`, and `planner_set_profile` sets the planner's. The model setting is no longer passed twice when a profile's arguments also name one.
 
 ## [0.2.0] - 2026-11-09
