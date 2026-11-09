@@ -123,7 +123,7 @@ func TestRestoreBringsACardBackInItsFolder(t *testing.T) {
 	if card.Cwd != other {
 		t.Fatalf("card_create cwd = %q", card.Cwd)
 	}
-	waitUntil(t, "the start", func() bool { return len(h.history()) == 1 })
+	waitUntil(t, "the start", func() bool { return len(h.history()) == 1 && h.file(".pwd") != "" })
 	if h.pwd() != other {
 		t.Fatalf("the session ran in %s, want %s", h.pwd(), other)
 	}
@@ -136,7 +136,7 @@ func TestRestoreBringsACardBackInItsFolder(t *testing.T) {
 	if n := svc.RestoreAll(context.Background(), 0); n != 1 {
 		t.Fatalf("restored %d", n)
 	}
-	waitUntil(t, "the restore", func() bool { return len(h.history()) == 2 })
+	waitUntil(t, "the restore", func() bool { return len(h.history()) == 2 && h.file(".pwd") != "" })
 	if got := h.history()[1]; got != "card --resume "+row.ClaudeSessionID {
 		t.Errorf("restore = %q (the transcript is found under the card's folder)", got)
 	}
