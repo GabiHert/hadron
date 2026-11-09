@@ -38,6 +38,7 @@ type CardCreateIn struct {
 	Assignee      string `json:"assignee,omitempty" jsonschema:"who owns the card; defaults to You"`
 	LaunchProfile string `json:"launch_profile,omitempty" jsonschema:"the launch profile for its session"`
 	Start         *bool  `json:"start,omitempty" jsonschema:"start the card's session (default true)"`
+	Model         string `json:"model,omitempty" jsonschema:"the Claude model for this card's session: opus, sonnet, haiku or a full model name. Empty uses the launch profile's, then the workspace default"`
 	Prompt        string `json:"prompt,omitempty" jsonschema:"extra instructions for this card's session, added to its system prompt after the workspace and launch profile prompts; may use {{variables}}"`
 }
 
@@ -50,6 +51,7 @@ type CardUpdateIn struct {
 	Assignee      *string `json:"assignee,omitempty" jsonschema:"new assignee"`
 	Stage         *string `json:"stage,omitempty" jsonschema:"a short stage label"`
 	LaunchProfile *string `json:"launch_profile,omitempty" jsonschema:"new launch profile"`
+	Model         *string `json:"model,omitempty" jsonschema:"new Claude model; typed as /model into a running session. Empty goes back to the launch profile's or the workspace default"`
 	Prompt        *string `json:"prompt,omitempty" jsonschema:"new card prompt: extra instructions added to the session's system prompt. Applies when the session next starts. Empty removes it"`
 }
 
@@ -132,8 +134,11 @@ func registerCards(r *Registry) {
 			if err := checkLayerPrompt("card prompt", in.Prompt); err != nil {
 				return domain.Card{}, err
 			}
+			if err := sessions.CheckModelID(strings.TrimSpace(in.Model)); err != nil {
+				return domain.Card{}, err
+			}
 			card := domain.Card{WorkspaceID: w.ID, ColumnID: colID, Nick: in.Nick, Key: strings.TrimSpace(in.Key), Title: strings.TrimSpace(in.Title),
-				Assignee: assignee, LaunchProfile: in.LaunchProfile, Prompt: strings.TrimSpace(in.Prompt), Liveness: domain.LivenessIdle}
+				Assignee: assignee, LaunchProfile: in.LaunchProfile, Prompt: strings.TrimSpace(in.Prompt), Model: strings.TrimSpace(in.Model), Liveness: domain.LivenessIdle}
 			if err := c.Store.Cards.Create(&card); err != nil {
 				return card, nickError(err, in.Nick, w.Name)
 			}
@@ -152,7 +157,7 @@ func registerCards(r *Registry) {
 			return card, nil
 		})
 
-	Register(r, Spec{Name: "card_update", Description: "Change a card's nickname, key, title, assignee, stage, launch profile or prompt. Use card_move to change its column.",
+	Register(r, Spec{Name: "card_update", Description: "Change a card's nickname, key, title, assignee, stage, launch profile, prompt or model. Use card_move to change its column.",
 		Mutates: true, Entities: []string{"cards"}},
 		func(ctx context.Context, c *Call, in CardUpdateIn) (domain.Card, error) {
 			card, err := getCard(c, in.CardID)
@@ -182,8 +187,26 @@ func registerCards(r *Registry) {
 				}
 			}
 			set(&card.Prompt, in.Prompt)
+			if in.Model != nil {
+				model := strings.TrimSpace(*in.Model)
+				if err := sessions.CheckModelID(model); err != nil {
+					return card, err
+				}
+				if model != card.Model {
+					if err := mayChooseModel(c, card.WorkspaceID, &card); err != nil {
+						return card, err
+					}
+				}
+				card.Model = model
+			}
 			if err := c.Store.Cards.Update(&card); err != nil {
 				return card, nickError(err, card.Nick, "")
+			}
+			if card.Model != was.Model {
+				if w, err := c.Workspace(card.WorkspaceID); err == nil {
+					c.RecordChange(w.ID, was, card)
+					announceModel(c, w, &was, &card)
+				}
 			}
 			for _, ch := range []struct{ path, old, now string }{
 				{"card.nick", was.Nick, card.Nick}, {"card.key", was.Key, card.Key},

@@ -50,9 +50,9 @@ Every table has `id TEXT PRIMARY KEY` (a ULID or UUID), `created_at` and `update
 
 | Table | Columns (besides the common ones) |
 |---|---|
-| `workspaces` | `name`, `color`, `root` (absolute folder), `position`, `archived`, `integrations` (JSON array of enabled integration ids), `filter_bar` (JSON array of field paths), `ui` (JSON: collapsed panels, main view) |
+| `workspaces` | `name`, `color`, `root` (absolute folder), `position`, `archived`, `integrations` (JSON array of enabled integration ids), `filter_bar` (JSON array of field paths), `ui` (JSON: collapsed panels, main view), `default_model` and `planner_model` (empty means not chosen) |
 | `columns` | `workspace_id`, `name`, `role` (`needs-you`, `active`, `blocked`, `done`, `backlog`), `position`, `wip` (int, 0 means no limit), `fold` (bool), `color` |
-| `cards` | `workspace_id`, `column_id`, `position`, `nick` (kebab-case, unique per workspace), `key` (optional, such as `ACME-508`), `title`, `assignee`, `stage`, `liveness` (`working`, `idle`, `waiting`, `ended`), `return_column_id`, `launch_profile`, `fields` (JSON of custom fields), `archived` |
+| `cards` | `workspace_id`, `column_id`, `position`, `nick` (kebab-case, unique per workspace), `key` (optional, such as `ACME-508`), `title`, `assignee`, `stage`, `liveness` (`working`, `idle`, `waiting`, `ended`), `return_column_id`, `launch_profile`, `prompt` (the card's prompt layer), `model` (empty means not chosen), `fields` (JSON of custom fields), `archived` |
 | `sessions` | `card_id` (null for the planner), `workspace_id`, `kind` (`planner`, `card`), `command`, `cwd`, `pid`, `status` (`running`, `exited`), `exit_code`, `claude_session_id` (when known), `started_at`, `ended_at` |
 | `messages` | `workspace_id`, `channel` (`planner`, or `card:<cardId>`), `author` (`you`, `planner`, `session`, `rule`, `system`), `kind` (`text`, `report`, `widget`, `event`, `answer`), `report_kind` (`progress`, `question`, `blocked`, `done`), `text`, `widget_title`, `widget_html`, `delivered` (bool), `reason` |
 | `questions` | `workspace_id`, `card_id`, `seq` (Q-01, Q-02 per card), `kind` (`decision`, `unblock`, `approval`), `text`, `context`, `options` (JSON `[{label, description}]`), `multi` (bool), `approval` (JSON `{target, runs_as, reversible, command}`), `status` (`open`, `answered`, `withdrawn`), `answer` (JSON `{selections, notes, via}`), `answered_at` |
@@ -62,7 +62,7 @@ Every table has `id TEXT PRIMARY KEY` (a ULID or UUID), `created_at` and `update
 | `views` | `workspace_id`, `name`, `filters` (JSON `{vals: {path: value}, q, expr}`), `position` |
 | `dash_blocks` | `workspace_id`, `position`, `type`, `title`, `span` (1 or 2), `source` (JSON `{query, args}`), `html`, `schedule`, `text`, `text_at` |
 | `prompts` | `workspace_id`, `kind` (`planner`, `session`, `handoff`, `handoff_planner`), `template` (a null row means the default; for `planner` and `session` that is empty, the workspace layer, with the core harness underneath) |
-| `launch_profiles` | `workspace_id`, `name`, `command`, `args` (JSON), `first_prompt` (template), `prompt` (the profile's prompt layer), `env` (JSON), `worktree` (bool) |
+| `launch_profiles` | `workspace_id`, `name`, `command`, `args` (JSON), `first_prompt` (template), `prompt` (the profile's prompt layer), `model`, `env` (JSON), `worktree` (bool) |
 | `scripts` | `workspace_id` (null means global), `name`, `kind` (`integration`, `script`), `manifest` (JSON), `source` (JS text), `status` (`pending`, `enabled`, `disabled`, `rejected`), `approved_by`, `approved_at`, `test_result` (JSON) |
 | `changes` | `workspace_id`, `actor` (`you`, `planner`, `session:<nick>`, `rule:<name>`), `action`, `args` (JSON), `before` (JSON), `after` (JSON), `reverted` (bool) |
 | `mcp_calls` | `workspace_id`, `actor`, `tool`, `args` (JSON, truncated to 2 KB), `ok`, `error`, `duration_ms` |
@@ -132,8 +132,10 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
 - **Command** (from the launch profile, default `claude`):
 
   ```
-  claude --append-system-prompt <composed prompt> --mcp-config <file> [--resume <id> | --session-id <new uuid>]
+  claude --append-system-prompt <composed prompt> --mcp-config <file> [--resume <id> | --session-id <new uuid>] [--model <model>]
   ```
+
+  - **Model:** `--model` is passed only when a model resolves: the card's `model`, else its launch profile's, else the workspace's `default_model`. The planner uses `planner_model`, else `default_model`. With none, claude uses its own default. The `models` setting is the list the pickers offer (`models_list`, `models_set`; default opus, sonnet, haiku), and a card may hold an id that is not in it. `card_set_model` and `planner_set_model` types `/model <id>` into a running claude session (`/model default` when the choice is cleared and nothing else resolves); otherwise the model applies at the next start. A card change posts an event on the card and writes a `changes` row.
 
   - The MCP config file sits at `~/.hadron/run/<session-id>.mcp.json`:
     `{"mcpServers":{"hadron":{"type":"http","url":"http://127.0.0.1:<port>/mcp","headers":{"Authorization":"Bearer <token>","X-Hadron-Session":"<session-id>"}}}}`

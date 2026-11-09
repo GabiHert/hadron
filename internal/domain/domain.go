@@ -45,6 +45,10 @@ type Workspace struct {
 	Integrations []string       `json:"integrations"`
 	FilterBar    []string       `json:"filter_bar"`
 	UI           map[string]any `json:"ui"`
+	// DefaultModel is the Claude model cards use when neither the card nor its launch profile names
+	// one. PlannerModel is the planner's. Empty means no --model flag.
+	DefaultModel string `json:"default_model"`
+	PlannerModel string `json:"planner_model"`
 }
 
 // Column is one board column.
@@ -77,6 +81,9 @@ type Card struct {
 	Archived       bool           `json:"archived"`
 	// Prompt is the card layer of its session prompt.
 	Prompt string `json:"prompt"`
+	// Model is the Claude model this card's session runs; empty falls back to the launch profile's,
+	// then the workspace default.
+	Model string `json:"model"`
 }
 
 // Session is one PTY process: a card's, or a workspace planner's (CardID empty).
@@ -217,6 +224,8 @@ type LaunchProfile struct {
 	Worktree    bool              `json:"worktree"`
 	// Prompt is the launch profile layer of the session prompt.
 	Prompt string `json:"prompt"`
+	// Model is the Claude model sessions of this profile run, unless their card names one.
+	Model string `json:"model"`
 }
 
 // Script is an integration or a user script. WorkspaceID empty means global.

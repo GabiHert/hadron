@@ -7,6 +7,7 @@ import { RulesTab } from "./RulesTab";
 import { UpdatesCard } from "./UpdatesCard";
 import { DiagnosticsTab } from "./DiagnosticsTab";
 import { FeedbackTab } from "./FeedbackTab";
+import { ModelsTab, useModels } from "./ModelsTab";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import * as api from "../api";
@@ -108,6 +109,8 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
   const [profile, setProfile] = useState("");
   const [busy, setBusy] = useState(false);
   const [cardPrompt, setCardPrompt] = useState("");
+  const [model, setModel] = useState("");
+  const { info: modelInfo } = useModels(ws?.id ?? "", board.actions.toast);
   const nick = slug(nickIn);
   const [adopting, setAdopting] = useState(false);
   const [picked, setPicked] = useState<Adoptable | null>(null);
@@ -140,7 +143,7 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
   const chosen = profiles.find((p) => p.name === profile);
   const submit = async () => {
     setBusy(true);
-    const card = await board.actions.createCard({ nick, key: key.trim() || undefined, column_id: col || undefined, launch_profile: profile || undefined, ...(cardPrompt.trim() ? { prompt: cardPrompt } : {}) });
+    const card = await board.actions.createCard({ nick, key: key.trim() || undefined, column_id: col || undefined, launch_profile: profile || undefined, ...(cardPrompt.trim() ? { prompt: cardPrompt } : {}), ...(model ? { model } : {}) });
     setBusy(false);
     if (card) onClose();
   };
@@ -183,6 +186,13 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
             </select>
           </label>
           <label className="field">
+            <span>Model</span>
+            <select id="ns-model" className="in" aria-label="Model" value={model} onChange={(e) => setModel(e.target.value)}>
+              <option value="">Default</option>
+              {(modelInfo?.models ?? []).map((m) => <option key={m.id} value={m.id}>{m.label || m.id}</option>)}
+            </select>
+          </label>
+          <label className="field">
             <span>Extra instructions for this session</span>
             <textarea id="ns-prompt" className="in mono" rows={3} value={cardPrompt} onChange={(e) => setCardPrompt(e.target.value)} />
             <span className="hint">Added to the system prompt after the workspace and launch profile prompts.</span>
@@ -208,6 +218,7 @@ type SettingsTab = { id: string; label: string; render: (board: Board) => ReactN
 export const SETTINGS_TABS: SettingsTab[] = [
   { id: "prompts", label: "Harness", render: (b) => <PromptsTab board={b} /> },
   { id: "columns", label: "Columns", render: (b) => <ColumnsTab board={b} /> },
+  { id: "models", label: "Models", render: (b) => <ModelsTab board={b} /> },
   { id: "rules", label: "Rules", render: (b) => <RulesTab board={b} /> },
   { id: "integrations", label: "Integrations", render: (b) => <IntegrationsTab board={b} /> },
   { id: "import", label: "Import", render: (b) => <ImportTab board={b} /> },

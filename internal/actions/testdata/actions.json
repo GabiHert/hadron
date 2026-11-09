@@ -76,6 +76,11 @@
         "type": "boolean"
       },
       {
+        "name": "model",
+        "required": false,
+        "type": "string"
+      },
+      {
         "name": "prompt",
         "required": false,
         "type": "string"
@@ -215,6 +220,22 @@
     ]
   },
   {
+    "name": "card_set_model",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "model",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "card_update",
     "mutates": true,
     "fields": [
@@ -250,6 +271,11 @@
       },
       {
         "name": "launch_profile",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "model",
         "required": false,
         "type": "string"
       },
@@ -1347,6 +1373,11 @@
         "type": "object"
       },
       {
+        "name": "model",
+        "required": false,
+        "type": "string"
+      },
+      {
         "name": "prompt",
         "required": false,
         "type": "string"
@@ -1413,6 +1444,11 @@
         "name": "env",
         "required": false,
         "type": "object"
+      },
+      {
+        "name": "model",
+        "required": false,
+        "type": "string"
       },
       {
         "name": "prompt",
@@ -1575,6 +1611,28 @@
     "fields": null
   },
   {
+    "name": "models_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "models_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "models",
+        "required": true,
+        "type": "array"
+      }
+    ]
+  },
+  {
     "name": "notify",
     "mutates": false,
     "fields": [
@@ -1693,6 +1751,22 @@
         "name": "enter",
         "required": false,
         "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "planner_set_model",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "model",
+        "required": true,
+        "type": "string"
       }
     ]
   },
@@ -2897,6 +2971,11 @@
         "name": "filter_bar",
         "required": false,
         "type": "array"
+      },
+      {
+        "name": "default_model",
+        "required": false,
+        "type": "string"
       }
     ]
   },

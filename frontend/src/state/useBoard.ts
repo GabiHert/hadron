@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "../api";
-import type { Card, Column, Question, Role, Workspace } from "../api";
+import type { Card, Column, LaunchProfile, Question, Role, Workspace } from "../api";
 
 export interface WsData {
   columns: Column[];
@@ -9,6 +9,17 @@ export interface WsData {
   questions: Question[];
   /** linked-field chips by card id */
   chips: Record<string, Chip[]>;
+  /** the workspace's launch profiles, for the model a card inherits */
+  profiles: LaunchProfile[];
+}
+
+/** The model a card runs and where it comes from, or null when none is chosen (Claude's own default). */
+export function effectiveModel(card: Card, profiles: LaunchProfile[], ws: Workspace | null): { id: string; source: "card" | "launch profile" | "workspace default" } | null {
+  if (card.model) return { id: card.model, source: "card" };
+  const lp = profiles.find((p) => p.name === card.launch_profile || p.id === card.launch_profile);
+  if (lp?.model) return { id: lp.model, source: "launch profile" };
+  if (ws?.default_model) return { id: ws.default_model, source: "workspace default" };
+  return null;
 }
 
 export type Chip = { path: string; label: string; value: unknown };
@@ -75,13 +86,14 @@ export function useBoard() {
       ]);
       const entries = await Promise.all(
         workspaces.map(async (w) => {
-          const [columns, cards, questions, chips] = await Promise.all([
+          const [columns, cards, questions, chips, profiles] = await Promise.all([
             api.column_list({ workspace_id: w.id }),
             api.card_list({ workspace_id: w.id }),
             api.question_list({ workspace_id: w.id, status: "open" }),
             api.card_chips({ workspace_id: w.id }).catch(() => ({})),
+            api.launch_profile_list({ workspace_id: w.id }).catch(() => [] as LaunchProfile[]),
           ]);
-          return [w.id, { columns, cards, questions, chips: chips ?? {} }] as const;
+          return [w.id, { columns, cards, questions, chips: chips ?? {}, profiles: profiles ?? [] }] as const;
         }),
       );
       if (!alive.current) return;
@@ -140,7 +152,7 @@ export function useBoard() {
 
   const visible = useMemo(() => s.workspaces.filter((w) => !w.archived), [s.workspaces]);
   const ws = s.workspaces.find((w) => w.id === s.activeId) ?? null;
-  const wsData = ws ? (s.data[ws.id] ?? { columns: [], cards: [], questions: [], chips: {} }) : { columns: [] as Column[], cards: [] as Card[], questions: [] as Question[], chips: {} as Record<string, Chip[]> };
+  const wsData = ws ? (s.data[ws.id] ?? { columns: [], cards: [], questions: [], chips: {}, profiles: [] }) : { columns: [] as Column[], cards: [] as Card[], questions: [] as Question[], chips: {} as Record<string, Chip[]>, profiles: [] as LaunchProfile[] };
   const selectedId = ws ? (s.selected[ws.id] ?? null) : null;
   const selected = wsData.cards.find((c) => c.id === selectedId) ?? null;
 
@@ -195,7 +207,7 @@ export function useBoard() {
         if (out) toast(`Column deleted. Its cards moved to ${out.moved_to.name}.`);
         return out;
       },
-      createCard: async (a: { nick: string; key?: string; column_id?: string; launch_profile?: string; prompt?: string }) => {
+      createCard: async (a: { nick: string; key?: string; column_id?: string; launch_profile?: string; prompt?: string; model?: string }) => {
         const card = await run(() => api.card_create({ workspace_id: sRef.current.activeId, ...a }));
         if (card) setS((p) => ({ ...p, selected: { ...p.selected, [p.activeId]: card.id } }));
         return card;
@@ -224,7 +236,7 @@ export function useBoard() {
     [run, toast, clearToast, refetch],
   );
 
-  return { ...s, visible, ws, columns: wsData.columns, cards: wsData.cards, openQuestions: wsData.questions ?? [], chips: wsData.chips ?? {}, selected, actions };
+  return { ...s, visible, ws, columns: wsData.columns, cards: wsData.cards, openQuestions: wsData.questions ?? [], chips: wsData.chips ?? {}, profiles: wsData.profiles ?? [], selected, actions };
 }
 
 export type Board = ReturnType<typeof useBoard>;

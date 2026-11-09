@@ -26,4 +26,5 @@ func RegisterAll(r *Registry) {
 	registerPlanImport(r)
 	registerDiagnostics(r)
 	registerFeedback(r)
+	registerModels(r)
 }

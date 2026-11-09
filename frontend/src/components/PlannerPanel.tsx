@@ -10,6 +10,7 @@ import type { Adoptable } from "../api";
 import { AdoptList } from "./AdoptList";
 import { ModalHead, Scrim } from "./Modals";
 import { Icon } from "./ui";
+import { ModelOptions, useModels } from "./ModelsTab";
 
 interface Props {
   board: Board;
@@ -25,6 +26,7 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
   const wsId = ws?.id ?? "";
   const [menu, setMenu] = useState(false);
   const [adoptOpen, setAdoptOpen] = useState(false);
+  const { info: modelInfo, reload: reloadModels } = useModels(wsId, actions.toast);
   const status = useSessionStatus(() => (wsId ? api.planner_get({ workspace_id: wsId }) : Promise.resolve(null)), [wsId]);
   if (!ws) return null;
   // none (never started) reads as idle: there is nothing to pulse about.
@@ -55,6 +57,12 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
           <button className="ibtn" onClick={() => setMenu(!menu)} aria-label="Planner actions" aria-expanded={menu}><Icon name="dots" size={14} /></button>
           {menu ? (
             <div className="menu">
+              <label>Planner model
+                <select className="in" aria-label="Planner model" value={modelInfo?.planner_model ?? ""} onChange={(e) => void actions.run(() => api.planner_set_model({ workspace_id: ws.id, model: e.target.value })).then((out) => { if (out) { actions.toast(out.note); void reloadModels(); } })}>
+                  <option value="">{`Use default (${modelInfo?.default_model || "Claude's own"})`}</option>
+                  <ModelOptions models={modelInfo?.models ?? []} current={modelInfo?.planner_model ?? ""} />
+                </select>
+              </label>
               <button className="btn sm" onClick={() => { setMenu(false); setAdoptOpen(true); }}>Adopt planner conversation</button>
             </div>
           ) : null}

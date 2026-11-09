@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import type { Card, Column, Question } from "../api";
 import { ROLES, short } from "../lib";
+import { effectiveModel } from "../state/useBoard";
 import type { Board as BoardState } from "../state/useBoard";
 import { useFilters } from "../state/useFilters";
 import { Dashboard } from "./Dashboard";
@@ -231,6 +232,7 @@ export function ColumnView(p: ColProps) {
             card={c}
             question={board.openQuestions.find((q) => q.card_id === c.id)}
             chips={board.chips[c.id]}
+            model={effectiveModel(c, board.profiles, board.ws)}
             selected={selectedId === c.id}
             dragging={dragId === c.id}
             onOpen={() => board.actions.select(c.id)}
@@ -305,6 +307,8 @@ interface FaceProps {
   question?: Question;
   /** linked-field chips (value shown, label in the tooltip) */
   chips?: { path: string; label: string; value: unknown }[];
+  /** the model the card runs, shown as a small chip when one is set */
+  model?: { id: string; source: string } | null;
   selected: boolean;
   dragging: boolean;
   onOpen: () => void;
@@ -313,7 +317,7 @@ interface FaceProps {
   onDrop: (e: DragEvent) => void;
 }
 
-export function CardFace({ card: c, question, chips, selected, dragging, onOpen, onDragStart, onDragEnd, onDrop }: FaceProps) {
+export function CardFace({ card: c, question, chips, model, selected, dragging, onOpen, onDragStart, onDragEnd, onDrop }: FaceProps) {
   return (
     <button
       draggable
@@ -340,9 +344,10 @@ export function CardFace({ card: c, question, chips, selected, dragging, onOpen,
       </span>
       <span className="nick">{c.nick}</span>
       {question ? <span className="q">{short(question.text, 90)}</span> : null}
-      {c.liveness === "idle" || chips?.length ? (
+      {c.liveness === "idle" || chips?.length || model ? (
         <div className="chips">
           {chips?.map((ch) => <span key={ch.path} className="pill" title={`${ch.label}: ${String(ch.value)}`}>{String(ch.value)}</span>)}
+          {model ? <span className="pill" title={`Model: ${model.id} (${model.source})`}>{model.id}</span> : null}
           {c.liveness === "idle" ? <span className="pill">idle</span> : null}
         </div>
       ) : null}

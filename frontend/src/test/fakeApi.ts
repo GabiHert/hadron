@@ -2,7 +2,7 @@
 // like the backend enough for the UI to react (rename, move, delete...), so tests can assert both
 // the calls made and what the user then sees.
 import { vi } from "vitest";
-import type { Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
+import type { ModelOption, Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
 
 export interface Fixture {
   workspaces: Workspace[];
@@ -15,14 +15,14 @@ export interface Fixture {
 const ts = "2026-11-08T12:00:00Z";
 export const ws = (id: string, name: string, over: Partial<Workspace> = {}): Workspace => ({
   id, created_at: ts, updated_at: ts, name, color: "#24408e", root: "/tmp/" + id, position: 0, archived: false,
-  integrations: [], filter_bar: [], ui: {}, ...over,
+  integrations: [], filter_bar: [], ui: {}, default_model: "", planner_model: "", ...over,
 });
 export const col = (id: string, wsId: string, name: string, role: Role, position: number, over: Partial<Column> = {}): Column => ({
   id, workspace_id: wsId, name, role, position, wip: 0, fold: false, color: "", ...over,
 });
 export const card = (id: string, wsId: string, colId: string, nick: string, position: number, over: Partial<Card> = {}): Card => ({
   id, workspace_id: wsId, column_id: colId, position, nick, key: "", title: "", assignee: "You", stage: "", liveness: "idle",
-  return_column_id: "", launch_profile: "", prompt: "", fields: {}, archived: false, ...over,
+  return_column_id: "", launch_profile: "", prompt: "", model: "", fields: {}, archived: false, ...over,
 });
 
 export function defaultFixture(): Fixture {
@@ -64,8 +64,9 @@ export const idleUpdate = (over: Record<string, unknown> = {}) => ({
   lines: [] as string[], seq: 0, installedApp: "/Applications/Hadron.app", ...over,
 });
 export const profile = (name: string, firstPrompt: string): LaunchProfile => ({
-  id: "lp-" + name, workspace_id: "w1", name, command: "claude", args: [], first_prompt: firstPrompt, prompt: "", env: {}, worktree: false,
+  id: "lp-" + name, workspace_id: "w1", name, command: "claude", args: [], first_prompt: firstPrompt, prompt: "", model: "", env: {}, worktree: false,
 });
+const defaultModels = (): ModelOption[] => [{ id: "opus", label: "Opus" }, { id: "sonnet", label: "Sonnet" }, { id: "haiku", label: "Haiku" }];
 const defaultProfiles = () => [profile("brief", "/brief {{nick}}"), profile("orchestrate", "/orchestrate {{key}}"), profile("plain", "")];
 
 /** A running session's status, as session_status and planner_get report it. */
@@ -133,6 +134,7 @@ export const state: {
   integrationLogs: ScriptLog[];
   links: Link[];
   remoteSessions: RemoteSession[];
+  models: ModelOption[];
 } = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), profiles: defaultProfiles(), sessions: {},
   mcp: { running: true, url: "http://127.0.0.1:47820/mcp", port: 47820, token: "tok-0123456789abcdef", tool_count: 61, connect_command: "" },
   mcpCalls: [],
@@ -143,6 +145,7 @@ export const state: {
   integrationLogs: [],
   links: [],
   remoteSessions: [],
+  models: defaultModels(),
 };
 export const reset = (fx: Fixture = defaultFixture()) => {
   state.update = idleUpdate();
@@ -162,6 +165,7 @@ export const reset = (fx: Fixture = defaultFixture()) => {
   state.integrationLogs = [];
   state.links = [];
   state.remoteSessions = [];
+  state.models = defaultModels();
   state.profiles = defaultProfiles();
   state.sessions = { planner: running("sess-planner", { liveness: "working" }) };
   state.fx = fx;
@@ -188,7 +192,11 @@ const fns = {
     state.fx.cards[w.id] = [];
     return clone(w);
   }),
-  workspace_update: vi.fn(async () => ({}) as Workspace),
+  workspace_update: vi.fn(async (a: { workspace_id?: string; default_model?: string } = {}) => {
+    const w = state.fx.workspaces.find((x) => x.id === (a.workspace_id ?? "w1"))!;
+    if (a.default_model !== undefined) w.default_model = a.default_model;
+    return clone(w);
+  }),
   workspace_archive: vi.fn(async () => ({}) as Workspace),
   workspace_delete: vi.fn(async () => ({}) as Workspace),
   workspace_switch: vi.fn(async (a: { workspace_id: string }) => {
@@ -225,9 +233,9 @@ const fns = {
   }),
   card_list: vi.fn(async (a: { workspace_id?: string } = {}) => clone((state.fx.cards[a.workspace_id ?? "w1"] ?? []).filter((c) => !c.archived))),
   card_get: vi.fn(async (a: { card_id: string }) => clone(allCards().find((c) => c.id === a.card_id)!)),
-  card_create: vi.fn(async (a: { workspace_id?: string; nick: string; key?: string; column_id?: string; launch_profile?: string; prompt?: string }) => {
+  card_create: vi.fn(async (a: { workspace_id?: string; nick: string; key?: string; column_id?: string; launch_profile?: string; prompt?: string; model?: string }) => {
     const wsId = a.workspace_id ?? "w1";
-    const c = card("new-card", wsId, a.column_id ?? state.fx.columns[wsId][0].id, a.nick, 99, { key: a.key ?? "", launch_profile: a.launch_profile ?? "", prompt: a.prompt ?? "" });
+    const c = card("new-card", wsId, a.column_id ?? state.fx.columns[wsId][0].id, a.nick, 99, { key: a.key ?? "", launch_profile: a.launch_profile ?? "", prompt: a.prompt ?? "", model: a.model ?? "" });
     state.fx.cards[wsId].push(c);
     return clone(c);
   }),
@@ -273,6 +281,25 @@ const fns = {
     const w = state.fx.workspaces.find((x) => x.id === (a.workspace_id ?? "w1"))!;
     w.ui = { ...w.ui, main_view: a.view };
     return clone(w);
+  }),
+  models_list: vi.fn(async (a: { workspace_id?: string } = {}) => {
+    const w = state.fx.workspaces.find((x) => x.id === (a.workspace_id ?? "w1"))!;
+    return { models: clone(state.models), workspace_id: w.id, default_model: w.default_model, planner_model: w.planner_model, order: "card, launch profile, workspace default, Claude's own default" };
+  }),
+  models_set: vi.fn(async (a: { models: ModelOption[] }) => {
+    state.models = clone(a.models);
+    const w = state.fx.workspaces[0];
+    return { models: clone(state.models), workspace_id: w.id, default_model: w.default_model, planner_model: w.planner_model, order: "" };
+  }),
+  card_set_model: vi.fn(async (a: { card: string; model: string }) => {
+    const c = allCards().find((x) => x.id === a.card || x.nick === a.card)!;
+    c.model = a.model;
+    return { card: clone(c), model: a.model, source: "card", typed: false, note: "It applies the next time the session starts." };
+  }),
+  planner_set_model: vi.fn(async (a: { workspace_id?: string; model: string }) => {
+    const w = state.fx.workspaces.find((x) => x.id === (a.workspace_id ?? "w1"))!;
+    w.planner_model = a.model;
+    return { model: a.model, source: "planner", typed: false, note: "It applies the next time the planner starts." };
   }),
   launch_profile_list: vi.fn(async () => clone(state.profiles)),
   planner_get: vi.fn(async () => clone(state.sessions.planner ?? { ...running("", { liveness: "none", running: false }), session: null })),

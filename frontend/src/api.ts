@@ -18,6 +18,10 @@ export interface Workspace {
   archived: boolean;
   integrations: string[];
   filter_bar: string[];
+  /** The model cards use when neither the card nor its launch profile names one; empty means claude's own default. */
+  default_model: string;
+  /** The planner's model; empty falls back to default_model. */
+  planner_model: string;
   ui: {
     collapsed?: { planner?: boolean; card?: boolean };
     full?: "planner" | "card";
@@ -54,6 +58,8 @@ export interface Card {
   archived: boolean;
   /** The card layer of its session prompt. */
   prompt: string;
+  /** The Claude model of this card's session; empty falls back to the launch profile's, then the workspace default. */
+  model: string;
 }
 
 export interface AppStatus {
@@ -107,6 +113,7 @@ export const workspace_update = (a: {
   color?: string;
   integrations?: string[];
   filter_bar?: string[];
+  default_model?: string;
 }) => call<Workspace>("workspace_update", a);
 export const workspace_archive = (a: { workspace_id: string; archived?: boolean }) => call<Workspace>("workspace_archive", a);
 export const workspace_delete = (a: { workspace_id: string }) => call<Workspace>("workspace_delete", a);
@@ -141,6 +148,7 @@ export const card_create = (a: {
   launch_profile?: string;
   start?: boolean;
   prompt?: string;
+  model?: string;
 }) => call<Card>("card_create", a);
 export const card_update = (a: {
   card_id: string;
@@ -151,6 +159,7 @@ export const card_update = (a: {
   stage?: string;
   launch_profile?: string;
   prompt?: string;
+  model?: string;
 }) => call<Card>("card_update", a);
 export const card_move = (a: { card_id: string; column_id: string; position?: number }) => call<Card>("card_move", a);
 export const card_archive = (a: { card_id: string; archived?: boolean }) => call<Card>("card_archive", a);
@@ -199,6 +208,8 @@ export interface LaunchProfile {
   worktree: boolean;
   /** The launch profile layer of the session prompt. */
   prompt: string;
+  /** The Claude model of sessions that use this profile, unless their card names one. */
+  model: string;
 }
 /** A card is addressed by its id, nickname or key. */
 export const session_start = (a: { card: string; launch_profile?: string }) => call<SessionStatus>("session_start", a);
@@ -225,6 +236,7 @@ export const launch_profile_create = (a: {
   env?: Record<string, string>;
   worktree?: boolean;
   prompt?: string;
+  model?: string;
 }) => call<LaunchProfile>("launch_profile_create", a);
 export const launch_profile_update = (a: {
   profile_id: string;
@@ -235,8 +247,33 @@ export const launch_profile_update = (a: {
   env?: Record<string, string>;
   worktree?: boolean;
   prompt?: string;
+  model?: string;
 }) => call<LaunchProfile>("launch_profile_update", a);
 export const launch_profile_delete = (a: { profile_id: string }) => call<LaunchProfile>("launch_profile_delete", a);
+
+// ---- models ----
+export interface ModelOption {
+  id: string;
+  label: string;
+}
+export interface ModelsInfo {
+  models: ModelOption[];
+  workspace_id: string;
+  default_model: string;
+  planner_model: string;
+  order: string;
+}
+export interface ModelSetResult {
+  card?: Card;
+  model: string;
+  source: string;
+  typed: boolean;
+  note: string;
+}
+export const models_list = (a: { workspace_id?: string } = {}) => call<ModelsInfo>("models_list", a);
+export const models_set = (a: { models: ModelOption[] }) => call<ModelsInfo>("models_set", a);
+export const card_set_model = (a: { card: string; model: string }) => call<ModelSetResult>("card_set_model", a);
+export const planner_set_model = (a: { workspace_id?: string; model: string }) => call<ModelSetResult>("planner_set_model", a);
 
 // ---- ui state ----
 export const ui_panel_collapse = (a: { workspace_id?: string; panel: "planner" | "card"; collapsed: boolean }) =>

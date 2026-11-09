@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/GabiHert/hadron/internal/board"
 	"github.com/GabiHert/hadron/internal/domain"
+	"github.com/GabiHert/hadron/internal/sessions"
 )
 
 // WorkspaceIDIn is the input of the actions that need only a workspace.
@@ -38,6 +40,7 @@ type WorkspaceUpdateIn struct {
 	Color        *string   `json:"color,omitempty" jsonschema:"new #rrggbb colour"`
 	Integrations *[]string `json:"integrations,omitempty" jsonschema:"the enabled integration ids"`
 	FilterBar    *[]string `json:"filter_bar,omitempty" jsonschema:"the field paths pinned in the filter bar"`
+	DefaultModel *string   `json:"default_model,omitempty" jsonschema:"the Claude model cards use when neither the card nor its launch profile names one (opus, sonnet, haiku or a full model name); empty means claude's own default. Applies to sessions that start afterwards"`
 }
 
 // WorkspaceArchiveIn is the input of workspace_archive.
@@ -131,6 +134,15 @@ func registerWorkspaces(r *Registry) {
 			}
 			if in.FilterBar != nil {
 				w.FilterBar = *in.FilterBar
+			}
+			if in.DefaultModel != nil {
+				if c.Actor.Kind == KindSession {
+					return w, fmt.Errorf("%s may not change a model. Ask the planner with card_report", c.Actor)
+				}
+				w.DefaultModel = strings.TrimSpace(*in.DefaultModel)
+				if err := sessions.CheckModelID(w.DefaultModel); err != nil {
+					return w, err
+				}
 			}
 			if err := c.Store.Workspaces.Update(&w); err != nil {
 				return w, err

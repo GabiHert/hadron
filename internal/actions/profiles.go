@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/GabiHert/hadron/internal/domain"
+	"github.com/GabiHert/hadron/internal/sessions"
 	"github.com/GabiHert/hadron/internal/store"
 )
 
@@ -23,6 +24,7 @@ type LaunchProfileCreateIn struct {
 	Args        []string          `json:"args,omitempty" jsonschema:"extra arguments, after Hadron's own"`
 	FirstPrompt string            `json:"first_prompt,omitempty" jsonschema:"typed into the session once it is ready; may use {{nick}}, {{key}} and {{title}}. Empty means none"`
 	Env         map[string]string `json:"env,omitempty" jsonschema:"extra environment variables"`
+	Model       string            `json:"model,omitempty" jsonschema:"the Claude model for sessions of this profile (opus, sonnet, haiku or a full model name), unless their card names one"`
 	Prompt      string            `json:"prompt,omitempty" jsonschema:"extra instructions added to the system prompt of every session that uses this profile, after the workspace prompt; may use {{variables}}"`
 	Worktree    bool              `json:"worktree,omitempty" jsonschema:"run each card in its own git worktree at <root>/.hadron-worktrees/<nick> on branch hadron/<nick>, when the workspace root is a git repository"`
 }
@@ -35,6 +37,7 @@ type LaunchProfileUpdateIn struct {
 	Args        *[]string          `json:"args,omitempty" jsonschema:"new arguments"`
 	FirstPrompt *string            `json:"first_prompt,omitempty" jsonschema:"new first prompt"`
 	Env         *map[string]string `json:"env,omitempty" jsonschema:"new environment"`
+	Model       *string            `json:"model,omitempty" jsonschema:"new model for sessions of this profile; empty removes it"`
 	Prompt      *string            `json:"prompt,omitempty" jsonschema:"new profile prompt; empty removes it"`
 	Worktree    *bool              `json:"worktree,omitempty" jsonschema:"run in a git worktree of the card"`
 }
@@ -70,7 +73,10 @@ func registerLaunchProfiles(r *Registry) {
 			if err := checkLayerPrompt("profile prompt", in.Prompt); err != nil {
 				return domain.LaunchProfile{}, err
 			}
-			p := domain.LaunchProfile{WorkspaceID: w.ID, Prompt: strings.TrimSpace(in.Prompt), Name: name, Command: strings.TrimSpace(in.Command), Args: in.Args,
+			if err := sessions.CheckModelID(strings.TrimSpace(in.Model)); err != nil {
+				return domain.LaunchProfile{}, err
+			}
+			p := domain.LaunchProfile{WorkspaceID: w.ID, Prompt: strings.TrimSpace(in.Prompt), Model: strings.TrimSpace(in.Model), Name: name, Command: strings.TrimSpace(in.Command), Args: in.Args,
 				FirstPrompt: strings.TrimSpace(in.FirstPrompt), Env: in.Env, Worktree: in.Worktree}
 			if err := c.Store.LaunchProfiles.Create(&p); err != nil {
 				return p, err
@@ -109,6 +115,11 @@ func registerLaunchProfiles(r *Registry) {
 			}
 			if in.Env != nil {
 				p.Env = *in.Env
+			}
+			if in.Model != nil {
+				if p.Model = strings.TrimSpace(*in.Model); sessions.CheckModelID(p.Model) != nil {
+					return p, sessions.CheckModelID(p.Model)
+				}
 			}
 			if in.Prompt != nil {
 				if err := checkLayerPrompt("profile prompt", *in.Prompt); err != nil {

@@ -193,6 +193,9 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 		if newConversation != "" {
 			args = append(args, "--session-id", newConversation)
 		}
+		if model, _ := ResolveModel(ws, card, profile); model != "" {
+			args = append(args, "--model", model)
+		}
 	}
 	args = append(args, profile.Args...)
 
@@ -538,7 +541,9 @@ func (s *Service) port(st *store.Store) int {
 	return DefaultMCPPort
 }
 
-func isClaude(command string) bool { return filepath.Base(command) == "claude" }
+// IsClaude says whether command is the claude CLI, the only program Hadron gives its prompt and model flags, and types slash commands into.
+func IsClaude(command string) bool { return filepath.Base(command) == "claude" }
+func isClaude(command string) bool { return IsClaude(command) }
 
 func kindOf(card *domain.Card) string {
 	if card == nil {

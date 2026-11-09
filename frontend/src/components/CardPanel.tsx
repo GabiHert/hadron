@@ -9,6 +9,8 @@ import { SessionTerminal } from "./SessionTerminal";
 import { LinksTab, useLinks } from "./LinksTab";
 import { Icon } from "./ui";
 import { AutoText } from "./PromptsTab";
+import { ModelOptions, useModels } from "./ModelsTab";
+import { effectiveModel } from "../state/useBoard";
 
 export type CardTab = "conv" | "links" | "ctx";
 
@@ -31,6 +33,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   const [assignee, setAssignee] = useState("");
   const cardId = c?.id ?? "";
   const status = useSessionStatus(() => (cardId ? api.session_status({ card: cardId }) : Promise.resolve(null)), [cardId]);
+  const { info: modelInfo } = useModels(ws?.id ?? "", actions.toast);
   const { links, reload: reloadLinks } = useLinks(cardId, actions.toast);
   useEffect(() => {
     setMenu(false);
@@ -55,6 +58,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   const col = columns.find((x) => x.id === c.column_id);
   const openQ = board.openQuestions.find((q) => q.card_id === c.id);
   const live = LIVE[c.liveness] ?? ["", c.liveness];
+  const inherited = effectiveModel({ ...c, model: "" }, board.profiles, ws);
   const claudeId = status?.session?.claude_session_id ?? "";
   const canResume = !!claudeId && !status?.running;
   return (
@@ -100,6 +104,13 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
           </div>
         </div>
         <h2>{c.nick}</h2>
+        <div className="inline" style={{ marginBottom: 6 }}>
+          <select className="in" style={{ width: "auto" }} aria-label="Model" value={c.model} onChange={(e) => void actions.run(() => api.card_set_model({ card: c.id, model: e.target.value })).then((out) => out && actions.toast(out.note))}>
+            <option value="">{`Use default (${inherited ? inherited.id : "Claude's own"})`}</option>
+            <ModelOptions models={modelInfo?.models ?? []} current={c.model} />
+          </select>
+          <span className="hint">{c.model ? "Set on this card" : inherited ? `From the ${inherited.source}` : "From Claude's own default"}</span>
+        </div>
         {view === "chat" ? (
           <div className="tabs" role="tablist">
             <button className={"tab" + (tab === "conv" ? " on" : "")} role="tab" onClick={() => setTab("conv")}>
