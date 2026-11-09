@@ -165,7 +165,7 @@ func registerChat(r *Registry) {
 			return m, c.Store.Messages.Create(&m)
 		})
 
-	Register(r, Spec{Name: "widget_post", Description: "Post a small HTML widget (a table, a chart, a status board) on a channel. The planner, the user, or a session on its own card may post. It is stored now and rendered in a sandboxed frame later.",
+	Register(r, Spec{Name: "widget_post", Description: "Post a small HTML widget on a channel to explain something visually: a comparison table, a before/after, an SVG diagram, a timeline, a chart, a plan's steps, a status board. The planner, the user, or a session on its own card may post. It is stored now and rendered in a sandboxed frame later.",
 		Mutates: true, Entities: []string{EntityMessages}},
 		func(ctx context.Context, c *Call, in WidgetPostIn) (domain.Message, error) {
 			ch, err := resolveChannel(c, in.WorkspaceID, in.Channel)

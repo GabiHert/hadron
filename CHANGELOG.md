@@ -7,6 +7,15 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- A widget's "⋯" menu (it shows when you hover the widget or Tab to it) opens the widget full screen, copies its HTML, or adds it to the dashboard. Esc closes the menu and the full-screen view.
+- Widgets without scripts now size themselves: a diagram fits its drawing, and other widgets get a fitting height with a "Show more" link.
+- The built-in planner and session instructions now encourage widgets to explain things (comparison tables, before/after, diagrams, timelines, charts, plan checklists, status boards), and the widgets guide has new examples to copy.
+
+### Changed
+- Chat widgets no longer show a "Pin to dashboard" button: adding one to the dashboard is in the widget's menu, and the planner does it only when you ask.
+- Chat widgets look like part of the conversation: a small caption instead of a title bar (no bar when untitled), bubble width, and the full chat width for diagrams.
+
 ## [0.2.16] - 2026-11-09
 
 ### Fixed

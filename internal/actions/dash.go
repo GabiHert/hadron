@@ -364,7 +364,7 @@ func registerDash(r *Registry) {
 			return dash.Run(ctx, dashEnv(c, w), in.Query, in.Args)
 		})
 
-	Register(r, Spec{Name: "widget_pin", Description: "Pin a widget from a chat to the dashboard as a custom block. Pinning the same widget twice returns the block that already exists.",
+	Register(r, Spec{Name: "widget_pin", Description: "Pin a widget from a chat to the dashboard as a custom block. Only when the user asks: chat widgets are for explaining. Pinning the same widget twice returns the block that already exists.",
 		Mutates: true, Entities: []string{EntityDash}},
 		func(ctx context.Context, c *Call, in WidgetPinIn) (domain.Block, error) {
 			if err := userOrPlanner(c, "pin widgets"); err != nil {

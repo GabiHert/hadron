@@ -230,7 +230,7 @@ function BlockBody({ b, board, scripts, onRewrite }: { b: BlockView; board: Boar
         </div>
       ) : <div className="hint">Nothing to show.</div>;
     case "custom":
-      return b.html === "live:diagram" ? <SessionMap rows={rows} /> : <Widget title="" html={b.html} height={b.source?.height} data={b.data ?? undefined} scripts={scripts} />;
+      return b.html === "live:diagram" ? <SessionMap rows={rows} /> : <Widget variant="block" title="" html={b.html} height={b.source?.height} data={b.data ?? undefined} scripts={scripts} />;
     default:
       return <TableBody b={b} board={board} />;
   }

@@ -1894,7 +1894,7 @@ Save the current filter (pinned values, text search, CEL expression) as a named 
 
 ### `widget_pin`
 
-Pin a widget from a chat to the dashboard as a custom block. Pinning the same widget twice returns the block that already exists.
+Pin a widget from a chat to the dashboard as a custom block. Only when the user asks: chat widgets are for explaining. Pinning the same widget twice returns the block that already exists.
 
 *changes data*
 
@@ -1905,7 +1905,7 @@ Pin a widget from a chat to the dashboard as a custom block. Pinning the same wi
 
 ### `widget_post`
 
-Post a small HTML widget (a table, a chart, a status board) on a channel. The planner, the user, or a session on its own card may post. It is stored now and rendered in a sandboxed frame later.
+Post a small HTML widget on a channel to explain something visually: a comparison table, a before/after, an SVG diagram, a timeline, a chart, a plan's steps, a status board. The planner, the user, or a session on its own card may post. It is stored now and rendered in a sandboxed frame later.
 
 *changes data*
 

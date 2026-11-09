@@ -127,7 +127,7 @@ describe("dashboard", () => {
 });
 
 describe("chat widgets", () => {
-  it("renders a sandboxed widget and pins it", async () => {
+  it("renders a sandboxed widget and pins it from its menu", async () => {
     state.messages = [message({ id: "m9", kind: "widget", widget_title: "Burndown", widget_html: "<p>x</p>" })];
     const user = userEvent.setup();
     const { container } = render(<App />);
@@ -136,9 +136,12 @@ describe("chat widgets", () => {
     const f = group.querySelector("iframe")!;
     expect(f.getAttribute("sandbox")).not.toContain("allow-same-origin");
     expect(container.querySelectorAll("iframe[src]").length).toBe(0);
-    await user.click(within(group).getByRole("button", { name: "Pin Burndown to the dashboard" }));
+    expect(within(group).queryByRole("button", { name: /pin|dashboard/i })).toBeNull();
+    await user.click(within(group).getByRole("button", { name: "More for Burndown" }));
+    await user.click(within(group).getByRole("menuitem", { name: "Add to dashboard" }));
     expect(mocks.widget_pin).toHaveBeenCalledWith({ message_id: "m9" });
-    expect(await within(group).findByRole("button", { name: /on the dashboard/i })).toBeDisabled();
+    await user.click(within(group).getByRole("button", { name: "More for Burndown" }));
+    expect(await within(group).findByRole("menuitem", { name: "On the dashboard ✓" })).toBeDisabled();
   });
 });
 

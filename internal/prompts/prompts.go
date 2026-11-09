@@ -16,7 +16,7 @@ import (
 
 // CoreVersion is bumped whenever the core prompts or guide topics change in a way a user should
 // know about. It is shown in Settings → Harness.
-const CoreVersion = 1
+const CoreVersion = 2
 
 // Kinds of prompt.
 const (

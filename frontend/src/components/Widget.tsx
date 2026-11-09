@@ -4,17 +4,59 @@
 //   - a CSP meta denies everything but inline styles and data: images (inline scripts only when allowed).
 // Scripts are off by default. The setting `widgets.scripts` (true/false, set with settings_update)
 // allows them for every widget.
-import { useEffect, useRef, useState } from "react";
+//
+// In a chat a widget is part of the conversation: a quiet caption (only when it has a title), the
+// frame, and a "⋯" menu that shows on hover or keyboard focus with Open full screen, Copy HTML and,
+// when the chat can pin, Add to dashboard. Pinning is the user's choice, never the default action.
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, Ref } from "react";
+import { createPortal } from "react-dom";
 import tokensCss from "../styles/tokens.css?raw";
+import { Icon } from "./ui";
 
 export const WIDGET_MIN_HEIGHT = 80;
 export const WIDGET_MAX_HEIGHT = 1200;
 export const WIDGET_DEFAULT_HEIGHT = 220;
+/** The tallest a guessed height gets; "Show more" goes past it. */
+export const WIDGET_GUESS_MAX = 480;
 
 const CSP_BASE = "default-src 'none'; style-src 'unsafe-inline'; img-src data:";
 export const widgetCsp = (scripts: boolean) => (scripts ? `${CSP_BASE}; script-src 'unsafe-inline'` : CSP_BASE);
 export const widgetSandbox = (scripts: boolean) => (scripts ? "allow-scripts" : "");
 export const clampHeight = (h: number) => Math.min(WIDGET_MAX_HEIGHT, Math.max(WIDGET_MIN_HEIGHT, Math.round(h) || WIDGET_DEFAULT_HEIGHT));
+
+const SVG_OPEN = /^\s*<svg\b[^>]*>/i;
+
+/** Whether a widget is a diagram (it starts with an <svg>), which gets the full chat width. */
+export const isDiagram = (html: string) => SVG_OPEN.test(html);
+
+/**
+ * A height for a widget whose frame cannot report its own (scripts off). An SVG that starts the
+ * widget is sized exactly from its height, or from its viewBox and the frame's width. Anything
+ * else is guessed from its rows and length, capped at WIDGET_GUESS_MAX. `exact` says which.
+ */
+export function estimateHeight(html: string, width: number): { height: number; exact: boolean } {
+  if (html.trim() === "") return { height: WIDGET_DEFAULT_HEIGHT, exact: false };
+  const open = html.match(SVG_OPEN)?.[0];
+  if (open) {
+    const num = (attr: string) => {
+      const m = open.match(new RegExp(`\\s${attr}\\s*=\\s*["']?\\s*(\\d+(?:\\.\\d+)?)\\s*(px)?["'\\s/>]`, "i"));
+      return m ? Number(m[1]) : NaN;
+    };
+    const h = num("height");
+    if (Number.isFinite(h)) return { height: clampHeight(h + 8), exact: true };
+    const vb = open.match(/viewBox\s*=\s*["']\s*-?[\d.]+[\s,]+-?[\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i);
+    if (vb && Number(vb[1]) > 0 && width > 0) {
+      const w = num("width");
+      const shown = Number.isFinite(w) ? Math.min(w, width) : width;
+      return { height: clampHeight((shown * Number(vb[2])) / Number(vb[1]) + 8), exact: true };
+    }
+  }
+  const rows = (html.match(/<(tr|li|p|h[1-6]|br|div|section|header|footer|dt|dd)\b/gi) ?? []).length;
+  const text = html.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>|<[^>]*>/gi, "").replace(/\s+/g, " ").trim().length;
+  const lines = Math.max(1, rows, Math.ceil(text / Math.max(40, width / 7)));
+  return { height: Math.min(WIDGET_GUESS_MAX, clampHeight(20 + lines * 22)), exact: false };
+}
 
 // Token names and their light-theme defaults, from the first :root block of tokens.css. The live
 // (theme-aware) value is read from the host document; the default is the fallback when none is set.
@@ -47,13 +89,134 @@ interface Props {
   height?: number;
   data?: unknown;
   scripts: boolean;
+  /** Adds "Add to dashboard" to the menu. Only a chat passes it. */
   onPin?: () => void;
   pinned?: boolean;
+  /** "chat" (the default) has the menu and the conversation's widths; "block" is a dashboard block's body. */
+  variant?: "chat" | "block";
 }
 
-export function Widget({ title, html, height, data, scripts, onPin, pinned }: Props) {
+function Frame({ title, srcDoc, scripts, height, frameRef }: { title: string; srcDoc: string; scripts: boolean; height?: number | string; frameRef?: Ref<HTMLIFrameElement> }) {
+  return (
+    <iframe
+      ref={frameRef}
+      title={title || "Widget"}
+      sandbox={widgetSandbox(scripts)}
+      srcDoc={srcDoc}
+      style={{ width: "100%", height: height ?? "100%", border: 0, display: "block", background: "transparent" }}
+    />
+  );
+}
+
+/** The widget at a large width, over the app. Esc, the Close button or a click outside closes it. */
+function FullScreen({ title, srcDoc, scripts, onClose }: { title: string; srcDoc: string; scripts: boolean; onClose: () => void }) {
+  const id = useId();
+  const close = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    close.current?.focus();
+    const on = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", on, true);
+    return () => document.removeEventListener("keydown", on, true);
+  }, [onClose]);
+  return createPortal(
+    <div className="scrim wfull-scrim" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal wide wfull" role="dialog" aria-modal="true" aria-labelledby={id}>
+        <div className="mh">
+          <h3 id={id}>{title || "Widget"}</h3>
+          <button ref={close} className="ibtn" type="button" onClick={onClose} aria-label="Close"><Icon name="close" /></button>
+        </div>
+        <div className="wfull-body">
+          <Frame title={title} srcDoc={srcDoc} scripts={scripts} />
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function WidgetMenu({ title, html, onPin, pinned, onFull }: { title: string; html: string; onPin?: () => void; pinned?: boolean; onFull: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
+  useEffect(() => {
+    if (!open) return;
+    root.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not([disabled])')?.focus();
+    const away = (e: MouseEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
+  const shut = () => {
+    setOpen(false);
+    setCopied(false);
+    button.current?.focus();
+  };
+  const onKey = (e: ReactKeyboardEvent) => {
+    if (e.key === "Escape" && open) {
+      e.preventDefault();
+      e.stopPropagation();
+      shut();
+      return;
+    }
+    if (!open || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) return;
+    e.preventDefault();
+    const items = Array.from(root.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([disabled])') ?? []);
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    items[(at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
+  };
+  const name = title || "this widget";
+  return (
+    <div className="wmenu" ref={root} onKeyDown={onKey}>
+      <button
+        ref={button}
+        type="button"
+        className="wmenu-btn"
+        aria-label={`More for ${name}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        onClick={() => (open ? shut() : setOpen(true))}
+      >
+        <Icon name="dots" size={15} />
+      </button>
+      {open ? (
+        <div className="wmenu-list" role="menu" id={menuId} aria-label={`Actions for ${name}`}>
+          <button type="button" role="menuitem" onClick={() => { shut(); onFull(); }}>Open full screen</button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              void navigator.clipboard?.writeText(html).then(() => setCopied(true), () => undefined);
+            }}
+          >
+            {copied ? "Copied" : "Copy HTML"}
+          </button>
+          {onPin ? (
+            <button type="button" role="menuitem" disabled={pinned} aria-disabled={pinned || undefined} onClick={() => { shut(); onPin(); }}>
+              {pinned ? "On the dashboard ✓" : "Add to dashboard"}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function Widget({ title, html, height, data, scripts, onPin, pinned, variant = "chat" }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
+  const box = useRef<HTMLDivElement>(null);
   const [auto, setAuto] = useState<number | null>(null);
+  const [width, setWidth] = useState(0);
+  const [more, setMore] = useState(false);
+  const [full, setFull] = useState(false);
   useEffect(() => {
     if (!scripts) return;
     const on = (e: MessageEvent) => {
@@ -64,26 +227,36 @@ export function Widget({ title, html, height, data, scripts, onPin, pinned }: Pr
     window.addEventListener("message", on);
     return () => window.removeEventListener("message", on);
   }, [scripts]);
-  const h = clampHeight((scripts && auto) || height || WIDGET_DEFAULT_HEIGHT);
+  // The frame's width, for sizing an SVG from its viewBox.
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    setWidth(el.clientWidth);
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const guess = estimateHeight(html, width || 480);
+  const reported = scripts && auto;
+  const canGrow = !reported && !height && !guess.exact;
+  const h = reported ? clampHeight(auto) : height ? clampHeight(height) : more && canGrow ? clampHeight(Math.max(guess.height * 2, 600)) : guess.height;
+  const srcDoc = widgetSrcDoc(html, { scripts, data });
+  const chat = variant === "chat";
+  const cls = ["widget", chat ? "w-chat" : "w-block", chat && isDiagram(html) ? "w-wide" : ""].filter(Boolean).join(" ");
   return (
-    <div className="widget" role="group" aria-label={`Widget ${title}`}>
-      {title || onPin ? (
-        <div className="wh">
-          <b style={{ flex: 1 }}>{title}</b>
-          {onPin ? (
-            <button className="btn sm" type="button" disabled={pinned} aria-label={pinned ? `${title} is on the dashboard` : `Pin ${title} to the dashboard`} onClick={onPin}>
-              {pinned ? "On the dashboard" : "Pin to dashboard"}
-            </button>
-          ) : null}
-        </div>
+    <div className={cls} role="group" aria-label={`Widget ${title}`.trim()}>
+      {chat ? <WidgetMenu title={title} html={html} onPin={onPin} pinned={pinned} onFull={() => setFull(true)} /> : null}
+      {title ? <div className="wcap">{title}</div> : null}
+      <div className="wframe" ref={box}>
+        <Frame title={title} srcDoc={srcDoc} scripts={scripts} height={h} frameRef={frame} />
+      </div>
+      {canGrow ? (
+        <button type="button" className="wmore" aria-expanded={more} onClick={() => setMore((v) => !v)}>
+          {more ? "Show less" : "Show more"}
+        </button>
       ) : null}
-      <iframe
-        ref={frame}
-        title={title || "Widget"}
-        sandbox={widgetSandbox(scripts)}
-        srcDoc={widgetSrcDoc(html, { scripts, data })}
-        style={{ width: "100%", height: h, border: 0, display: "block", background: "transparent" }}
-      />
+      {full ? <FullScreen title={title} srcDoc={srcDoc} scripts={scripts} onClose={() => setFull(false)} /> : null}
     </div>
   );
 }

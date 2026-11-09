@@ -25,6 +25,68 @@ func TestCoreHarnessCarriesTheRoleAndTheTools(t *testing.T) {
 	}
 }
 
+func TestCoreHarnessTeachesExplainingWithWidgets(t *testing.T) {
+	if CoreVersion < 2 {
+		t.Errorf("CoreVersion = %d; the widgets guidance is version 2", CoreVersion)
+	}
+	shared := []string{
+		"Explain with widgets",
+		"Use widget_post",
+		"a comparison table, a before/after, a small flow or architecture diagram in inline SVG, a timeline, a bar or sparkline of numbers, a checklist of a plan's steps, a status board",
+		"Pair the widget with one or two lines of text",
+		"Do not repeat the widget's content in prose.",
+		"no network, under 256 KB",
+		"so it works in light and dark",
+		"Do not post a widget for a trivial or one-line answer.",
+		"Widgets in chat are for explaining.",
+		`hadron_guide with topic "widgets"`,
+	}
+	for kind, extra := range map[string][]string{
+		KindPlanner: {"Add one to the dashboard (widget_pin) only when the user asks."},
+		KindSession: {"Use widget_post on your card", "Adding one to the dashboard is the user's choice"},
+	} {
+		text := Core(kind)
+		for _, want := range append(shared, extra...) {
+			if !strings.Contains(text, want) {
+				t.Errorf("core %s prompt lacks %q", kind, want)
+			}
+		}
+		for _, gone := range []string{"Show, don't dump", "worth keeping, pin it", "pin a good widget"} {
+			if strings.Contains(text, gone) {
+				t.Errorf("core %s prompt still says %q", kind, gone)
+			}
+		}
+	}
+}
+
+func TestWidgetGuideTeachesAndKeepsPinningSeparate(t *testing.T) {
+	w, err := Guide("widgets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"## A flow diagram (inline SVG, with arrows)", "<marker", "marker-end=",
+		"## Before and after", "## A timeline", "## A plan's steps, with their states",
+		"## A status table", "## A bar chart", "## A sparkline",
+		"Widgets in chat are for explaining, not for the dashboard.", "only when the user asks", "Sessions never pin.",
+	} {
+		if !strings.Contains(w, want) {
+			t.Errorf("widgets topic lacks %q", want)
+		}
+	}
+	if strings.Count(w, "```html") != 7 || strings.Count(w, "```")%2 != 0 {
+		t.Errorf("widgets topic has %d html examples and unbalanced fences", strings.Count(w, "```html"))
+	}
+	for topic, want := range map[string]string{
+		"chat":      "Widgets in chat are for explaining",
+		"dashboard": "A chat widget reaches the dashboard only when the user decides",
+	} {
+		if text, _ := Guide(topic); !strings.Contains(text, want) {
+			t.Errorf("%s topic lacks %q", topic, want)
+		}
+	}
+}
+
 func TestWorkspaceLayerDefaultsToEmpty(t *testing.T) {
 	if Default(KindPlanner) != "" || Default(KindSession) != "" || Default(KindHandoff) == "" {
 		t.Error("planner and session have an empty workspace layer by default; the handoffs keep their text")
