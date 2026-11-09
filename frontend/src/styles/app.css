@@ -330,3 +330,6 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
 .sg-row.on .sg-src{border-color:var(--fg3)}
 .b-cmd{align-self:flex-end;max-width:86%}
 .b-cmd .mono{display:inline-block;font-size:12px;color:var(--acc);background:var(--muted);border:1px solid var(--border);border-radius:99px;padding:2px 10px;white-space:pre-wrap;overflow-wrap:anywhere}
+/* Settings → Keyboard */
+.keys-list .kbd+.kbd{margin-left:4px}
+.keys-list .table td{vertical-align:middle}

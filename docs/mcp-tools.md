@@ -60,7 +60,7 @@ Read global settings: one by key, or all.
 
 ### `settings_update`
 
-Change global settings, such as theme (light, dark or system). Returns all settings.
+Change global settings, such as theme (light, dark or system) or keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like "Mod+D" or "Shift+Mod+P"; see hadron_guide keyboard). Returns all settings.
 
 *changes data*
 

@@ -9,6 +9,7 @@ import { DiagnosticsTab } from "./DiagnosticsTab";
 import { FeedbackTab } from "./FeedbackTab";
 import { ModelsTab, useModels } from "./ModelsTab";
 import { GeneralTab } from "./GeneralTab";
+import { KeyboardTab } from "./KeyboardTab";
 import { PlannerTab } from "./PlannerTab";
 import { ProfileOptions } from "./ProfileGrant";
 import { useEffect, useRef, useState } from "react";
@@ -234,6 +235,7 @@ type SettingsTab = { id: string; label: string; render: (board: Board, ctx: Sett
 /** Add a tab by adding an entry. */
 export const SETTINGS_TABS: SettingsTab[] = [
   { id: "general", label: "General", render: (b) => <GeneralTab toast={b.actions.toast} /> },
+  { id: "keyboard", label: "Keyboard", render: (b) => <KeyboardTab toast={b.actions.toast} /> },
   { id: "prompts", label: "Harness", render: (b) => <PromptsTab board={b} /> },
   { id: "columns", label: "Columns", render: (b) => <ColumnsTab board={b} /> },
   { id: "models", label: "Models", render: (b) => <ModelsTab board={b} /> },

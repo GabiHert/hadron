@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Settings → Keyboard lists every keyboard shortcut, grouped by where it works, with a search box. Choose Change and press new keys to rebind one; Hadron warns when the keys are taken (and can move them over), refuses macOS's own shortcuts, and resets one or all to the defaults. The planner can change them too, through the keys.bindings setting.
+
 ## [0.2.17] - 2026-11-09
 
 ### Added

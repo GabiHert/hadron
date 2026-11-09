@@ -98,7 +98,7 @@ func registerUI(r *Registry) {
 			return c.Store.Settings.All()
 		})
 
-	Register(r, Spec{Name: "settings_update", Description: "Change global settings, such as theme (light, dark or system). Returns all settings.", Mutates: true, Entities: []string{"settings"}},
+	Register(r, Spec{Name: "settings_update", Description: "Change global settings, such as theme (light, dark or system) or keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like \"Mod+D\" or \"Shift+Mod+P\"; see hadron_guide keyboard). Returns all settings.", Mutates: true, Entities: []string{"settings"}},
 		func(ctx context.Context, c *Call, in SettingsUpdateIn) (map[string]json.RawMessage, error) {
 			for k, v := range in.Values {
 				if !settingKeyRe.MatchString(k) {
@@ -137,6 +137,11 @@ func registerUI(r *Registry) {
 						c.AfterCommit(func() { c.Deps.Log.SetDebug(on) })
 					}
 				}
+				if k == SettingKeyBindings {
+					if err := checkKeyBindings(v); err != nil {
+						return nil, err
+					}
+				}
 				if k == "theme" && v != "light" && v != "dark" && v != "system" {
 					return nil, fmt.Errorf("theme must be light, dark or system, got %v", v)
 				}
@@ -146,6 +151,39 @@ func registerUI(r *Registry) {
 			}
 			return c.Store.Settings.All()
 		})
+}
+
+// SettingKeyBindings holds the keyboard shortcuts the user rebound: command id → chords. A missing
+// id keeps its default; an empty list unbinds it. The frontend's keys.ts owns the command ids.
+const SettingKeyBindings = "keys.bindings"
+
+var (
+	commandIDRe = regexp.MustCompile(`^[a-z][a-z0-9]*(\.[a-z0-9]+)*$`)
+	chordRe     = regexp.MustCompile(`^(Ctrl\+)?(Alt\+)?(Shift\+)?(Mod\+)?([A-Z0-9]|[!-/:-@\[-` + "`" + `{-~]|Arrow(Left|Right|Up|Down)|Escape|Enter|Space|Tab|Backspace|Delete|Home|End|PageUp|PageDown|F[0-9]{1,2})$`)
+)
+
+// checkKeyBindings validates the value of keys.bindings, so a planner over MCP gets a clear error.
+func checkKeyBindings(v any) error {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return fmt.Errorf("%s must be an object of command id to a list of chords, such as {\"view.dashboard\": [\"Mod+D\"]}", SettingKeyBindings)
+	}
+	for id, raw := range m {
+		if !commandIDRe.MatchString(id) {
+			return fmt.Errorf("%s: %q is not a command id; ids look like view.dashboard or card.start", SettingKeyBindings, id)
+		}
+		list, ok := raw.([]any)
+		if !ok {
+			return fmt.Errorf("%s: %s must be a list of chords (an empty list removes the shortcut)", SettingKeyBindings, id)
+		}
+		for _, c := range list {
+			s, _ := c.(string)
+			if !chordRe.MatchString(s) {
+				return fmt.Errorf("%s: %s has %v, which is not a chord. Write modifiers in the order Ctrl, Alt, Shift, Mod (⌘), then the key: Mod+D, Shift+Mod+P, Alt+ArrowRight, G, ?", SettingKeyBindings, id, c)
+			}
+		}
+	}
+	return nil
 }
 
 func checkPanel(panel string, allowEmpty bool) error {
