@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -671,5 +672,30 @@ func TestFolderMigrationKeepsOldCardsInTheRoot(t *testing.T) {
 	ww, _ := s2.Workspaces.Get(w.ID)
 	if a.Cwd != "/tmp/acme-web" || b.Cwd != "/tmp/beta" || ww.PlannerCwd != "/tmp/acme-api" {
 		t.Fatalf("round trip: %q %q %q", a.Cwd, b.Cwd, ww.PlannerCwd)
+	}
+}
+
+func TestMarkRunningExitedSkipsLiveProcesses(t *testing.T) {
+	s := open(t)
+	w := mustWS(t, s, "w")
+	mk := func(pid int) string {
+		x := domain.Session{WorkspaceID: w.ID, Kind: "planner", Command: "claude", PID: pid, Status: "running"}
+		if err := s.Sessions.Create(&x); err != nil {
+			t.Fatal(err)
+		}
+		return x.ID
+	}
+	live, dead, none := mk(4242), mk(4343), mk(0)
+	n, err := s.Sessions.MarkRunningExitedIf(func(pid int) bool { return pid == 4242 })
+	if err != nil || n != 2 {
+		t.Fatalf("marked %d, %v; want 2", n, err)
+	}
+	for id, want := range map[string]string{live: "running", dead: "exited", none: "exited"} {
+		if got, _ := s.Sessions.Get(id); got.Status != want {
+			t.Errorf("%s = %q, want %q", id, got.Status, want)
+		}
+	}
+	if !ProcessAlive(os.Getpid()) || ProcessAlive(2147483646) || ProcessAlive(0) {
+		t.Error("ProcessAlive: our pid is alive, an absurd pid and 0 are not")
 	}
 }

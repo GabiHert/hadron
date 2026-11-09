@@ -4,10 +4,12 @@ package app
 import (
 	"context"
 	"embed"
+	"errors"
 	"github.com/GabiHert/hadron/internal/dlog"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/GabiHert/hadron/internal/board"
@@ -19,23 +21,25 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // Run starts the app and blocks until the window closes.
+//
+// Only the primary instance touches the data folder. Run takes a lock on it first; a process that
+// cannot (a second launch, or the binary `wails build` runs to generate bindings) opens no
+// database, migrates nothing and reconciles no sessions, so it can never change the rows of the
+// Hadron that is running. In that case Wails' own single-instance lock hands the launch to the
+// running app and this process exits.
 func Run(assets embed.FS) error {
-	if err := os.MkdirAll(run.Home(), 0o700); err != nil {
-		return err
-	}
-	st, err := store.Open(run.DBPath())
+	st, lock, err := prepare(bindingsMode, run.Home())
 	if err != nil {
 		return err
 	}
-	if _, err := st.Sessions.MarkRunningExited(); err != nil {
-		log.Printf("sessions: %v", err)
+	if st == nil {
+		return runShell(assets)
 	}
-	if err := board.BackfillLaunchProfiles(st); err != nil {
-		log.Printf("launch profiles: %v", err)
-	}
+	defer lock.Close()
 	a := New(st)
 	// Anything the app prints with the standard logger is an error worth keeping.
 	log.SetOutput(io.MultiWriter(os.Stderr, logWriter{a.log}))
@@ -45,7 +49,56 @@ func Run(assets embed.FS) error {
 			panic(r)
 		}
 	}()
-	return wailsv2.Run(&options.App{
+	return wailsv2.Run(appOptions(assets, a, buildMenu(a), true))
+}
+
+// prepare decides whether this process is the primary instance and, only then, opens (and
+// migrates) the store. A nil store means a shell: the bindings generator, or a second launch.
+// Neither touches the data folder: not the database, not the lock file, not a migration.
+func prepare(bindings bool, home string) (*store.Store, *os.File, error) {
+	if bindings {
+		return nil, nil, nil
+	}
+	lock, err := lockPrimary(home)
+	if errors.Is(err, errNotPrimary) {
+		log.Printf("Hadron is already running on %s; handing over to it", home)
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	st, err := store.Open(filepath.Join(home, "hadron.db"))
+	if err != nil {
+		lock.Close()
+		return nil, nil, err
+	}
+	return st, lock, nil
+}
+
+// reconcile is the startup work on the database that only the primary instance does, before any
+// session is restored: sessions left running by a previous run whose process is gone are marked
+// exited, and launch profiles are backfilled.
+func reconcile(st *store.Store) {
+	if _, err := st.Sessions.MarkRunningExited(); err != nil {
+		log.Printf("sessions: %v", err)
+	}
+	if err := board.BackfillLaunchProfiles(st); err != nil {
+		log.Printf("launch profiles: %v", err)
+	}
+}
+
+// runShell runs Wails with a bare App that has no store: for the bindings generator, and for a
+// second launch, which Wails' single-instance lock hands over to the running app before any of
+// this starts. If it ever did start, it quits at once.
+func runShell(assets embed.FS) error {
+	a := &App{}
+	opts := appOptions(assets, a, nil, false)
+	opts.OnStartup = func(ctx context.Context) { wruntime.Quit(ctx) }
+	return wailsv2.Run(opts)
+}
+
+func appOptions(assets embed.FS, a *App, m *menu.Menu, primary bool) *options.App {
+	o := &options.App{
 		Title:            "Hadron",
 		Width:            1360,
 		Height:           860,
@@ -56,15 +109,22 @@ func Run(assets embed.FS) error {
 			TitleBar: mac.TitleBarHiddenInset(),
 			About:    &mac.AboutInfo{Title: "Hadron", Message: "Version " + run.Version},
 		},
-		Menu: buildMenu(a),
+		Menu: m,
 		// ⌘W and the close button hide the app instead of quitting, so sessions keep running. ⌘Q quits.
-		HideWindowOnClose:  true,
-		SingleInstanceLock: &options.SingleInstanceLock{UniqueId: instanceID()},
-		AssetServer:        &assetserver.Options{Assets: assets},
-		OnStartup:          func(ctx context.Context) { a.startup(ctx) },
-		OnShutdown:         func(ctx context.Context) { a.shutdown() },
-		Bind:               []interface{}{a},
-	})
+		HideWindowOnClose: true,
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId: instanceID(),
+			// A second launch only brings the running window forward; its process exits at once.
+			OnSecondInstanceLaunch: func(options.SecondInstanceData) { a.showWindow() },
+		},
+		AssetServer: &assetserver.Options{Assets: assets},
+		Bind:        []interface{}{a},
+	}
+	if primary {
+		o.OnStartup = func(ctx context.Context) { a.startup(ctx) }
+		o.OnShutdown = func(ctx context.Context) { a.shutdown() }
+	}
+	return o
 }
 
 // EventWhatsNew asks the frontend to open the "What's new" window.

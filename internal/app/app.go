@@ -107,6 +107,16 @@ func New(st *store.Store) *App {
 	return a
 }
 
+// showWindow brings the window forward, for a second launch of the app.
+func (a *App) showWindow() {
+	c := a.context()
+	if c == nil {
+		return
+	}
+	wruntime.WindowUnminimise(c)
+	wruntime.Show(c)
+}
+
 // loginEnv reads the login shell's environment. Tests replace it.
 var loginEnv = pty.LoginShellEnv
 
@@ -127,6 +137,7 @@ func (a *App) startup(ctx context.Context) {
 	a.cancel = cancel
 	a.mu.Unlock()
 	a.log.Info("startup", "version", run.Version)
+	reconcile(a.st)
 	// The MCP server must be listening before any planner starts, so the config files it writes
 	// name the port the server really got.
 	if err := a.mcp.Start(); err != nil {

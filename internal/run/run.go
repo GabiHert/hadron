@@ -5,6 +5,7 @@ package run
 import (
 	"os"
 	"path/filepath"
+	"testing"
 )
 
 // Version is set at build time: -ldflags "-X github.com/GabiHert/hadron/internal/run.Version=v1.2.3".
@@ -16,6 +17,14 @@ func Home() string {
 	if v := os.Getenv("HADRON_HOME"); v != "" {
 		return v
 	}
+	if testing.Testing() {
+		panic("run.Home() was called in a test without HADRON_HOME: the test would touch the real ~/.hadron. Set HADRON_HOME to a temp dir (t.Setenv)")
+	}
+	return DefaultHome()
+}
+
+// DefaultHome is ~/.hadron, the data folder when HADRON_HOME is unset.
+func DefaultHome() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ".hadron"

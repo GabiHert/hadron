@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"syscall"
 
 	"github.com/GabiHert/hadron/internal/domain"
 )
@@ -81,14 +82,43 @@ func (r *Sessions) Update(x *domain.Session) error {
 		ts(x.UpdatedAt), x.Command, x.Cwd, x.PID, x.Status, x.ExitCode, x.ClaudeSessionID, tsPtr(x.EndedAt), x.ID))
 }
 
-// MarkRunningExited marks sessions left "running" by a previous run as exited. Call it at startup.
+// MarkRunningExited marks sessions left "running" by a previous run as exited, and returns how
+// many. It never touches a row whose process is still alive: such a session belongs to a Hadron
+// that is running (a second launch of the binary must not flip the live app's sessions), so only
+// a row with no pid, or a pid that no longer exists, is marked.
 func (r *Sessions) MarkRunningExited() (int64, error) {
-	n := ts(now())
-	res, err := r.s.q.Exec(`UPDATE sessions SET status='exited', ended_at=?, updated_at=? WHERE status='running'`, n, n)
+	return r.MarkRunningExitedIf(ProcessAlive)
+}
+
+// MarkRunningExitedIf is MarkRunningExited with the liveness check supplied, for tests.
+func (r *Sessions) MarkRunningExitedIf(alive func(pid int) bool) (int64, error) {
+	running, err := r.ListRunning()
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+	n := ts(now())
+	var marked int64
+	for _, x := range running {
+		if x.PID > 0 && alive(x.PID) {
+			continue
+		}
+		res, err := r.s.q.Exec(`UPDATE sessions SET status='exited', ended_at=?, updated_at=? WHERE id=? AND status='running'`, n, n, x.ID)
+		if err != nil {
+			return marked, err
+		}
+		c, _ := res.RowsAffected()
+		marked += c
+	}
+	return marked, nil
+}
+
+// ProcessAlive says whether a process with this pid exists (signal 0).
+func ProcessAlive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	err := syscall.Kill(pid, 0)
+	return err == nil || err == syscall.EPERM
 }
 
 // ByClaudeID returns the sessions that hold a Claude Code session id, newest first.
