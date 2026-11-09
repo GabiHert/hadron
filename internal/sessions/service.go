@@ -169,7 +169,7 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 	}
 	row.ID = uuid.NewString() // known before the row exists, so nothing fallible follows the insert
 
-	prompt, err := RenderPrompt(tx, ws, card, kindOf(card))
+	prompt, err := RenderPromptWith(tx, ws, card, &profile, kindOf(card))
 	if err != nil {
 		return row, nil, err
 	}

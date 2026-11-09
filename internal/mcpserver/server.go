@@ -264,7 +264,9 @@ func (s *Server) actorFor(header http.Header) actions.Actor {
 }
 
 const instructions = "Hadron runs Claude Code sessions as cards on a board. Every tool is one Hadron action. " +
-	"Call app_status first. Errors say what to fix."
+	"Call hadron_guide before you guess how a feature works (topics: overview, chat, questions, reports, widgets, " +
+	"dashboard, fields-links, rules-filters, integrations, prompts, feedback, debugging); it explains each part of Hadron " +
+	"and has widget examples. Call app_status for the version. Errors say what to fix."
 
 func (s *Server) mcpServer() *mcp.Server {
 	srv := mcp.NewServer(&mcp.Implementation{Name: "hadron", Version: s.opts.Version}, &mcp.ServerOptions{Instructions: instructions})

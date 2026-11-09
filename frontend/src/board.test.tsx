@@ -232,7 +232,7 @@ describe("shell", () => {
     await openApp();
     await user.click(screen.getByRole("button", { name: "Settings" }));
     const nav = screen.getByRole("navigation", { name: "Settings sections" });
-    for (const t of ["Prompts", "Columns", "Rules", "Integrations", "MCP server"]) expect(within(nav).getByRole("button", { name: t })).toBeInTheDocument();
+    for (const t of ["Harness", "Columns", "Rules", "Integrations", "MCP server"]) expect(within(nav).getByRole("button", { name: t })).toBeInTheDocument();
     await user.click(within(nav).getByRole("button", { name: "Integrations" }));
     expect(await screen.findByRole("button", { name: "Ask the planner to build one" })).toBeInTheDocument();
   });

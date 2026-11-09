@@ -11,14 +11,14 @@ func now() time.Time { return time.Now().UTC() }
 // Cards is the repo for cards.
 type Cards struct{ s *Store }
 
-const cardCols = `id, created_at, updated_at, workspace_id, column_id, position, nick, key, title, assignee, stage, liveness, return_column_id, launch_profile, fields, archived`
+const cardCols = `id, created_at, updated_at, workspace_id, column_id, position, nick, key, title, assignee, stage, liveness, return_column_id, launch_profile, fields, archived, prompt`
 
 func scanCard(r scanner) (domain.Card, error) {
 	var c domain.Card
 	var cr, up, fields string
 	var ret *string
 	var arch int
-	err := r.Scan(&c.ID, &cr, &up, &c.WorkspaceID, &c.ColumnID, &c.Position, &c.Nick, &c.Key, &c.Title, &c.Assignee, &c.Stage, &c.Liveness, &ret, &c.LaunchProfile, &fields, &arch)
+	err := r.Scan(&c.ID, &cr, &up, &c.WorkspaceID, &c.ColumnID, &c.Position, &c.Nick, &c.Key, &c.Title, &c.Assignee, &c.Stage, &c.Liveness, &ret, &c.LaunchProfile, &fields, &arch, &c.Prompt)
 	c.CreatedAt, c.UpdatedAt, c.Archived = parseTS(cr), parseTS(up), arch == 1
 	if ret != nil {
 		c.ReturnColumnID = *ret
@@ -40,9 +40,9 @@ func (r *Cards) Create(c *domain.Card) error {
 	if err := r.s.q.QueryRow(`SELECT COALESCE(MAX(position), -1) + 1 FROM cards WHERE column_id = ?`, c.ColumnID).Scan(&c.Position); err != nil {
 		return err
 	}
-	_, err := r.s.q.Exec(`INSERT INTO cards (`+cardCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+	_, err := r.s.q.Exec(`INSERT INTO cards (`+cardCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		c.ID, ts(c.CreatedAt), ts(c.UpdatedAt), c.WorkspaceID, c.ColumnID, c.Position, c.Nick, c.Key, c.Title, c.Assignee, c.Stage, c.Liveness,
-		nullable(c.ReturnColumnID), c.LaunchProfile, toJSON(c.Fields), b2i(c.Archived))
+		nullable(c.ReturnColumnID), c.LaunchProfile, toJSON(c.Fields), b2i(c.Archived), c.Prompt)
 	return mapErr(err)
 }
 
@@ -107,8 +107,8 @@ func (r *Cards) List(workspaceID string, f CardFilter) ([]domain.Card, error) {
 // Update writes every field of c.
 func (r *Cards) Update(c *domain.Card) error {
 	stamp(&c.Meta)
-	return mapErr(affected(r.s.q.Exec(`UPDATE cards SET updated_at=?, column_id=?, position=?, nick=?, key=?, title=?, assignee=?, stage=?, liveness=?, return_column_id=?, launch_profile=?, fields=?, archived=? WHERE id=?`,
-		ts(c.UpdatedAt), c.ColumnID, c.Position, c.Nick, c.Key, c.Title, c.Assignee, c.Stage, c.Liveness, nullable(c.ReturnColumnID), c.LaunchProfile, toJSON(c.Fields), b2i(c.Archived), c.ID)))
+	return mapErr(affected(r.s.q.Exec(`UPDATE cards SET updated_at=?, column_id=?, position=?, nick=?, key=?, title=?, assignee=?, stage=?, liveness=?, return_column_id=?, launch_profile=?, fields=?, archived=?, prompt=? WHERE id=?`,
+		ts(c.UpdatedAt), c.ColumnID, c.Position, c.Nick, c.Key, c.Title, c.Assignee, c.Stage, c.Liveness, nullable(c.ReturnColumnID), c.LaunchProfile, toJSON(c.Fields), b2i(c.Archived), c.Prompt, c.ID)))
 }
 
 // SetLiveness records a card's liveness. A card that is gone is ignored: a session can outlive it by a moment.

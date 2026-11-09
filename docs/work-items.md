@@ -198,3 +198,7 @@ Build them in order. Each WI ends green on `make test`, plus `make build` for an
 **WI-25: Feedback inbox**
 - **What:** a `feedback` table, `feedback_create`, `feedback_list` and `feedback_update`, a Feedback button in the header, and Settings, Feedback with "Open as GitHub issue".
 - **AC:** create, filter and update through the actions; the issue URL is prefilled and fits the URL limit.
+
+**WI-26: Built-in harness and layered prompts**
+- **What:** the core planner and session prompts are embedded, versioned and read-only; a session prompt is composed from the core, the workspace prompt, the launch profile's `prompt` and the card's `prompt`, all with `{{variables}}`. New `hadron_guide {topic?}` (twelve embedded topics, with widget HTML that uses the theme's CSS variables), new `prompt_layers_get {kind, card?}`, `prompt_render` returns the composed text, the MCP server `instructions` point at `hadron_guide`. Settings, Prompts becomes Settings, Harness.
+- **AC:** tests cover layer order and variable filling in the fake claude's argv, the core surviving `prompt_set` and `prompt_reset`, the card and profile layers, every guide topic and the unknown-topic error, and the MCP instructions. Spec section 6 is updated.

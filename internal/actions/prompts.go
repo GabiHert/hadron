@@ -39,20 +39,59 @@ type PromptRenderIn struct {
 
 // PromptOut is a prompt as Settings shows it.
 type PromptOut struct {
-	Kind      string   `json:"kind"`
-	Template  string   `json:"template"`
-	Default   string   `json:"default"`
-	Custom    bool     `json:"custom"`
-	Variables []string `json:"variables"`
+	Kind     string `json:"kind"`
+	Template string `json:"template"`
+	Default  string `json:"default"`
+	// Core is the built-in harness text under this kind's workspace prompt (empty for handoffs). It is read-only.
+	Core        string   `json:"core"`
+	CoreVersion int      `json:"core_version"`
+	Custom      bool     `json:"custom"`
+	Variables   []string `json:"variables"`
 	// Unknown lists {{variables}} in the template that Hadron does not fill in. prompt_set returns them as a warning.
 	Unknown []string `json:"unknown"`
 	Warning string   `json:"warning,omitempty"`
+}
+
+// PromptLayersIn is the input of prompt_layers_get.
+type PromptLayersIn struct {
+	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
+	Kind        string `json:"kind" jsonschema:"planner, session, handoff or handoff_planner"`
+	Card        string `json:"card,omitempty" jsonschema:"show the layers as this card's session gets them (id, nickname or key); default is a sample card"`
+}
+
+// PromptLayersOut is the result of prompt_layers_get.
+type PromptLayersOut struct {
+	Kind        string          `json:"kind"`
+	CoreVersion int             `json:"core_version"`
+	Layers      []prompts.Layer `json:"layers"`
+	Text        string          `json:"text"`
+}
+
+// GuideIn is the input of hadron_guide.
+type GuideIn struct {
+	Topic string `json:"topic,omitempty" jsonschema:"one of the guide topics; default overview"`
+}
+
+// GuideOut is the result of hadron_guide.
+type GuideOut struct {
+	Topic       string   `json:"topic"`
+	Text        string   `json:"text"`
+	Topics      []string `json:"topics"`
+	CoreVersion int      `json:"core_version"`
 }
 
 // PromptRenderOut is the result of prompt_render.
 type PromptRenderOut struct {
 	Text    string   `json:"text"`
 	Unknown []string `json:"unknown"`
+}
+
+// checkLayerPrompt validates the text of a card or launch profile prompt layer.
+func checkLayerPrompt(what, text string) error {
+	if len(text) > maxPromptBytes {
+		return fmt.Errorf("the %s is %d KB; keep it under %d KB", what, len(text)/1024, maxPromptBytes/1024)
+	}
+	return nil
 }
 
 func checkPromptKind(kind string) error {
@@ -63,7 +102,7 @@ func checkPromptKind(kind string) error {
 }
 
 func promptOf(c *Call, workspaceID, kind string) (PromptOut, error) {
-	out := PromptOut{Kind: kind, Default: prompts.Default(kind), Variables: prompts.Variables}
+	out := PromptOut{Kind: kind, Default: prompts.Default(kind), Core: prompts.Core(kind), CoreVersion: prompts.CoreVersion, Variables: prompts.Variables}
 	out.Template = out.Default
 	p, err := c.Store.Prompts.Get(workspaceID, kind)
 	switch {
@@ -174,20 +213,73 @@ func registerPrompts(r *Registry) {
 					card = &domain.Card{Nick: "example-card", Key: "KEY-1"}
 				}
 			}
-			var text string
+			var override *string
 			if in.Template != "" {
-				text, err = sessions.RenderTemplate(c.Store, w, card, in.Template)
-			} else {
-				text, err = sessions.RenderPrompt(c.Store, w, card, in.Kind)
+				override = &in.Template
 			}
+			var profile *domain.LaunchProfile
+			if card != nil && card.LaunchProfile != "" {
+				if p, err := sessions.FindProfile(c.Store, w.ID, card.LaunchProfile); err == nil {
+					profile = &p
+				}
+			}
+			layers, err := sessions.PromptLayers(c.Store, w, card, profile, in.Kind, override)
 			if err != nil {
 				return PromptRenderOut{}, err
 			}
+			text := prompts.Compose(layers)
 			tpl := in.Template
 			if tpl == "" {
 				p, _ := promptOf(c, w.ID, in.Kind)
 				tpl = p.Template
 			}
 			return PromptRenderOut{Text: text, Unknown: prompts.Unknown(tpl)}, nil
+		})
+
+	Register(r, Spec{Name: "prompt_layers_get", Description: "Show every layer of a session's prompt, in the order they are composed: the core harness (built in, read-only), the workspace prompt, the launch profile's prompt and the card's prompt, each as a template and as rendered text, plus the composed result. Use it to see why a session behaves as it does."},
+		func(ctx context.Context, c *Call, in PromptLayersIn) (PromptLayersOut, error) {
+			if err := checkPromptKind(in.Kind); err != nil {
+				return PromptLayersOut{}, err
+			}
+			w, err := c.Workspace(in.WorkspaceID)
+			if err != nil {
+				return PromptLayersOut{}, err
+			}
+			var card *domain.Card
+			var profile *domain.LaunchProfile
+			if prompts.UsesCard(in.Kind) {
+				if in.Card != "" {
+					cd, err := cardByRef(c, in.Card)
+					if err != nil {
+						return PromptLayersOut{}, err
+					}
+					card = &cd
+					if cd.LaunchProfile != "" {
+						if p, err := sessions.FindProfile(c.Store, w.ID, cd.LaunchProfile); err == nil {
+							profile = &p
+						}
+					}
+				} else {
+					card = &domain.Card{Nick: "example-card", Key: "KEY-1"}
+				}
+			}
+			layers, err := sessions.PromptLayers(c.Store, w, card, profile, in.Kind, nil)
+			if err != nil {
+				return PromptLayersOut{}, err
+			}
+			return PromptLayersOut{Kind: in.Kind, CoreVersion: prompts.CoreVersion, Layers: layers, Text: prompts.Compose(layers)}, nil
+		})
+
+	Register(r, Spec{Name: "hadron_guide", Description: "Read how a part of Hadron works, written for you: overview, chat, questions, reports, widgets (with HTML examples that use the theme's CSS variables), dashboard, fields-links, rules-filters, integrations, prompts, feedback, debugging. Call it before guessing how a feature behaves. With no topic it returns the overview and the topic list."},
+		func(ctx context.Context, c *Call, in GuideIn) (GuideOut, error) {
+			text, err := prompts.Guide(in.Topic)
+			if err != nil {
+				return GuideOut{}, err
+			}
+			topic := in.Topic
+			if topic == "" {
+				topic = "overview"
+			}
+			return GuideOut{Topic: topic, Text: text, Topics: prompts.GuideTopics(), CoreVersion: prompts.CoreVersion}, nil
 		})
 }

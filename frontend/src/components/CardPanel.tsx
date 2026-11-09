@@ -8,6 +8,7 @@ import { Composer } from "./Composer";
 import { SessionTerminal } from "./SessionTerminal";
 import { LinksTab, useLinks } from "./LinksTab";
 import { Icon } from "./ui";
+import { AutoText } from "./PromptsTab";
 
 export type CardTab = "conv" | "links" | "ctx";
 
@@ -144,6 +145,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
             </div>
           </div>
           <p className="hint">Context comes from the workspace's adapter. A generic workspace shows what the session reported.</p>
+          <CardPromptEditor key={c.id} board={board} />
         </div>
       )}
     </aside>
@@ -169,6 +171,42 @@ function CardConversation({ board }: { board: Board }) {
         empty={ch.loaded ? <div className="empty">Nothing yet. Reports and questions from {c.nick} appear here, and what you write goes to the planner.</div> : null}
       />
       <Composer id={`card-msg-${c.id}`} label="Message about this card" placeholder={`Goes to the planner tagged ${tag}; it relays to the session.`} onSend={ch.send} />
+    </>
+  );
+}
+
+/** The card layer of the session prompt: edit it and preview the composed text. */
+function CardPromptEditor({ board }: { board: Board }) {
+  const { ws, selected: c, actions } = board;
+  const [draft, setDraft] = useState(c?.prompt ?? "");
+  const [composed, setComposed] = useState("");
+  const [open, setOpen] = useState(false);
+  const saved = c?.prompt ?? "";
+  useEffect(() => setDraft(saved), [saved]);
+  useEffect(() => {
+    if (!open || !c || !ws) return;
+    api
+      .prompt_layers_get({ workspace_id: ws.id, kind: "session", card: c.id })
+      .then((r) => setComposed(r.text))
+      .catch((e) => setComposed(e instanceof Error ? e.message : String(e)));
+  }, [open, c?.id, ws?.id, saved]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!c) return null;
+  return (
+    <>
+      <label className="field">
+        <span>Card prompt</span>
+        <AutoText value={draft} onChange={setDraft} label="Card prompt" max={260} />
+      </label>
+      <div className="inline">
+        <button className="btn pri" disabled={draft === saved} onClick={() => void actions.run(() => api.card_update({ card_id: c.id, prompt: draft })).then((out) => out && actions.toast("Card prompt saved."))}>
+          Save
+        </button>
+        <span className="hint">Applies when this card's session next starts.</span>
+      </div>
+      <details onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+        <summary>Show composed prompt</summary>
+        <div className="code" style={{ whiteSpace: "pre-wrap" }} aria-label="Composed prompt">{composed}</div>
+      </details>
     </>
   );
 }

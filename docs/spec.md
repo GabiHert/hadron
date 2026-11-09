@@ -29,7 +29,7 @@ internal/actions        the action registry (§3). Every user-visible operation 
 internal/board          columns, cards, placement, rules engine, filters (CEL)
 internal/pty            session manager: spawn, write, resize, scrollback, screen snapshot, liveness
 internal/chat           channels, routing card chat → planner PTY, planner/session replies
-internal/prompts        default templates + rendering
+internal/prompts        built-in harness (core prompts, guide topics), handoff defaults, rendering
 internal/fields         field schema registry (native + integration-contributed)
 internal/script         goja sandbox + strict host API (§8)
 internal/dash           dashboard blocks + named queries
@@ -61,8 +61,8 @@ Every table has `id TEXT PRIMARY KEY` (a ULID or UUID), `created_at` and `update
 | `rules` | `workspace_id`, `position`, `name`, `enabled`, `trigger` (JSON `{on: field_changed, field}` or `{on: column_entered, column}`, `card_created`, `report`, `question_opened`, `idle_for {minutes}`, `cron {spec}`), `condition` (CEL string, may be empty), `actions` (JSON list: `move {column_id}`, `set_field {path, value}`, `notify {text}`, `tell_planner {text}`, `run_action {script, action}`), `builtin` (bool) |
 | `views` | `workspace_id`, `name`, `filters` (JSON `{vals: {path: value}, q, expr}`), `position` |
 | `dash_blocks` | `workspace_id`, `position`, `type`, `title`, `span` (1 or 2), `source` (JSON `{query, args}`), `html`, `schedule`, `text`, `text_at` |
-| `prompts` | `workspace_id`, `kind` (`planner`, `session`), `template` (a null row means the default) |
-| `launch_profiles` | `workspace_id`, `name`, `command`, `args` (JSON), `first_prompt` (template), `env` (JSON), `worktree` (bool) |
+| `prompts` | `workspace_id`, `kind` (`planner`, `session`, `handoff`, `handoff_planner`), `template` (a null row means the default; for `planner` and `session` that is empty, the workspace layer, with the core harness underneath) |
+| `launch_profiles` | `workspace_id`, `name`, `command`, `args` (JSON), `first_prompt` (template), `prompt` (the profile's prompt layer), `env` (JSON), `worktree` (bool) |
 | `scripts` | `workspace_id` (null means global), `name`, `kind` (`integration`, `script`), `manifest` (JSON), `source` (JS text), `status` (`pending`, `enabled`, `disabled`, `rejected`), `approved_by`, `approved_at`, `test_result` (JSON) |
 | `changes` | `workspace_id`, `actor` (`you`, `planner`, `session:<nick>`, `rule:<name>`), `action`, `args` (JSON), `before` (JSON), `after` (JSON), `reverted` (bool) |
 | `mcp_calls` | `workspace_id`, `actor`, `tool`, `args` (JSON, truncated to 2 KB), `ok`, `error`, `duration_ms` |
@@ -115,7 +115,7 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
 - **Rules:** `rule_list`, `rule_create`, `rule_update`, `rule_reorder`, `rule_delete`, `rule_dry_run`, `rule_log`.
 - **Filters and views:** `filter_eval {expr}` (returns card ids), `filter_bar_set`, `view_list`, `view_save`, `view_apply`, `view_delete`.
 - **Dashboard:** `dash_get`, `dash_set`, `dash_block_add`, `dash_block_update`, `dash_block_move`, `dash_block_remove`, `dash_block_refresh`, `dash_query_run`.
-- **Prompts and launch profiles:** `prompt_get`, `prompt_set`, `prompt_reset`, `prompt_render {kind, card?}`, and `launch_profile_*`.
+- **Prompts and launch profiles:** `prompt_get`, `prompt_set`, `prompt_reset`, `prompt_render {kind, card?}`, `prompt_layers_get {kind, card?}`, `hadron_guide {topic?}`, and `launch_profile_*`. Cards also carry a `prompt` layer.
 - **Scripts and integrations:**
   - `integration_list`, `integration_scaffold`, `integration_write_file`, `integration_read_file`, `integration_validate`, `integration_test`, `integration_run_op`;
   - `integration_approve` (its outcome follows the planner policy), `integration_disable`, `integration_remove`, `integration_logs`;
@@ -180,7 +180,13 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
 
 ## 6. Prompts (`internal/prompts`)
 
-The two defaults are exactly the texts in the prototype (`DEFAULT_PROMPTS`), with "Hadron" as the app name. They're stored as Go `embed` files `default_planner.md` and `default_session.md`.
+A session's system prompt is built from **layers**, composed in this order and joined under a `## <title>` header each (empty layers are left out):
+1. **Core harness** (`core_planner.md`, `core_session.md`, embedded, versioned by `prompts.CoreVersion`). It is never stored and no action edits it. It teaches the role, the reporting and question protocol, widgets and where to find `hadron_guide`.
+2. **Workspace layer:** the `prompts` row for `planner` or `session`. Its default is empty, and a user's older customised row becomes this layer unchanged.
+3. **Launch profile layer:** `launch_profiles.prompt` (session kind only).
+4. **Card layer:** `cards.prompt` (session kind only).
+
+Every layer supports the variables below. The handoff kinds have no core: they are one text typed once into an adopted conversation. `prompt_layers_get {kind, card?}` returns each layer (template and rendered) and the composed text, and `prompt_render` returns the composed text. `hadron_guide {topic?}` serves twelve embedded topics (`internal/prompts/guide/*.md`: overview, chat, questions, reports, widgets with HTML snippets that use the theme's CSS variables, dashboard, fields-links, rules-filters, integrations, prompts, feedback, debugging), and the MCP server's `instructions` point at it. Settings → Harness shows the core read-only, the workspace layer, and the composed preview.
 - **Variables:** `{{workspace.name}}`, `{{workspace.root}}`, `{{columns}}`, `{{integrations}}`, `{{rules}}`, `{{policy}}`, `{{card.nick}}`, `{{card.key}}`, `{{card.links}}`.
 - An unknown variable is left as is, and `prompt_set` returns a warning listing it.
 

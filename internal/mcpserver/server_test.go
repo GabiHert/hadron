@@ -312,3 +312,14 @@ func TestPreferredPortOrderOptionEnvSettingDefault(t *testing.T) {
 		t.Errorf("option = %d", got)
 	}
 }
+
+func TestTheServerInstructionsPointAtHadronGuide(t *testing.T) {
+	f := newFixture(t)
+	cs := f.connect(nil)
+	got := cs.InitializeResult().Instructions
+	for _, want := range []string{"hadron_guide", "widgets", "debugging"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("instructions lack %q: %s", want, got)
+		}
+	}
+}

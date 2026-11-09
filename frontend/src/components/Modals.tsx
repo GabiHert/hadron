@@ -107,6 +107,7 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
   const [profiles, setProfiles] = useState<LaunchProfile[]>([]);
   const [profile, setProfile] = useState("");
   const [busy, setBusy] = useState(false);
+  const [cardPrompt, setCardPrompt] = useState("");
   const nick = slug(nickIn);
   const [adopting, setAdopting] = useState(false);
   const [picked, setPicked] = useState<Adoptable | null>(null);
@@ -139,7 +140,7 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
   const chosen = profiles.find((p) => p.name === profile);
   const submit = async () => {
     setBusy(true);
-    const card = await board.actions.createCard({ nick, key: key.trim() || undefined, column_id: col || undefined, launch_profile: profile || undefined });
+    const card = await board.actions.createCard({ nick, key: key.trim() || undefined, column_id: col || undefined, launch_profile: profile || undefined, ...(cardPrompt.trim() ? { prompt: cardPrompt } : {}) });
     setBusy(false);
     if (card) onClose();
   };
@@ -181,6 +182,11 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
               {profiles.map((p) => <option key={p.id} value={p.name}>{profileLabel(p)}</option>)}
             </select>
           </label>
+          <label className="field">
+            <span>Extra instructions for this session</span>
+            <textarea id="ns-prompt" className="in mono" rows={3} value={cardPrompt} onChange={(e) => setCardPrompt(e.target.value)} />
+            <span className="hint">Added to the system prompt after the workspace and launch profile prompts.</span>
+          </label>
           <div className="code" id="ns-explain" aria-label="What this profile runs">{profileExplanation(chosen, nick, key.trim())}</div>
           {nickIn && nick !== nickIn ? <p className="hint" style={{ margin: 0 }}>The nickname will be saved as <b>{nick}</b>.</p> : null}
         </div>
@@ -200,7 +206,7 @@ type SettingsTab = { id: string; label: string; render: (board: Board) => ReactN
 
 /** Add a tab by adding an entry. */
 export const SETTINGS_TABS: SettingsTab[] = [
-  { id: "prompts", label: "Prompts", render: (b) => <PromptsTab board={b} /> },
+  { id: "prompts", label: "Harness", render: (b) => <PromptsTab board={b} /> },
   { id: "columns", label: "Columns", render: (b) => <ColumnsTab board={b} /> },
   { id: "rules", label: "Rules", render: (b) => <RulesTab board={b} /> },
   { id: "integrations", label: "Integrations", render: (b) => <IntegrationsTab board={b} /> },

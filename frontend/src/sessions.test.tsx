@@ -50,6 +50,27 @@ describe("New session dialog", () => {
     );
   });
 
+  it("passes the extra instructions as prompt to card_create only when typed", async () => {
+    const user = userEvent.setup();
+    await openApp();
+    await user.click(screen.getByRole("button", { name: "New session" }));
+    await user.type(await screen.findByLabelText("Nickname"), "billing-fix");
+    await user.type(screen.getByLabelText(/Extra instructions for this session/), "Stay in the billing module.");
+    await user.click(screen.getByRole("button", { name: "Start session" }));
+    await waitFor(() => expect(mocks.card_create).toHaveBeenCalledWith(expect.objectContaining({ nick: "billing-fix", prompt: "Stay in the billing module." })));
+  });
+
+  it("leaves prompt out of card_create when the extra instructions are empty", async () => {
+    const user = userEvent.setup();
+    await openApp();
+    await user.click(screen.getByRole("button", { name: "New session" }));
+    await user.type(await screen.findByLabelText("Nickname"), "billing-fix");
+    expect(screen.getByText("Added to the system prompt after the workspace and launch profile prompts.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Start session" }));
+    await waitFor(() => expect(mocks.card_create).toHaveBeenCalled());
+    expect(mocks.card_create.mock.calls[0][0]).not.toHaveProperty("prompt");
+  });
+
   it("describes a profile that is not claude without Hadron's flags", () => {
     const p = { ...profile("shell", ""), command: "/bin/zsh" };
     expect(profileLabel(p)).toBe("Shell: /bin/zsh, no first prompt");

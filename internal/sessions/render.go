@@ -18,19 +18,73 @@ var policyText = map[string]string{
 	"ask_for_prd":    "may answer decisions and approvals that target DEV; asks the user for anything that targets PRD",
 }
 
-// RenderPrompt fills in the planner or session prompt of a workspace. kind is prompts.KindPlanner
-// or prompts.KindSession; card is nil for the planner.
+// RenderPrompt builds the prompt of a planner or session (or the text of a handoff) for a
+// workspace: the core harness, the workspace layer, the card's launch profile layer and the card's
+// own layer, each with its {{variables}} filled in. kind is one of prompts.Kinds; card is nil for
+// the planner.
 func RenderPrompt(st *store.Store, ws domain.Workspace, card *domain.Card, kind string) (string, error) {
+	var profile *domain.LaunchProfile
+	if card != nil && card.LaunchProfile != "" {
+		if p, err := FindProfile(st, ws.ID, card.LaunchProfile); err == nil {
+			profile = &p
+		}
+	}
+	return RenderPromptWith(st, ws, card, profile, kind)
+}
+
+// RenderPromptWith is RenderPrompt with the launch profile chosen by the caller (a start can
+// override the card's).
+func RenderPromptWith(st *store.Store, ws domain.Workspace, card *domain.Card, profile *domain.LaunchProfile, kind string) (string, error) {
+	layers, err := PromptLayers(st, ws, card, profile, kind, nil)
+	if err != nil {
+		return "", err
+	}
+	return prompts.Compose(layers), nil
+}
+
+// PromptLayers returns the layers of a prompt, in order, each with its template and its rendered
+// text. workspaceOverride, when not nil, stands in for the saved workspace layer (to preview an
+// edit). The handoff kinds have a single workspace layer and no core.
+func PromptLayers(st *store.Store, ws domain.Workspace, card *domain.Card, profile *domain.LaunchProfile, kind string, workspaceOverride *string) ([]prompts.Layer, error) {
 	if !slices.Contains(prompts.Kinds, kind) {
-		return "", fmt.Errorf("prompt kind %q must be one of %s", kind, strings.Join(prompts.Kinds, ", "))
+		return nil, fmt.Errorf("prompt kind %q must be one of %s", kind, strings.Join(prompts.Kinds, ", "))
 	}
 	tpl := prompts.Default(kind)
 	if p, err := st.Prompts.Get(ws.ID, kind); err == nil && p.Template != nil {
 		tpl = *p.Template
 	} else if err != nil && !errors.Is(err, store.ErrNotFound) {
-		return "", err
+		return nil, err
 	}
-	return RenderTemplate(st, ws, card, tpl)
+	if workspaceOverride != nil {
+		tpl = *workspaceOverride
+	}
+	var layers []prompts.Layer
+	if prompts.HasCore(kind) {
+		layers = append(layers, prompts.Layer{Name: prompts.LayerCore, Title: prompts.LayerTitle(prompts.LayerCore), Template: prompts.Core(kind)})
+		layers = append(layers, prompts.Layer{Name: prompts.LayerWorkspace, Title: prompts.LayerTitle(prompts.LayerWorkspace), Editable: true, Template: tpl})
+		if kind == prompts.KindSession {
+			pt, ct := "", ""
+			if profile != nil {
+				pt = profile.Prompt
+			}
+			if card != nil {
+				ct = card.Prompt
+			}
+			layers = append(layers,
+				prompts.Layer{Name: prompts.LayerProfile, Title: prompts.LayerTitle(prompts.LayerProfile), Editable: true, Template: pt},
+				prompts.Layer{Name: prompts.LayerCard, Title: prompts.LayerTitle(prompts.LayerCard), Editable: true, Template: ct})
+		}
+	} else {
+		layers = append(layers, prompts.Layer{Name: prompts.LayerWorkspace, Title: "", Editable: true, Template: tpl})
+	}
+	for i := range layers {
+		out, err := RenderTemplate(st, ws, card, layers[i].Template)
+		if err != nil {
+			return nil, err
+		}
+		layers[i].Rendered = out
+	}
+	return layers, nil
 }
 
 // RenderTemplate fills in the {{variables}} of any template for a workspace, and for a card when

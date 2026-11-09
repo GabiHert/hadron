@@ -74,6 +74,11 @@
         "name": "start",
         "required": false,
         "type": "boolean"
+      },
+      {
+        "name": "prompt",
+        "required": false,
+        "type": "string"
       }
     ]
   },
@@ -245,6 +250,11 @@
       },
       {
         "name": "launch_profile",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "prompt",
         "required": false,
         "type": "string"
       }
@@ -981,6 +991,17 @@
     "fields": null
   },
   {
+    "name": "hadron_guide",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "topic",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "integration_approve",
     "mutates": true,
     "fields": [
@@ -1300,6 +1321,11 @@
         "type": "object"
       },
       {
+        "name": "prompt",
+        "required": false,
+        "type": "string"
+      },
+      {
         "name": "worktree",
         "required": false,
         "type": "boolean"
@@ -1361,6 +1387,11 @@
         "name": "env",
         "required": false,
         "type": "object"
+      },
+      {
+        "name": "prompt",
+        "required": false,
+        "type": "string"
       },
       {
         "name": "worktree",
@@ -1662,6 +1693,27 @@
       {
         "name": "kind",
         "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "prompt_layers_get",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
         "type": "string"
       }
     ]

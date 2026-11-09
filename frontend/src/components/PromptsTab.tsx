@@ -6,7 +6,7 @@ import type { Board } from "../state/useBoard";
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** A textarea that grows with its text, up to max pixels. */
-export function AutoText({ value, onChange, max = 520, id, label }: { value: string; onChange: (v: string) => void; max?: number; id?: string; label: string }) {
+export function AutoText({ value, onChange, max = 520, id, label, placeholder }: { value: string; onChange: (v: string) => void; max?: number; id?: string; label: string; placeholder?: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -23,6 +23,7 @@ export function AutoText({ value, onChange, max = 520, id, label }: { value: str
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={label}
+      placeholder={placeholder}
     />
   );
 }
@@ -48,7 +49,7 @@ const EFFECT_HINT: Record<PromptKind, string> = {
 };
 const RECEIVER: Record<PromptKind, string> = { planner: "the planner", session: "a new session", handoff: "an adopted session", handoff_planner: "an adopted planner" };
 
-/** Settings → Prompts: the Planner / Sessions switch, variable chips, the template editor, Save, Reset to default and the live preview. */
+/** Settings → Harness: the Planner / Sessions switch, variable chips, the template editor, Save, Reset to default and the live preview. */
 export function PromptsTab({ board }: { board: Board }) {
   const { ws, selected, actions } = board;
   const wsId = ws?.id ?? "";
@@ -109,7 +110,7 @@ export function PromptsTab({ board }: { board: Board }) {
       const p = await api.prompt_reset({ workspace_id: wsId, kind });
       setInfo(p);
       setDraft(p.template);
-      actions.toast("Back to Hadron's default prompt.");
+      actions.toast("Workspace prompt cleared.");
     } catch (e) {
       actions.toast(errText(e));
     } finally {
@@ -118,11 +119,13 @@ export function PromptsTab({ board }: { board: Board }) {
   };
 
   const custom = info?.custom ?? false;
+  const hasCore = !!info?.core;
+  const emptyDefault = !!info && info.default === "";
   const dirty = info ? draft !== info.template : false;
   return (
     <>
       <div className="inline">
-        <h4 style={{ flex: 1 }}>Prompts</h4>
+        <h4 style={{ flex: 1 }}>Harness</h4>
         <div className="seg" role="tablist" aria-label="Which prompt">
           {KINDS.map((k) => (
             <button key={k.kind} className={kind === k.kind ? "on" : ""} role="tab" aria-selected={kind === k.kind} onClick={() => setKind(k.kind)}>
@@ -136,7 +139,7 @@ export function PromptsTab({ board }: { board: Board }) {
         Hadron fills in the {"{{variables}}"} when the session starts. The planner can change this too, with prompt_set.
       </p>
       <div className="inline">
-        <span className={"pill " + (custom ? "acc" : "")}>{custom ? `custom for ${ws?.name}` : "Hadron default"}</span>
+        <span className={"pill " + (custom ? "acc" : "")}>{custom ? `custom for ${ws?.name}` : emptyDefault ? "No workspace prompt" : "Hadron default"}</span>
         <span className="hint">Variables:</span>
         {(info?.variables ?? []).map((v) => (
           <button key={v} className="pill mono" style={{ fontSize: 11 }} onClick={() => setDraft((d) => d + `{{${v}}}`)} aria-label={`Insert ${v}`}>
@@ -144,9 +147,18 @@ export function PromptsTab({ board }: { board: Board }) {
           </button>
         ))}
       </div>
+      {hasCore ? (
+        <details>
+          <summary>{`Core harness (built in, v${info?.core_version})`}</summary>
+          <p className="hint">Hadron's built-in instructions. They are always on and can't be edited here; your prompt is added after them.</p>
+          <div className="code" style={{ whiteSpace: "pre-wrap" }} aria-label="Core harness">
+            {info?.core}
+          </div>
+        </details>
+      ) : null}
       <label className="field">
-        <span>Template</span>
-        <AutoText id={"prompt-" + kind} value={draft} onChange={setDraft} label="Template" />
+        <span>{hasCore ? "Workspace prompt" : "Template"}</span>
+        <AutoText id={"prompt-" + kind} value={draft} onChange={setDraft} label="Template" placeholder={emptyDefault ? "Optional. Added after the core harness for every session of this workspace." : undefined} />
       </label>
       {unknown.length ? (
         <div className="hint" role="status" style={{ color: "var(--warn)" }}>
@@ -160,9 +172,14 @@ export function PromptsTab({ board }: { board: Board }) {
         <button className="btn" disabled={!custom || busy} onClick={() => void reset()}>
           Reset to default
         </button>
-        <span className="hint">{EFFECT_HINT[kind]}</span>
+        <span className="hint">{EFFECT_HINT[kind]}{emptyDefault ? " Save needs some text; use Reset to default to clear the prompt." : ""}</span>
       </div>
-      <div className="cap">What {usesCard(kind) && sampleCard ? sampleCard : RECEIVER[kind]} receives</div>
+      {kind === "session" ? (
+        <p className="hint">
+          A launch profile prompt and a card prompt are added after this one. Set them per profile in the New session dialog and per card in its Context tab.
+        </p>
+      ) : null}
+      <div className="cap">What {usesCard(kind) && sampleCard ? sampleCard : RECEIVER[kind]} receives{hasCore ? " (composed)" : ""}</div>
       <div className="code" style={{ whiteSpace: "pre-wrap" }} aria-label="Rendered prompt">
         {preview}
       </div>

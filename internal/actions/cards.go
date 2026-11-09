@@ -38,6 +38,7 @@ type CardCreateIn struct {
 	Assignee      string `json:"assignee,omitempty" jsonschema:"who owns the card; defaults to You"`
 	LaunchProfile string `json:"launch_profile,omitempty" jsonschema:"the launch profile for its session"`
 	Start         *bool  `json:"start,omitempty" jsonschema:"start the card's session (default true)"`
+	Prompt        string `json:"prompt,omitempty" jsonschema:"extra instructions for this card's session, added to its system prompt after the workspace and launch profile prompts; may use {{variables}}"`
 }
 
 // CardUpdateIn is the input of card_update. Only the fields you pass change.
@@ -49,6 +50,7 @@ type CardUpdateIn struct {
 	Assignee      *string `json:"assignee,omitempty" jsonschema:"new assignee"`
 	Stage         *string `json:"stage,omitempty" jsonschema:"a short stage label"`
 	LaunchProfile *string `json:"launch_profile,omitempty" jsonschema:"new launch profile"`
+	Prompt        *string `json:"prompt,omitempty" jsonschema:"new card prompt: extra instructions added to the session's system prompt. Applies when the session next starts. Empty removes it"`
 }
 
 // CardMoveIn is the input of card_move.
@@ -127,8 +129,11 @@ func registerCards(r *Registry) {
 			if assignee == "" {
 				assignee = "You"
 			}
+			if err := checkLayerPrompt("card prompt", in.Prompt); err != nil {
+				return domain.Card{}, err
+			}
 			card := domain.Card{WorkspaceID: w.ID, ColumnID: colID, Nick: in.Nick, Key: strings.TrimSpace(in.Key), Title: strings.TrimSpace(in.Title),
-				Assignee: assignee, LaunchProfile: in.LaunchProfile, Liveness: domain.LivenessIdle}
+				Assignee: assignee, LaunchProfile: in.LaunchProfile, Prompt: strings.TrimSpace(in.Prompt), Liveness: domain.LivenessIdle}
 			if err := c.Store.Cards.Create(&card); err != nil {
 				return card, nickError(err, in.Nick, w.Name)
 			}
@@ -147,7 +152,7 @@ func registerCards(r *Registry) {
 			return card, nil
 		})
 
-	Register(r, Spec{Name: "card_update", Description: "Change a card's nickname, key, title, assignee, stage or launch profile. Use card_move to change its column.",
+	Register(r, Spec{Name: "card_update", Description: "Change a card's nickname, key, title, assignee, stage, launch profile or prompt. Use card_move to change its column.",
 		Mutates: true, Entities: []string{"cards"}},
 		func(ctx context.Context, c *Call, in CardUpdateIn) (domain.Card, error) {
 			card, err := getCard(c, in.CardID)
@@ -171,6 +176,12 @@ func registerCards(r *Registry) {
 			set(&card.Assignee, in.Assignee)
 			set(&card.Stage, in.Stage)
 			set(&card.LaunchProfile, in.LaunchProfile)
+			if in.Prompt != nil {
+				if err := checkLayerPrompt("card prompt", *in.Prompt); err != nil {
+					return card, err
+				}
+			}
+			set(&card.Prompt, in.Prompt)
 			if err := c.Store.Cards.Update(&card); err != nil {
 				return card, nickError(err, card.Nick, "")
 			}

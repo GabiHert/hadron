@@ -75,6 +75,8 @@ type Card struct {
 	LaunchProfile  string         `json:"launch_profile"`
 	Fields         map[string]any `json:"fields"`
 	Archived       bool           `json:"archived"`
+	// Prompt is the card layer of its session prompt.
+	Prompt string `json:"prompt"`
 }
 
 // Session is one PTY process: a card's, or a workspace planner's (CardID empty).
@@ -211,6 +213,8 @@ type LaunchProfile struct {
 	FirstPrompt string            `json:"first_prompt"`
 	Env         map[string]string `json:"env"`
 	Worktree    bool              `json:"worktree"`
+	// Prompt is the launch profile layer of the session prompt.
+	Prompt string `json:"prompt"`
 }
 
 // Script is an integration or a user script. WorkspaceID empty means global.

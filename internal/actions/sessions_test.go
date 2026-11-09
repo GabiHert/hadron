@@ -454,7 +454,7 @@ func TestPlannerDoesNotAutostartInATestHomeButStartsOnRequest(t *testing.T) {
 	}
 	waitUntil(t, "the planner to start", func() bool { return h.file(".started") != "" })
 	argv := strings.Split(strings.TrimSuffix(h.file(".argv"), "\x00"), "\x00")
-	if len(argv) != 4 || !strings.HasPrefix(argv[1], `You are the planner for the "W" workspace in Hadron.`) ||
+	if len(argv) != 4 || !strings.Contains(argv[1], `You are the planner for the "W" workspace in Hadron.`) ||
 		!strings.Contains(argv[1], "Needs you (needs-you), Working (active)") || !strings.Contains(argv[1], "Root folder: "+w.Root) {
 		t.Fatalf("planner argv = %q", argv)
 	}

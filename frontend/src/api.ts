@@ -52,6 +52,8 @@ export interface Card {
   launch_profile: string;
   fields: Record<string, unknown>;
   archived: boolean;
+  /** The card layer of its session prompt. */
+  prompt: string;
 }
 
 export interface AppStatus {
@@ -138,6 +140,7 @@ export const card_create = (a: {
   assignee?: string;
   launch_profile?: string;
   start?: boolean;
+  prompt?: string;
 }) => call<Card>("card_create", a);
 export const card_update = (a: {
   card_id: string;
@@ -147,6 +150,7 @@ export const card_update = (a: {
   assignee?: string;
   stage?: string;
   launch_profile?: string;
+  prompt?: string;
 }) => call<Card>("card_update", a);
 export const card_move = (a: { card_id: string; column_id: string; position?: number }) => call<Card>("card_move", a);
 export const card_archive = (a: { card_id: string; archived?: boolean }) => call<Card>("card_archive", a);
@@ -193,6 +197,8 @@ export interface LaunchProfile {
   first_prompt: string;
   env: Record<string, string>;
   worktree: boolean;
+  /** The launch profile layer of the session prompt. */
+  prompt: string;
 }
 /** A card is addressed by its id, nickname or key. */
 export const session_start = (a: { card: string; launch_profile?: string }) => call<SessionStatus>("session_start", a);
@@ -218,6 +224,7 @@ export const launch_profile_create = (a: {
   first_prompt?: string;
   env?: Record<string, string>;
   worktree?: boolean;
+  prompt?: string;
 }) => call<LaunchProfile>("launch_profile_create", a);
 export const launch_profile_update = (a: {
   profile_id: string;
@@ -227,6 +234,7 @@ export const launch_profile_update = (a: {
   first_prompt?: string;
   env?: Record<string, string>;
   worktree?: boolean;
+  prompt?: string;
 }) => call<LaunchProfile>("launch_profile_update", a);
 export const launch_profile_delete = (a: { profile_id: string }) => call<LaunchProfile>("launch_profile_delete", a);
 
@@ -444,6 +452,9 @@ export interface PromptInfo {
   kind: PromptKind;
   template: string;
   default: string;
+  /** The built-in harness text under this kind's workspace prompt; read-only, empty for handoffs. */
+  core: string;
+  core_version: number;
   custom: boolean;
   variables: string[];
   unknown: string[];
@@ -454,6 +465,17 @@ export const prompt_set = (a: { workspace_id?: string; kind: PromptKind; templat
 export const prompt_reset = (a: { workspace_id?: string; kind: PromptKind }) => call<PromptInfo>("prompt_reset", a);
 export const prompt_render = (a: { workspace_id?: string; kind: PromptKind; card?: string; template?: string }) =>
   call<{ text: string; unknown: string[] }>("prompt_render", a);
+export interface PromptLayer {
+  name: "core" | "workspace" | "profile" | "card";
+  title: string;
+  editable: boolean;
+  template: string;
+  rendered?: string;
+}
+export const prompt_layers_get = (a: { workspace_id?: string; kind: PromptKind; card?: string }) =>
+  call<{ kind: PromptKind; core_version: number; layers: PromptLayer[]; text: string }>("prompt_layers_get", a);
+export const hadron_guide = (a: { topic?: string } = {}) =>
+  call<{ topic: string; text: string; topics: string[]; core_version: number }>("hadron_guide", a);
 export const custom_field_list = (a: { workspace_id?: string } = {}) => call<FieldEntry[]>("custom_field_list", a);
 export const custom_field_create = (a: {
   workspace_id?: string;

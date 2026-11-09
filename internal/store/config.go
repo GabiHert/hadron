@@ -252,13 +252,13 @@ func (r *Prompts) Set(workspaceID, kind string, template *string) error {
 // LaunchProfiles is the repo for launch profiles.
 type LaunchProfiles struct{ s *Store }
 
-const lpCols = `id, created_at, updated_at, workspace_id, name, command, args, first_prompt, env, worktree`
+const lpCols = `id, created_at, updated_at, workspace_id, name, command, args, first_prompt, env, worktree, prompt`
 
 func scanLaunchProfile(r scanner) (domain.LaunchProfile, error) {
 	var p domain.LaunchProfile
 	var cr, up, args, env string
 	var wt int
-	err := r.Scan(&p.ID, &cr, &up, &p.WorkspaceID, &p.Name, &p.Command, &args, &p.FirstPrompt, &env, &wt)
+	err := r.Scan(&p.ID, &cr, &up, &p.WorkspaceID, &p.Name, &p.Command, &args, &p.FirstPrompt, &env, &wt, &p.Prompt)
 	p.CreatedAt, p.UpdatedAt, p.Worktree = parseTS(cr), parseTS(up), wt == 1
 	p.Args, p.Env = []string{}, map[string]string{}
 	fromJSON(args, &p.Args)
@@ -278,8 +278,8 @@ func (r *LaunchProfiles) Create(p *domain.LaunchProfile) error {
 	if p.Env == nil {
 		p.Env = map[string]string{}
 	}
-	_, err := r.s.q.Exec(`INSERT INTO launch_profiles (`+lpCols+`) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-		p.ID, ts(p.CreatedAt), ts(p.UpdatedAt), p.WorkspaceID, p.Name, p.Command, toJSON(p.Args), p.FirstPrompt, toJSON(p.Env), b2i(p.Worktree))
+	_, err := r.s.q.Exec(`INSERT INTO launch_profiles (`+lpCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+		p.ID, ts(p.CreatedAt), ts(p.UpdatedAt), p.WorkspaceID, p.Name, p.Command, toJSON(p.Args), p.FirstPrompt, toJSON(p.Env), b2i(p.Worktree), p.Prompt)
 	return mapErr(err)
 }
 
@@ -310,8 +310,8 @@ func (r *LaunchProfiles) List(workspaceID string) ([]domain.LaunchProfile, error
 // Update writes every field of p.
 func (r *LaunchProfiles) Update(p *domain.LaunchProfile) error {
 	stamp(&p.Meta)
-	return affected(r.s.q.Exec(`UPDATE launch_profiles SET updated_at=?, name=?, command=?, args=?, first_prompt=?, env=?, worktree=? WHERE id=?`,
-		ts(p.UpdatedAt), p.Name, p.Command, toJSON(p.Args), p.FirstPrompt, toJSON(p.Env), b2i(p.Worktree), p.ID))
+	return affected(r.s.q.Exec(`UPDATE launch_profiles SET updated_at=?, name=?, command=?, args=?, first_prompt=?, env=?, worktree=?, prompt=? WHERE id=?`,
+		ts(p.UpdatedAt), p.Name, p.Command, toJSON(p.Args), p.FirstPrompt, toJSON(p.Env), b2i(p.Worktree), p.Prompt, p.ID))
 }
 
 // Delete removes a launch profile.

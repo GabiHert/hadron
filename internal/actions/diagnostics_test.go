@@ -169,7 +169,7 @@ func TestSessionStartsAreLoggedWithoutThePromptText(t *testing.T) {
 	h.do("planner_start", m{"workspace_id": w.ID}, nil)
 	waitUntil(t, "the planner", func() bool { return h.file(".started") != "" })
 	text := allLogText(t, l)
-	if !strings.Contains(text, "pty start") || !strings.Contains(text, "prompt 1") || strings.Contains(text, "You are the planner") {
+	if !strings.Contains(text, "pty start") || !strings.Contains(text, "prompt ") || !strings.Contains(text, " chars") || strings.Contains(text, "You are the planner") {
 		t.Errorf("argv is logged with the prompt replaced by its length:\n%s", text)
 	}
 	h.do("planner_restart", m{"workspace_id": w.ID}, nil)

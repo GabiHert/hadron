@@ -138,16 +138,16 @@ func TestPromptActions(t *testing.T) {
 		t.Fatalf("render: %q %v", r.Text, r.Unknown)
 	}
 	h.do("prompt_render", m{"kind": "session", "card": "alpha"}, &r)
-	if r.Text != "Card alpha" {
+	if !strings.HasSuffix(r.Text, "## Workspace instructions\n\nCard alpha") || !strings.HasPrefix(r.Text, "## Hadron harness (built in)") {
 		t.Fatalf("session render for a card: %q", r.Text)
 	}
 	h.do("prompt_render", m{"kind": "session"}, &r)
-	if r.Text != "Card example-card (KEY-1)" {
+	if !strings.HasSuffix(r.Text, "## Workspace instructions\n\nCard example-card (KEY-1)") {
 		t.Fatalf("sample card: %q", r.Text)
 	}
 	// An unsaved edit previews without being stored.
 	h.do("prompt_render", m{"kind": "session", "template": "draft for {{card.nick}} in {{workspace.name}}"}, &r)
-	if r.Text != "draft for example-card in W" {
+	if !strings.HasSuffix(r.Text, "## Workspace instructions\n\ndraft for example-card in W") {
 		t.Fatalf("%q", r.Text)
 	}
 	h.do("prompt_get", m{"kind": "session"}, &p)

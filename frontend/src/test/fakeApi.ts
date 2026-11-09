@@ -2,7 +2,7 @@
 // like the backend enough for the UI to react (rename, move, delete...), so tests can assert both
 // the calls made and what the user then sees.
 import { vi } from "vitest";
-import type { Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
+import type { Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
 
 export interface Fixture {
   workspaces: Workspace[];
@@ -22,7 +22,7 @@ export const col = (id: string, wsId: string, name: string, role: Role, position
 });
 export const card = (id: string, wsId: string, colId: string, nick: string, position: number, over: Partial<Card> = {}): Card => ({
   id, workspace_id: wsId, column_id: colId, position, nick, key: "", title: "", assignee: "You", stage: "", liveness: "idle",
-  return_column_id: "", launch_profile: "", fields: {}, archived: false, ...over,
+  return_column_id: "", launch_profile: "", prompt: "", fields: {}, archived: false, ...over,
 });
 
 export function defaultFixture(): Fixture {
@@ -64,7 +64,7 @@ export const idleUpdate = (over: Record<string, unknown> = {}) => ({
   lines: [] as string[], seq: 0, installedApp: "/Applications/Hadron.app", ...over,
 });
 export const profile = (name: string, firstPrompt: string): LaunchProfile => ({
-  id: "lp-" + name, workspace_id: "w1", name, command: "claude", args: [], first_prompt: firstPrompt, env: {}, worktree: false,
+  id: "lp-" + name, workspace_id: "w1", name, command: "claude", args: [], first_prompt: firstPrompt, prompt: "", env: {}, worktree: false,
 });
 const defaultProfiles = () => [profile("brief", "/brief {{nick}}"), profile("orchestrate", "/orchestrate {{key}}"), profile("plain", "")];
 
@@ -91,10 +91,10 @@ export const defaultSchema = (): FieldEntry[] => [
   fieldEntry("jira.status", "Status", { type: "enum", options: ["To do", "In progress", "Finished"], editable: true, source: "jira" }),
 ];
 const defaultPrompts = (): Record<PromptKind, PromptInfo> => ({
-  planner: { kind: "planner", template: "You are the planner of {{workspace.name}}.", default: "You are the planner of {{workspace.name}}.", custom: false, variables: ["workspace.name", "columns", "card.nick"], unknown: [] },
-  session: { kind: "session", template: "You work on {{card.nick}}.", default: "You work on {{card.nick}}.", custom: false, variables: ["workspace.name", "columns", "card.nick"], unknown: [] },
-  handoff: { kind: "handoff", template: "Continue {{card.nick}} in {{workspace.name}}.", default: "Continue {{card.nick}} in {{workspace.name}}.", custom: false, variables: ["card.nick", "workspace.name"], unknown: [] },
-  handoff_planner: { kind: "handoff_planner", template: "Continue as the planner of {{workspace.name}}.", default: "Continue as the planner of {{workspace.name}}.", custom: false, variables: ["workspace.name"], unknown: [] },
+  planner: { kind: "planner", template: "", default: "", core: "Core harness for {{workspace.name}}", core_version: 3, custom: false, variables: ["workspace.name", "columns", "card.nick"], unknown: [] },
+  session: { kind: "session", template: "", default: "", core: "Core harness for {{workspace.name}}", core_version: 3, custom: false, variables: ["workspace.name", "columns", "card.nick"], unknown: [] },
+  handoff: { kind: "handoff", template: "Continue {{card.nick}} in {{workspace.name}}.", default: "Continue {{card.nick}} in {{workspace.name}}.", core: "", core_version: 3, custom: false, variables: ["card.nick", "workspace.name"], unknown: [] },
+  handoff_planner: { kind: "handoff_planner", template: "Continue as the planner of {{workspace.name}}.", default: "Continue as the planner of {{workspace.name}}.", core: "", core_version: 3, custom: false, variables: ["workspace.name"], unknown: [] },
 });
 
 export const dashBlock = (id: string, over: Partial<BlockView> = {}): BlockView => ({
@@ -225,9 +225,9 @@ const fns = {
   }),
   card_list: vi.fn(async (a: { workspace_id?: string } = {}) => clone((state.fx.cards[a.workspace_id ?? "w1"] ?? []).filter((c) => !c.archived))),
   card_get: vi.fn(async (a: { card_id: string }) => clone(allCards().find((c) => c.id === a.card_id)!)),
-  card_create: vi.fn(async (a: { workspace_id?: string; nick: string; key?: string; column_id?: string; launch_profile?: string }) => {
+  card_create: vi.fn(async (a: { workspace_id?: string; nick: string; key?: string; column_id?: string; launch_profile?: string; prompt?: string }) => {
     const wsId = a.workspace_id ?? "w1";
-    const c = card("new-card", wsId, a.column_id ?? state.fx.columns[wsId][0].id, a.nick, 99, { key: a.key ?? "", launch_profile: a.launch_profile ?? "" });
+    const c = card("new-card", wsId, a.column_id ?? state.fx.columns[wsId][0].id, a.nick, 99, { key: a.key ?? "", launch_profile: a.launch_profile ?? "", prompt: a.prompt ?? "" });
     state.fx.cards[wsId].push(c);
     return clone(c);
   }),
@@ -353,9 +353,22 @@ const fns = {
     return clone(state.prompts[a.kind]);
   }),
   prompt_render: vi.fn(async (a: { kind: PromptKind; template?: string; card?: string }) => {
-    const tpl = a.template ?? state.prompts[a.kind].template;
-    return { text: tpl.replaceAll("{{workspace.name}}", "Acme").replaceAll("{{card.nick}}", a.card ?? "example-card"), unknown: [] as string[] };
+    const p = state.prompts[a.kind];
+    const fill = (t: string) => t.replaceAll("{{workspace.name}}", "Acme").replaceAll("{{card.nick}}", a.card ?? "example-card");
+    const tpl = fill(a.template ?? p.template);
+    return { text: p.core ? fill(p.core) + "\n\n## Workspace instructions\n\n" + tpl : tpl, unknown: [] as string[] };
   }),
+  prompt_layers_get: vi.fn(async (a: { kind: PromptKind; card?: string }) => {
+    const p = state.prompts[a.kind];
+    const c = a.card ? allCards().find((x) => x.id === a.card || x.nick === a.card) : undefined;
+    const fill = (t: string) => t.replaceAll("{{workspace.name}}", "Acme").replaceAll("{{card.nick}}", c?.nick ?? "example-card");
+    const layers: PromptLayer[] = [];
+    if (p.core) layers.push({ name: "core", title: "Core harness", editable: false, template: p.core, rendered: fill(p.core) });
+    layers.push({ name: "workspace", title: "Workspace prompt", editable: true, template: p.template, rendered: fill(p.template) });
+    if (c?.prompt) layers.push({ name: "card", title: "Card prompt", editable: true, template: c.prompt, rendered: c.prompt });
+    return { kind: a.kind, core_version: p.core_version, layers, text: layers.map((l) => l.rendered ?? "").filter(Boolean).join("\n\n") };
+  }),
+  hadron_guide: vi.fn(async () => ({ topic: "index", text: "Guide", topics: ["index"], core_version: 3 })),
   mcp_info: vi.fn(async () => clone(state.mcp)),
   mcp_calls: vi.fn(async () => clone(state.mcpCalls)),
   card_chips: vi.fn(async () => clone(state.chips)),
