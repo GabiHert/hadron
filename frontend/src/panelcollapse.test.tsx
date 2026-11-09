@@ -88,3 +88,13 @@ test("a draggable header does not make its buttons inert: they are marked no-dra
   expect(noDrag).not.toBeNull();
   for (const sel of [".top button", ".top input", ".top select", ".wsbar"]) expect(noDrag![1]).toContain(sel);
 });
+
+test("the planner title is never truncated: it does not shrink, and the header wraps instead", () => {
+  const rule = (sel: string) => (appCss.match(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\{([^}]*)\\}")) ?? [])[1] ?? "";
+  const h2 = rule(".phead h2");
+  expect(h2).toMatch(/flex:\s*1 0 auto/);
+  expect(h2).not.toMatch(/text-overflow|overflow:\s*hidden/);
+  expect(rule(".phead")).toMatch(/flex-wrap:\s*wrap/);
+  // The Chat/Terminal switch gives up its icons before the title gives up a letter.
+  expect(appCss).toMatch(/@container \(max-width: 400px\)\{\.phead \.seg button svg\{display:none\}/);
+});

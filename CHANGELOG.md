@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Fixed
+- The planner panel title was cut to "P..." when the panel was narrow. "Planner" now always fits: the Chat and Terminal switch drops its icons, and the buttons wrap to a second row when there is still no room.
+
 ## [0.2.8] - 2026-11-09
 
 ### Added

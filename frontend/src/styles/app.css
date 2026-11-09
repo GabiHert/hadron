@@ -37,8 +37,10 @@ select.in{padding:5px 8px}
 .shell{flex:1;min-height:0;display:flex}
 /* planner panel */
 .ppanel{width:340px;flex:none;background:var(--side);border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
-.phead{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);min-height:48px}
-.phead h2{margin:0;font:500 18px var(--serif);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phead{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:10px 12px;border-bottom:1px solid var(--border);min-height:48px}
+.phead h2{margin:0;font:500 18px var(--serif);flex:1 0 auto;white-space:nowrap}
+.ppanel{container-type:inline-size}
+@container (max-width: 400px){.phead .seg button svg{display:none}.phead .seg button{padding:3px 8px}}
 .chat{flex:1;min-height:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
 .who{font-size:11px;color:var(--fg3);display:flex;gap:6px;align-items:center}
 .who.r{align-self:flex-end}
