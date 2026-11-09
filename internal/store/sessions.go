@@ -88,3 +88,21 @@ func (r *Sessions) MarkRunningExited() (int64, error) {
 	}
 	return res.RowsAffected()
 }
+
+// ByClaudeID returns the sessions that hold a Claude Code session id, newest first.
+func (r *Sessions) ByClaudeID(claudeSessionID string) ([]domain.Session, error) {
+	rows, err := r.s.q.Query(`SELECT `+sessCols+` FROM sessions WHERE claude_session_id = ? AND claude_session_id != '' ORDER BY created_at DESC, rowid DESC`, claudeSessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []domain.Session{}
+	for rows.Next() {
+		x, err := scanSession(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, x)
+	}
+	return out, rows.Err()
+}

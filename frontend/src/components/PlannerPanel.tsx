@@ -5,6 +5,10 @@ import { useChannel } from "../state/useChannel";
 import { ChatThread } from "./Chat";
 import { Composer } from "./Composer";
 import { SessionTerminal } from "./SessionTerminal";
+import { useState } from "react";
+import type { Adoptable } from "../api";
+import { AdoptList } from "./AdoptList";
+import { ModalHead, Scrim } from "./Modals";
 import { Icon } from "./ui";
 
 interface Props {
@@ -19,6 +23,8 @@ interface Props {
 export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: Props) {
   const { ws, actions } = board;
   const wsId = ws?.id ?? "";
+  const [menu, setMenu] = useState(false);
+  const [adoptOpen, setAdoptOpen] = useState(false);
   const status = useSessionStatus(() => (wsId ? api.planner_get({ workspace_id: wsId }) : Promise.resolve(null)), [wsId]);
   if (!ws) return null;
   // none (never started) reads as idle: there is nothing to pulse about.
@@ -45,6 +51,14 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
           <Icon name={isFull ? "shrink" : "expand"} />
         </button>
         {isFull ? null : <button className="ibtn hide-narrow" onClick={() => void actions.setCollapsed("planner", true)} aria-label="Collapse the planner"><Icon name="back" /></button>}
+        <div style={{ position: "relative" }}>
+          <button className="ibtn" onClick={() => setMenu(!menu)} aria-label="Planner actions" aria-expanded={menu}><Icon name="dots" size={14} /></button>
+          {menu ? (
+            <div className="menu">
+              <button className="btn sm" onClick={() => { setMenu(false); setAdoptOpen(true); }}>Adopt planner conversation</button>
+            </div>
+          ) : null}
+        </div>
         <button className="ibtn mclose" onClick={closeMobile} aria-label="Close the planner"><Icon name="close" /></button>
       </div>
       {view === "chat" ? (
@@ -59,7 +73,38 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
           onShiftEscape={isFull ? () => void actions.setFullscreen("") : undefined}
         />
       )}
+      {adoptOpen ? <AdoptPlanner board={board} onClose={() => setAdoptOpen(false)} /> : null}
     </aside>
+  );
+}
+
+function AdoptPlanner({ board, onClose }: { board: Board; onClose: () => void }) {
+  const { ws, actions } = board;
+  const [picked, setPicked] = useState<Adoptable | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (!ws) return null;
+  const adopt = async () => {
+    if (!picked) return;
+    setBusy(true);
+    const out = await actions.run(() => api.planner_adopt({ workspace_id: ws.id, claude_session_id: picked.claude_session_id }));
+    setBusy(false);
+    if (!out) return;
+    actions.toast(out.warning);
+    onClose();
+  };
+  return (
+    <Scrim onClose={onClose}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="ap-t">
+        <ModalHead id="ap-t" title="Adopt planner conversation" onClose={onClose} />
+        <div className="mb">
+          <AdoptList workspaceId={ws.id} root={ws.root} picked={picked?.claude_session_id ?? ""} onPick={setPicked} onError={actions.toast} />
+        </div>
+        <div className="mf">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn pri" disabled={!picked || busy} onClick={() => void adopt()}>Adopt as planner</button>
+        </div>
+      </div>
+    </Scrim>
   );
 }
 

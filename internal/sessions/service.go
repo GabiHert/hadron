@@ -78,6 +78,9 @@ func New(cfg Config) *Service {
 // Request says what to start.
 type Request struct {
 	Workspace domain.Workspace
+	// Handoff, when set, is typed into the session once it is ready, instead of a launch profile's
+	// first prompt. Adopted conversations get it.
+	Handoff string
 	// Warnings, when set, receives notes the start should show (a worktree that could not be made).
 	Warnings *[]string
 	// Card is nil for the workspace planner.
@@ -187,6 +190,9 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 	first := ""
 	if card != nil && resume == "" {
 		first = renderFirstPrompt(profile.FirstPrompt, *card)
+	}
+	if req.Handoff != "" {
+		first = req.Handoff
 	}
 	if err := tx.Sessions.Create(&row); err != nil {
 		return row, nil, err

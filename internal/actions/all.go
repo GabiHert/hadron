@@ -22,4 +22,5 @@ func RegisterAll(r *Registry) {
 	registerDash(r)
 	registerHistory(r)
 	registerWorktrees(r)
+	registerAdopt(r)
 }

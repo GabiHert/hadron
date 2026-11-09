@@ -1413,6 +1413,27 @@
     ]
   },
   {
+    "name": "planner_adopt",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "claude_session_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "handoff",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
     "name": "planner_get",
     "mutates": false,
     "fields": [
@@ -2133,6 +2154,58 @@
         "required": true,
         "type": "string"
       },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "session_adopt",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "claude_session_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "nick",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "key",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "column_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "start",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "handoff",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "session_adoptable_list",
+    "mutates": false,
+    "fields": [
       {
         "name": "workspace_id",
         "required": false,

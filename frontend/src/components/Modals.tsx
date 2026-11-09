@@ -7,11 +7,12 @@ import { UpdatesCard } from "./UpdatesCard";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import * as api from "../api";
-import type { Column, LaunchProfile } from "../api";
+import type { Adoptable, Column, LaunchProfile } from "../api";
 import { ROLES, SWATCHES, slug } from "../lib";
 import type { Board } from "../state/useBoard";
 import { isDark } from "./Header";
 import { Icon } from "./ui";
+import { AdoptList, nickFrom } from "./AdoptList";
 
 export function Scrim({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   return (
@@ -21,7 +22,7 @@ export function Scrim({ onClose, children }: { onClose: () => void; children: Re
   );
 }
 
-function ModalHead({ id, title, onClose }: { id: string; title: string; onClose: () => void }) {
+export function ModalHead({ id, title, onClose }: { id: string; title: string; onClose: () => void }) {
   return (
     <div className="mh">
       <h3 id={id}>{title}</h3>
@@ -104,6 +105,18 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
   const [profile, setProfile] = useState("");
   const [busy, setBusy] = useState(false);
   const nick = slug(nickIn);
+  const [adopting, setAdopting] = useState(false);
+  const [picked, setPicked] = useState<Adoptable | null>(null);
+  const adopt = async () => {
+    if (!picked) return;
+    setBusy(true);
+    const out = await board.actions.run(() => api.session_adopt({ workspace_id: ws?.id, claude_session_id: picked.claude_session_id, nick, key: key.trim() || undefined, column_id: col || undefined }));
+    setBusy(false);
+    if (!out) return;
+    if (out.card) board.actions.select(out.card.id);
+    board.actions.toast(out.warning);
+    onClose();
+  };
   useEffect(() => {
     let alive = true;
     api
@@ -131,6 +144,27 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
     <Scrim onClose={onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="ns-t">
         <ModalHead id="ns-t" title="New session" onClose={onClose} />
+        {adopting ? (
+        <>
+        <div className="mb">
+          <AdoptList workspaceId={ws?.id ?? ""} root={ws?.root ?? ""} picked={picked?.claude_session_id ?? ""} onError={board.actions.toast} onPick={(a) => { setPicked(a); setNick(nickFrom(a.first_user_message)); }} />
+          {picked ? (
+            <>
+              <label className="field"><span>Nickname</span><input id="ad-nick" className="in" autoFocus value={nickIn} onChange={(e) => setNick(e.target.value)} placeholder="billing-fix" /></label>
+              <label className="field"><span>Key (optional)</span><input id="ad-key" className="in mono" value={key} onChange={(e) => setKey(e.target.value.toUpperCase())} placeholder="ACME-550" /></label>
+              <label className="field"><span>Column</span>
+                <select id="ad-col" className="in" value={col} onChange={(e) => setCol(e.target.value)}>{columns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+              </label>
+            </>
+          ) : null}
+        </div>
+        <div className="mf">
+          <button className="btn" onClick={() => { setAdopting(false); setPicked(null); }}>Back</button>
+          <button className="btn pri" disabled={!picked || !nick || busy} onClick={() => void adopt()}>Adopt</button>
+        </div>
+        </>
+        ) : (
+        <>
         <div className="mb">
           <label className="field"><span>Nickname</span><input id="ns-nick" className="in" autoFocus value={nickIn} onChange={(e) => setNick(e.target.value)} placeholder="billing-fix" /></label>
           <label className="field"><span>Key (optional)</span><input id="ns-key" className="in mono" value={key} onChange={(e) => setKey(e.target.value.toUpperCase())} placeholder="ACME-550" /></label>
@@ -149,8 +183,11 @@ export function NewSession({ board, onClose }: { board: Board; onClose: () => vo
         </div>
         <div className="mf">
           <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn" aria-label="Bring in a session" onClick={() => { setAdopting(true); setNick(""); }}>Bring in a session</button>
           <button className="btn pri" disabled={!nick || busy} onClick={() => void submit()}>Start session</button>
         </div>
+        </>
+        )}
       </div>
     </Scrim>
   );

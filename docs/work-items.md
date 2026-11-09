@@ -173,3 +173,28 @@ Build them in order. Each WI ends green on `make test`, plus `make build` for an
 - **AC:**
   - `curl -s https://api.github.com/repos/GabiHert/hadron/releases/latest` lists the zip and `SHA256SUMS`;
   - the app's Check for updates sees v0.1.0 when it runs v0.0.x.
+
+## v0.2.0
+
+**WI-21: Adopt existing Claude sessions**
+- **What:**
+  - `session_adoptable_list` scans `~/.claude/projects/<root with every non-alphanumeric character replaced by "-">/*.jsonl` (`CLAUDE_CONFIG_DIR` overrides `~/.claude`) and returns the id, the first thing the user typed, the last activity, the size and whether Hadron already holds it; files under 2 KB are skipped;
+  - `session_adopt` makes a card and resumes the conversation with `claude --resume`; `planner_adopt` does the same for the planner;
+  - the New session dialog has "Bring in a session"; the planner panel menu has "Adopt planner conversation". Both warn that the conversation must be exited elsewhere first.
+- **AC:** tests cover the folder-name encoding, the listing (order, size filter, first message), adopting (argv has `--resume <id>` and Hadron's prompt and MCP flags), refusing a conversation another card holds, and the planner variant.
+
+**WI-22: Import a planner folder**
+- **What:** `workspace_import_planner_dir` reads a planner run folder (`sessions/*.md`, `log.md`, `questions/<nick>/Q-NN.json`, `gates/<nick>.json`) into cards, messages, questions and gates, as a dry run first; Settings, Import.
+- **AC:** a synthetic folder imports to the planned cards, columns, questions and gates, and importing twice changes nothing.
+
+**WI-23: Handoff message**
+- **What:** a third and fourth prompt, `handoff` and `handoff_planner`, editable in Settings, Prompts. Hadron types the handoff once after an adopted conversation resumes, and records it as an event on the card.
+- **AC:** the fake claude receives the rendered handoff after an adopt; `handoff=false` sends nothing.
+
+**WI-24: Debug logging**
+- **What:** the `debug.logging` setting, JSON lines in `$HADRON_HOME/logs` with 7-day retention and a 50 MB cap, error-only when off, `client_log` for frontend errors, Settings, Diagnostics, and `logs_tail`, `diagnostics_get`, `debug_logging_set`.
+- **AC:** a planted secret and message text never reach the log; the cap and retention hold.
+
+**WI-25: Feedback inbox**
+- **What:** a `feedback` table, `feedback_create`, `feedback_list` and `feedback_update`, a Feedback button in the header, and Settings, Feedback with "Open as GitHub issue".
+- **AC:** create, filter and update through the actions; the issue URL is prefilled and fits the URL limit.

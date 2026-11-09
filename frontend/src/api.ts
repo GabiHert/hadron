@@ -816,3 +816,24 @@ export interface Worktree {
 export const worktree_list = (a: { workspace_id?: string } = {}) => call<Worktree[]>("worktree_list", a);
 export const worktree_remove = (a: { card: string; force?: boolean; workspace_id?: string }) =>
   call<{ removed: string; branch: string; note: string }>("worktree_remove", a);
+
+// ---- adopting existing Claude Code conversations ----
+
+export interface Adoptable {
+  claude_session_id: string;
+  first_user_message: string;
+  last_activity: string;
+  size: number;
+  already_in_hadron: boolean;
+  held_by?: string;
+}
+export interface AdoptResult {
+  card?: Card;
+  status: Partial<SessionStatus>;
+  warning: string;
+}
+export const session_adoptable_list = (a: { workspace_id?: string } = {}) => call<Adoptable[]>("session_adoptable_list", a);
+export const session_adopt = (a: { workspace_id?: string; claude_session_id: string; nick: string; key?: string; column_id?: string; start?: boolean; handoff?: boolean }) =>
+  call<AdoptResult>("session_adopt", a);
+export const planner_adopt = (a: { workspace_id?: string; claude_session_id: string; handoff?: boolean }) =>
+  call<AdoptResult>("planner_adopt", a);

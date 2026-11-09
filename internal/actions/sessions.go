@@ -307,6 +307,15 @@ func statusOf(card *domain.Card, workspaceID string, t sessions.Target) SessionS
 }
 
 func startSession(c *Call, card domain.Card, profile string, fresh, restart bool) (SessionStatus, error) {
+	return startSessionWith(c, card, profile, fresh, restart, "")
+}
+
+// startSessionAdopted resumes an adopted card's conversation.
+func startSessionAdopted(c *Call, card domain.Card, handoff bool) (SessionStatus, error) {
+	return startSessionWith(c, card, "", false, false, handoffFor(c, card, handoff))
+}
+
+func startSessionWith(c *Call, card domain.Card, profile string, fresh, restart bool, handoff string) (SessionStatus, error) {
 	sv, err := svc(c)
 	if err != nil {
 		return SessionStatus{}, err
@@ -316,7 +325,7 @@ func startSession(c *Call, card domain.Card, profile string, fresh, restart bool
 		return SessionStatus{}, err
 	}
 	var warnings []string
-	row, launch, err := sv.Prepare(c.Store, sessions.Request{Workspace: w, Card: &card, Profile: profile, Fresh: fresh, Restart: restart, Strict: true, Warnings: &warnings})
+	row, launch, err := sv.Prepare(c.Store, sessions.Request{Workspace: w, Card: &card, Profile: profile, Fresh: fresh, Restart: restart, Strict: true, Warnings: &warnings, Handoff: handoff})
 	if err != nil {
 		return SessionStatus{}, err
 	}
@@ -326,11 +335,20 @@ func startSession(c *Call, card domain.Card, profile string, fresh, restart bool
 }
 
 func startPlanner(c *Call, w domain.Workspace, fresh, restart bool) (SessionStatus, error) {
+	return startPlannerWith(c, w, fresh, restart, "")
+}
+
+// startPlannerAdopted resumes an adopted conversation as the planner.
+func startPlannerAdopted(c *Call, w domain.Workspace, handoff bool) (SessionStatus, error) {
+	return startPlannerWith(c, w, false, false, plannerHandoffFor(c, w, handoff))
+}
+
+func startPlannerWith(c *Call, w domain.Workspace, fresh, restart bool, handoff string) (SessionStatus, error) {
 	sv, err := svc(c)
 	if err != nil {
 		return SessionStatus{}, err
 	}
-	row, launch, err := sv.Prepare(c.Store, sessions.Request{Workspace: w, Fresh: fresh, Restart: restart, Strict: true})
+	row, launch, err := sv.Prepare(c.Store, sessions.Request{Workspace: w, Fresh: fresh, Restart: restart, Strict: true, Handoff: handoff})
 	if err != nil {
 		return SessionStatus{}, err
 	}
