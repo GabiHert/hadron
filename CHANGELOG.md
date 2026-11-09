@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-09
+
 ### Added
 - Settings, Planner (per workspace): choose the planner's launch profile (with the exact command and arguments it will run shown), its policy (with a one-line explanation of each and "inherit the global policy"), its model, whether it starts when Hadron opens, and adopt a conversation, start, restart or stop it. "Bring in a session" and "Adopt planner conversation" offer a launch profile too.
 - `planner_stop` stops the planner's session.
