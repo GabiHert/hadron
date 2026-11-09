@@ -62,12 +62,18 @@ Hadron serves well over a hundred tools, one per action (the count is in `app_st
 | `rule_*` | Rules: triggers, conditions, actions, dry run, log |
 | `dash_*` | The dashboard layout and its queries |
 | `integration_*`, `script_*`, `link_*`, `remote_session_*` | Integrations, scripts, linked items, cloud agent sessions |
+| `feedback_*`, `logs_tail`, `diagnostics_get` | The feedback inbox and Hadron's own log |
+| `session_adopt`, `planner_adopt`, `workspace_import_planner_dir` | Bring in existing Claude conversations or an older planner's folder |
 | `prompt_*`, `launch_profile_*`, `worktree_*` | The planner and session prompts, how sessions start, and the git worktrees cards run in |
 | `config_history`, `config_diff`, `config_revert` | Who changed the config, what changed, and undo (Settings, History) |
 
 ## Diagnostics
 
 Settings, Diagnostics turns on **debug logging**: JSON lines under `~/.hadron/logs` (one file a day, 7 days and 50 MB kept) with every action (name, who, how long, argument names only), session starts and exits, chat delivery, rule firings, script runs and update steps. Off, only errors and recovered crashes are kept. Secrets, tokens and message text are never logged. The tab shows a live tail and copies a diagnostics block for a bug report; the same is available over MCP as `logs_tail`, `diagnostics_get` and `debug_logging_set`.
+
+## Feedback
+
+The speech bubble in the header sends a note about Hadron itself (a bug, an idea, something that annoys, or praise) to **Settings, Feedback**, with the version and, if you like, diagnostics. Each note can be marked planned, in progress, done or won't fix, given a note of your own, and opened as a prefilled GitHub issue. Tell the planner "feedback: ..." and it files the note for you (`feedback_create`); a Claude session can read the inbox with `feedback_list` and work through it.
 
 ## Worktrees
 

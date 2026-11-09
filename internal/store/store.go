@@ -53,6 +53,7 @@ type Store struct {
 	Changes        *Changes
 	MCPCalls       *MCPCalls
 	Settings       *Settings
+	Feedback       *Feedback
 }
 
 // queryer is what both *sql.DB and *sql.Tx offer, so a repo method can run in either.
@@ -103,6 +104,7 @@ func (s *Store) wire() {
 	s.Changes = &Changes{s}
 	s.MCPCalls = &MCPCalls{s}
 	s.Settings = &Settings{s}
+	s.Feedback = &Feedback{s}
 }
 
 // Tx runs fn in a transaction and commits it, or rolls back when fn returns an error. fn gets a

@@ -2,7 +2,7 @@
 // like the backend enough for the UI to react (rename, move, delete...), so tests can assert both
 // the calls made and what the user then sees.
 import { vi } from "vitest";
-import type { BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
+import type { Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
 
 export interface Fixture {
   workspaces: Workspace[];
@@ -424,6 +424,9 @@ const fns = {
   logs_tail: vi.fn(async (): Promise<unknown[]> => []),
   diagnostics_get: vi.fn(async () => ({ version: state.fx.version, macos: "15.0", arch: "arm64", home: "/tmp", log_dir: "/tmp/hadron/logs", debug_logging: false, actions: 25, settings: {}, recent_log_lines: [] as string[] })),
   debug_logging_set: vi.fn(async (a: { enabled: boolean }) => ({ enabled: a.enabled, log_dir: "/tmp/hadron/logs" })),
+  feedback_list: vi.fn(async (_a: { status?: string } = {}): Promise<Feedback[]> => []),
+  feedback_create: vi.fn(async (a: { kind: string; text: string; area?: string; attach_diagnostics?: boolean }) => ({ id: "f1", created_at: ts, kind: a.kind, text: a.text, area: a.area ?? "", version: "v0.0.1-test", diagnostics: null, status: "new", note: "", github_url: "", issue_url: "" }) as Feedback),
+  feedback_update: vi.fn(async (a: { id: string }) => ({ id: a.id }) as Feedback),
   client_log: vi.fn(async () => ({})),
   onChanged: vi.fn(() => () => {}),
   onEvent: vi.fn(() => () => {}),

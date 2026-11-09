@@ -893,3 +893,24 @@ export const client_log = (a: { level: "error" | "warn" | "info" | "debug"; mess
 export const logs_tail = (a: { lines?: number; level?: string; contains?: string } = {}) => call<LogLine[]>("logs_tail", a);
 export const diagnostics_get = () => call<Diagnostics>("diagnostics_get", {});
 export const debug_logging_set = (a: { enabled: boolean }) => call<{ enabled: boolean; log_dir: string }>("debug_logging_set", a);
+
+// ---- feedback inbox ----
+
+export type FeedbackKind = "bug" | "idea" | "annoyance" | "praise";
+export type FeedbackStatus = "new" | "planned" | "in_progress" | "done" | "wontfix";
+export interface Feedback {
+  id: string;
+  created_at: string;
+  kind: FeedbackKind;
+  text: string;
+  area: string;
+  version: string;
+  diagnostics: unknown;
+  status: FeedbackStatus;
+  note: string;
+  github_url: string;
+  issue_url: string;
+}
+export const feedback_create = (a: { kind: FeedbackKind; text: string; area?: string; attach_diagnostics?: boolean }) => call<Feedback>("feedback_create", a);
+export const feedback_list = (a: { status?: FeedbackStatus } = {}) => call<Feedback[]>("feedback_list", a);
+export const feedback_update = (a: { id: string; status?: FeedbackStatus; note?: string; github_url?: string }) => call<Feedback>("feedback_update", a);

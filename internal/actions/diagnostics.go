@@ -122,17 +122,7 @@ func registerDiagnostics(r *Registry) {
 
 	Register(r, Spec{Name: "diagnostics_get", Description: "Everything useful in a bug report: the version, macOS version, data and log folders, whether debug logging is on, the settings that cannot hold a secret, and the last 300 lines of the log."},
 		func(ctx context.Context, c *Call, in struct{}) (DiagnosticsOut, error) {
-			out := DiagnosticsOut{Version: c.Deps.Version, MacOS: macOSVersion(), Arch: runtime.GOARCH, Home: c.Deps.Home, Settings: safeSettings(c), RecentLogLines: []string{}}
-			if r != nil {
-				out.Actions = r.Len()
-			}
-			if l := c.Deps.Log; l != nil {
-				out.LogDir, out.DebugLogging = l.Dir(), l.Debugging()
-				for _, ln := range l.Tail(300, "", "") {
-					out.RecentLogLines = append(out.RecentLogLines, ln.Raw)
-				}
-			}
-			return out, nil
+			return collectDiagnostics(c, r), nil
 		})
 
 	Register(r, Spec{Name: "debug_logging_set", Description: "Turn debug logging on or off. On, Hadron writes JSON lines at debug level to its log folder (7 days kept, 50 MB at most); off, only errors and recovered panics. Secrets, tokens and message text are never written either way.",
@@ -156,3 +146,17 @@ func registerDiagnostics(r *Registry) {
 func jsonRaw(v any) []byte { b, _ := json.Marshal(v); return b }
 
 func jsonUnmarshalAny(raw []byte, v *any) error { return json.Unmarshal(raw, v) }
+
+func collectDiagnostics(c *Call, r *Registry) DiagnosticsOut {
+	out := DiagnosticsOut{Version: c.Deps.Version, MacOS: macOSVersion(), Arch: runtime.GOARCH, Home: c.Deps.Home, Settings: safeSettings(c), RecentLogLines: []string{}}
+	if r != nil {
+		out.Actions = r.Len()
+	}
+	if l := c.Deps.Log; l != nil {
+		out.LogDir, out.DebugLogging = l.Dir(), l.Debugging()
+		for _, ln := range l.Tail(300, "", "") {
+			out.RecentLogLines = append(out.RecentLogLines, ln.Raw)
+		}
+	}
+	return out
+}

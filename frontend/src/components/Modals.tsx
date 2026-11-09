@@ -6,6 +6,7 @@ import { PromptsTab } from "./PromptsTab";
 import { RulesTab } from "./RulesTab";
 import { UpdatesCard } from "./UpdatesCard";
 import { DiagnosticsTab } from "./DiagnosticsTab";
+import { FeedbackTab } from "./FeedbackTab";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import * as api from "../api";
@@ -206,13 +207,15 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "import", label: "Import", render: (b) => <ImportTab board={b} /> },
   { id: "widgets", label: "Widgets", render: () => <WidgetsTab /> },
   { id: "diagnostics", label: "Diagnostics", render: (b) => <DiagnosticsTab toast={b.actions.toast} /> },
+  { id: "feedback", label: "Feedback", render: (b) => <FeedbackTab toast={b.actions.toast} /> },
   { id: "history", label: "History", render: (b) => <HistoryTab board={b} /> },
   { id: "mcp", label: "MCP server", render: () => <McpPanel /> },
   { id: "updates", label: "Updates", render: () => <UpdatesCard /> },
 ];
 
-export function Settings({ board, onClose, tabs = SETTINGS_TABS, initialTab = "columns" }: { board: Board; onClose: () => void; tabs?: SettingsTab[]; initialTab?: string }) {
+export function Settings({ board, onClose, tabs = SETTINGS_TABS, initialTab = "columns", onTab }: { board: Board; onClose: () => void; tabs?: SettingsTab[]; initialTab?: string; onTab?: (id: string) => void }) {
   const [tab, setTab] = useState(initialTab);
+  useEffect(() => onTab?.(tab), [tab, onTab]);
   const cur = tabs.find((t) => t.id === tab) ?? tabs[0];
   return (
     <Scrim onClose={onClose}>
@@ -303,7 +306,7 @@ function ColumnsTab({ board }: { board: Board }) {
 interface PaletteProps {
   board: Board;
   onClose: () => void;
-  openModal: (m: "newws" | "newsession" | "settings") => void;
+  openModal: (m: "newws" | "newsession" | "settings" | "feedback") => void;
   setPlannerView: (v: "chat" | "terminal") => void;
 }
 
@@ -319,6 +322,7 @@ export function Palette({ board, onClose, openModal, setPlannerView }: PalettePr
     ...cards.map((c) => ({ label: `Open ${c.nick}`, hint: c.key || "card", run: () => actions.select(c.id) })),
     { label: "New session", hint: "⌘N", run: () => openModal("newsession") },
     { label: "New workspace", hint: "", run: () => openModal("newws") },
+    { label: "Send feedback", hint: "", run: () => openModal("feedback") },
     { label: "Settings: columns", hint: "", run: () => openModal("settings") },
     { label: "Switch light or dark", hint: "", run: () => void actions.setTheme(isDark(board.theme) ? "light" : "dark") },
     { label: "Planner: chat", hint: "", run: () => setPlannerView("chat") },

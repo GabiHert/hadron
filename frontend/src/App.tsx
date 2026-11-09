@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Board } from "./components/Board";
 import { CardPanel } from "./components/CardPanel";
 import type { CardTab } from "./components/CardPanel";
+import { FeedbackModal } from "./components/FeedbackModal";
 import { Header } from "./components/Header";
 import { NewSession, NewWorkspace, Palette, Settings } from "./components/Modals";
 import { PlannerPanel } from "./components/PlannerPanel";
@@ -10,7 +11,7 @@ import { useUpdateAvailable } from "./components/UpdatesCard";
 import * as api from "./api";
 import { useBoard } from "./state/useBoard";
 
-type Modal = null | "newws" | "newsession" | "settings" | "palette";
+type Modal = null | "newws" | "newsession" | "settings" | "palette" | "feedback";
 
 export default function App() {
   const board = useBoard();
@@ -21,7 +22,15 @@ export default function App() {
   const [tab, setTab] = useState<CardTab>("conv");
   const [mobile, setMobile] = useState<null | "planner" | "card">(null);
   const [settingsTab, setSettingsTab] = useState("columns");
+  const settingsTabNow = useRef("columns");
+  const trackTab = useCallback((id: string) => { settingsTabNow.current = id; }, []);
+  const [feedbackArea, setFeedbackArea] = useState("board");
   const update = useUpdateAvailable();
+  const openFeedback = () => {
+    const nick = board.selected?.nick;
+    setFeedbackArea(modal === "settings" ? `settings:${settingsTabNow.current}` : ws?.ui.main_view === "dashboard" ? "dashboard" : "board" + (nick ? `:card:${nick}` : ""));
+    setModal("feedback");
+  };
 
   const full = ws?.ui.full;
   useEffect(() => {
@@ -63,6 +72,7 @@ export default function App() {
         board={board}
         onNewWorkspace={() => setModal("newws")}
         onPalette={() => setModal("palette")}
+        onFeedback={openFeedback}
         onSettings={() => {
           setSettingsTab("columns");
           setModal("settings");
@@ -90,10 +100,11 @@ export default function App() {
       </div>
       {modal === "newws" ? <NewWorkspace board={board} onClose={() => setModal(null)} /> : null}
       {modal === "newsession" ? <NewSession board={board} onClose={() => setModal(null)} /> : null}
-      {modal === "settings" ? <Settings board={board} initialTab={settingsTab} onClose={() => setModal(null)} /> : null}
+      {modal === "settings" ? <Settings board={board} initialTab={settingsTab} onTab={trackTab} onClose={() => setModal(null)} /> : null}
       {modal === "palette" ? (
-        <Palette board={board} onClose={() => setModal(null)} openModal={(m) => setModal(m)} setPlannerView={setPlannerView} />
+        <Palette board={board} onClose={() => setModal(null)} openModal={(m) => (m === "feedback" ? openFeedback() : setModal(m))} setPlannerView={setPlannerView} />
       ) : null}
+      {modal === "feedback" ? <FeedbackModal board={board} area={feedbackArea} onClose={() => setModal(null)} /> : null}
       {toast ? <div className="toast" role="status">{toast.text}</div> : null}
     </div>
   );

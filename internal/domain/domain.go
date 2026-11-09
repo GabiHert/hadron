@@ -261,3 +261,16 @@ type ScriptLog struct {
 	DurationMS  int    `json:"duration_ms"`
 	Message     string `json:"message"`
 }
+
+// Feedback is one note about Hadron itself in the feedback inbox.
+type Feedback struct {
+	Meta
+	Kind        string          `json:"kind"`
+	Text        string          `json:"text"`
+	Area        string          `json:"area"`
+	Version     string          `json:"version"`
+	Diagnostics json.RawMessage `json:"diagnostics"`
+	Status      string          `json:"status"`
+	Note        string          `json:"note"`
+	GithubURL   string          `json:"github_url"`
+}

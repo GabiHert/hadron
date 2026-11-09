@@ -797,6 +797,69 @@
     "fields": null
   },
   {
+    "name": "feedback_create",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "kind",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "text",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "area",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "attach_diagnostics",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "feedback_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "status",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "feedback_update",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "note",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "github_url",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "field_schema_get",
     "mutates": false,
     "fields": [

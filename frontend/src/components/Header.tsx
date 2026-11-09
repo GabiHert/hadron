@@ -14,13 +14,14 @@ interface Props {
   board: Board;
   onNewWorkspace: () => void;
   onPalette: () => void;
+  onFeedback: () => void;
   onSettings: () => void;
   onTogglePlanner: () => void;
   /** Room for the update pill (milestone WI-06). */
   updateSlot?: ReactNode;
 }
 
-export function Header({ board, onNewWorkspace, onPalette, onSettings, onTogglePlanner, updateSlot }: Props) {
+export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSettings, onTogglePlanner, updateSlot }: Props) {
   const { visible, activeId, data, actions } = board;
   const needs = (wsId: string) => {
     const d = data[wsId];
@@ -51,6 +52,7 @@ export function Header({ board, onNewWorkspace, onPalette, onSettings, onToggleP
       </div>
       <div className="spacer" />
       {updateSlot}
+      <button className="ibtn" onClick={onFeedback} aria-label="Send feedback"><Icon name="bubble" /></button>
       <button className="ibtn" onClick={onPalette} aria-label="Command palette"><Icon name="search" /></button>
       <button className="ibtn" onClick={() => void actions.setTheme(isDark(board.theme) ? "light" : "dark")} aria-label="Switch light or dark"><Icon name="moon" /></button>
       <button className="ibtn" onClick={onSettings} aria-label="Settings"><Icon name="gear" /></button>
