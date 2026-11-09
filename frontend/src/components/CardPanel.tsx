@@ -148,7 +148,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
           onShiftEscape={isFull ? () => void actions.setFullscreen("") : undefined}
         />
       ) : tab === "conv" ? (
-        <CardConversation board={board} />
+        <CardConversation board={board} running={status ? status.running : undefined} onStart={() => actions.run(() => api.session_start({ card: c.id }))} />
       ) : tab === "links" ? (
         <LinksTab board={board} links={links} reload={reloadLinks} />
       ) : (
@@ -171,7 +171,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
 }
 
 /** A card's conversation: what you said, what the planner relayed, the session's reports and its questions. */
-function CardConversation({ board }: { board: Board }) {
+function CardConversation({ board, running, onStart }: { board: Board; running?: boolean; onStart: () => Promise<unknown> }) {
   const { ws, selected: c, actions } = board;
   const ch = useChannel(ws?.id ?? "", c ? `card:${c.id}` : "", c?.id ?? null, actions.toast);
   if (!ws || !c) return null;
@@ -188,7 +188,21 @@ function CardConversation({ board }: { board: Board }) {
         onAnswer={ch.answer}
         empty={ch.loaded ? <div className="empty">Nothing yet. Reports and questions from {c.nick} appear here, and what you write goes to the planner.</div> : null}
       />
-      <Composer id={`card-msg-${c.id}`} label="Message about this card" placeholder={`Goes to the planner tagged ${tag}; it relays to the session.`} onSend={ch.send} onError={actions.toast} />
+      <Composer
+        id={`card-msg-${c.id}`}
+        label="Message about this card"
+        placeholder={`Goes to the planner tagged ${tag}; it relays to the session.`}
+        onSend={ch.send}
+        onError={actions.toast}
+        target={{ workspace_id: ws.id, card: c.id }}
+        cards={board.cards.filter((x) => x.id !== c.id)}
+        columns={board.columns}
+        mentionPlanner
+        onCommand={ch.command}
+        running={running}
+        onStart={onStart}
+        sessionName={`${c.nick}'s session`}
+      />
     </>
   );
 }

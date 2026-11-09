@@ -12,6 +12,7 @@ func RegisterAll(r *Registry) {
 	registerUI(r)
 	registerMCP(r)
 	registerChat(r)
+	registerComposer(r)
 	registerQuestions(r)
 	registerFields(r)
 	registerRules(r)

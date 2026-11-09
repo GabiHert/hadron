@@ -68,7 +68,7 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
         <button className="ibtn mclose" onClick={closeMobile} aria-label="Close the planner"><Icon name="close" /></button>
       </div>
       {view === "chat" ? (
-        <ChatView board={board} />
+        <ChatView board={board} running={status ? status.running : undefined} />
       ) : (
         <SessionTerminal
           label="planner"
@@ -85,7 +85,7 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
 }
 
 /** The planner's conversation: your messages, its replies, and the reports it forwards. */
-export function ChatView({ board }: { board: Board }) {
+export function ChatView({ board, running }: { board: Board; running?: boolean }) {
   const { ws, actions } = board;
   const ch = useChannel(ws?.id ?? "", "planner", null, actions.toast);
   if (!ws) return null;
@@ -107,6 +107,13 @@ export function ChatView({ board }: { board: Board }) {
         placeholder="Goes to the planner, tagged [planner]."
         onSend={ch.send}
         onError={actions.toast}
+        target={{ workspace_id: ws.id, planner: true }}
+        cards={board.cards}
+        columns={board.columns}
+        onCommand={ch.command}
+        running={running}
+        onStart={() => actions.run(() => api.planner_start({ workspace_id: ws.id }))}
+        sessionName="The planner"
         suggestions={ch.loaded && ch.messages.length === 0 ? ["What needs me right now?", "Start a session for a new card"] : undefined}
       />
     </>

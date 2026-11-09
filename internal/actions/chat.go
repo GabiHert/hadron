@@ -114,6 +114,36 @@ func registerChat(r *Registry) {
 			return postAndRoute(c, ch, domain.Message{Author: "you", Kind: "text", Text: text}, line)
 		})
 
+	Register(r, Spec{Name: "chat_command", Description: "Send a Claude Code slash command (such as /compact or /model sonnet) from a chat straight to the terminal of that channel's session: a card's channel types it into the card's session, the planner channel into the planner, then presses Enter, as session_send and planner_send do. It is never relayed to the planner as a chat line. The command is stored on the channel as a kind: command message. The text must start with one /; it fails, and stores nothing, when the session is not running. User-only: see mcp.user_actions.",
+		Mutates: true, Entities: []string{EntityMessages, "sessions"}},
+		func(ctx context.Context, c *Call, in ChatSendIn) (domain.Message, error) {
+			if err := c.UserOnly("chat_command"); err != nil {
+				return domain.Message{}, err
+			}
+			ch, err := resolveChannel(c, in.WorkspaceID, in.Channel)
+			if err != nil {
+				return domain.Message{}, err
+			}
+			text, err := chat.Sanitize(in.Text)
+			if err != nil {
+				return domain.Message{}, err
+			}
+			if !strings.HasPrefix(text, "/") || strings.HasPrefix(text, "//") || len(strings.TrimSpace(text)) < 2 {
+				return domain.Message{}, fmt.Errorf("a command starts with one / and a name, such as /compact; send other text with chat_send")
+			}
+			if err := mayControl(c, ch.workspaceID, ch.card, true, "chat_command"); err != nil {
+				return domain.Message{}, err
+			}
+			m := domain.Message{WorkspaceID: ch.workspaceID, Channel: ch.name, Author: "you", Kind: domain.MessageCommand, Text: text, Delivered: true}
+			if err := c.Store.Messages.Create(&m); err != nil {
+				return m, err
+			}
+			if _, err := sendTo(c, ch.workspaceID, ch.card, text, nil); err != nil {
+				return domain.Message{}, err
+			}
+			return m, nil
+		})
+
 	Register(r, Spec{Name: "chat_post", Description: "Post the planner's reply on a channel. Only the planner (or the user, in tests) may call it. The post is stored; it is not typed anywhere.",
 		Mutates: true, Entities: []string{EntityMessages}},
 		func(ctx context.Context, c *Call, in ChatSendIn) (domain.Message, error) {

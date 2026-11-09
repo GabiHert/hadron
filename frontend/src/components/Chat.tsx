@@ -44,6 +44,15 @@ export function ChatLine({ m, onPin, pinnedIds, scripts = false }: { m: Message;
         {!m.delivered ? <div className="undelivered" role="note" title={m.reason}>The planner did not hear this report. {reasonText(m.reason)}</div> : null}
       </>
     );
+  if (m.kind === "command")
+    return (
+      <>
+        <div className="who r">you → terminal · {when}</div>
+        <div className="b-cmd" title="Typed into the session's terminal; the planner did not get it">
+          <span className="mono">{m.text}</span>
+        </div>
+      </>
+    );
   if (m.author === "planner")
     return (
       <>

@@ -10,6 +10,11 @@ export interface Channel {
   questions: Question[];
   loaded: boolean;
   send: (text: string) => Promise<void>;
+  /**
+   * Types a /command into the channel's session terminal (chat_command). Its error is not toasted:
+   * it rejects so the composer can show it inline and offer Start.
+   */
+  command: (text: string) => Promise<void>;
   answer: (questionId: string, selections: string[], notes: string) => Promise<void>;
 }
 
@@ -76,9 +81,19 @@ export function useChannel(workspaceId: string, channel: string, cardId: string 
   );
 
   const send = useCallback((text: string) => guard(() => api.chat_send({ workspace_id: workspaceId, channel, text })), [guard, workspaceId, channel]);
+  const command = useCallback(
+    async (text: string) => {
+      try {
+        await api.chat_command({ workspace_id: workspaceId, channel, text });
+      } finally {
+        await load();
+      }
+    },
+    [load, workspaceId, channel],
+  );
   const answer = useCallback(
     (questionId: string, selections: string[], notes: string) => guard(() => api.question_answer({ question_id: questionId, selections, notes })),
     [guard],
   );
-  return { messages, questions, loaded, send, answer };
+  return { messages, questions, loaded, send, command, answer };
 }

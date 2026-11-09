@@ -289,3 +289,23 @@ textarea.in.grow-max{overflow-y:auto;scrollbar-width:thin}
 .tbtn:hover{border-color:#57534d}
 label.tbtn input{margin:0;accent-color:var(--tb)}
 .tnote{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+
+/* The composer's / and @ menu: above the field, keyboard-first; the textarea keeps the focus. */
+.composer{position:relative}
+.cap-row{display:flex;align-items:center;gap:8px;min-height:16px}
+.to-term{font-family:var(--mono);font-size:10.5px;line-height:16px;color:var(--acc);border:1px solid var(--acc);border-radius:99px;padding:0 7px}
+.cmd-err{display:flex;align-items:center;gap:8px;font-size:12px;line-height:1.4;color:var(--bad);background:var(--badb);border-radius:6px;padding:5px 6px 5px 9px}
+.cmd-err span{flex:1;min-width:0}
+.suggest{position:absolute;left:12px;right:12px;bottom:calc(100% - 4px);z-index:30;max-height:calc(8 * 30px + 10px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);padding:4px;font-family:var(--sans)}
+.full .suggest{left:max(24px,calc((100% - 860px) / 2));right:max(24px,calc((100% - 860px) / 2))}
+.sg-h{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--fg3);padding:6px 8px 3px}
+.sg-row{display:flex;align-items:center;gap:10px;height:30px;padding:0 8px;border-radius:5px;cursor:pointer;font-size:12.5px;color:var(--fg)}
+.sg-row.on{background:var(--sel)}
+.sg-name{flex:none;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sg-name.mono{font-family:var(--mono);font-size:12px}
+.sg-name mark{background:transparent;color:var(--acc);font-weight:600}
+.sg-desc{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--fg2)}
+.sg-src{flex:none;font-size:10.5px;line-height:16px;color:var(--fg3);border:1px solid var(--border);border-radius:99px;padding:0 6px}
+.sg-row.on .sg-src{border-color:var(--fg3)}
+.b-cmd{align-self:flex-end;max-width:86%}
+.b-cmd .mono{display:inline-block;font-size:12px;color:var(--acc);background:var(--muted);border:1px solid var(--border);border-radius:99px;padding:2px 10px;white-space:pre-wrap;overflow-wrap:anywhere}

@@ -2,7 +2,7 @@
 // like the backend enough for the UI to react (rename, move, delete...), so tests can assert both
 // the calls made and what the user then sees.
 import { vi } from "vitest";
-import type { ModelOption, Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
+import type { ModelOption, Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
 
 export interface Fixture {
   workspaces: Workspace[];
@@ -66,6 +66,20 @@ export const idleUpdate = (over: Record<string, unknown> = {}) => ({
 export const profile = (name: string, firstPrompt: string): LaunchProfile => ({
   id: "lp-" + name, workspace_id: "w1", name, command: "claude", args: [], first_prompt: firstPrompt, prompt: "", model: "", env: {}, worktree: false,
 });
+const defaultCommands = (): SlashCommand[] => [
+  { name: "compact", description: "Compact the conversation", source: "built-in", kind: "command" },
+  { name: "cost", description: "Show the token usage", source: "built-in", kind: "command" },
+  { name: "clear", description: "Clear the conversation", source: "built-in", kind: "command" },
+  { name: "billing:close-month", description: "Close the billing month", source: "project", kind: "command" },
+  { name: "standup", description: "Write the standup", source: "user", kind: "skill" },
+];
+const defaultFiles = (): FileHit[] => [
+  { path: "src", is_dir: true },
+  { path: "src/billing", is_dir: true },
+  { path: "src/billing/invoice.go", is_dir: false },
+  { path: "docs/release plan.md", is_dir: false },
+  { path: "README.md", is_dir: false },
+];
 const defaultModels = (): ModelOption[] => [{ id: "opus", label: "Opus" }, { id: "sonnet", label: "Sonnet" }, { id: "haiku", label: "Haiku" }];
 const defaultProfiles = () => [profile("brief", "/brief {{nick}}"), profile("orchestrate", "/orchestrate {{key}}"), profile("plain", "")];
 
@@ -145,6 +159,10 @@ export const state: {
   links: Link[];
   remoteSessions: RemoteSession[];
   models: ModelOption[];
+  /** what session_commands_list answers */
+  commands: SlashCommand[];
+  /** the folder files_search searches, filtered by a plain substring */
+  files: FileHit[];
 } = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
   mcp: { running: true, url: "http://127.0.0.1:47820/mcp", port: 47820, token: "tok-0123456789abcdef", tool_count: 61, connect_command: "" },
   mcpCalls: [],
@@ -156,6 +174,8 @@ export const state: {
   links: [],
   remoteSessions: [],
   models: defaultModels(),
+  commands: defaultCommands(),
+  files: defaultFiles(),
 };
 export const reset = (fx: Fixture = defaultFixture()) => {
   state.update = idleUpdate();
@@ -178,6 +198,8 @@ export const reset = (fx: Fixture = defaultFixture()) => {
   state.links = [];
   state.remoteSessions = [];
   state.models = defaultModels();
+  state.commands = defaultCommands();
+  state.files = defaultFiles();
   state.profiles = defaultProfiles();
   state.plannerProfile = {};
   state.policyGlobal = "decisions_only";
@@ -350,6 +372,18 @@ const fns = {
     const m = message({ id: "m" + (state.messages.length + 1), workspace_id: a.workspace_id ?? "w1", channel: a.channel, author: "you", text: a.text });
     state.messages.push(m);
     return clone(m);
+  }),
+  chat_command: vi.fn(async (a: { workspace_id?: string; channel: string; text: string }) => {
+    const key = a.channel === "planner" ? "planner" : a.channel.slice("card:".length);
+    if (!state.sessions[key]?.running) throw new Error(`${key === "planner" ? "the planner" : `card "${key}"`} has no session yet. Start it with ${key === "planner" ? "planner_start" : "session_start"}`);
+    const m = message({ id: "m" + (state.messages.length + 1), workspace_id: a.workspace_id ?? "w1", channel: a.channel, author: "you", kind: "command", text: a.text });
+    state.messages.push(m);
+    return clone(m);
+  }),
+  session_commands_list: vi.fn(async () => clone(state.commands)),
+  files_search: vi.fn(async (a: { q?: string; limit?: number }) => {
+    const q = (a.q ?? "").toLowerCase();
+    return clone(state.files.filter((f) => [...q].every((ch) => f.path.toLowerCase().includes(ch))).slice(0, a.limit ?? 50));
   }),
   question_list: vi.fn(async (a: { workspace_id?: string; card?: string; status?: string }) =>
     clone(state.questions.filter((q) => (!a.workspace_id || q.workspace_id === a.workspace_id) && (!a.card || q.card_id === a.card) && (!a.status || q.status === a.status))),

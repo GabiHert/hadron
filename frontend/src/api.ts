@@ -340,7 +340,8 @@ export const ui_main_view = (a: { workspace_id?: string; view: "board" | "dashbo
 
 // ---- chat ----
 export type ReportKind = "progress" | "question" | "blocked" | "done";
-export type MessageKind = "text" | "report" | "widget" | "event" | "answer";
+/** command: a slash command you sent from the chat straight to the session's terminal (chat_command). */
+export type MessageKind = "text" | "report" | "widget" | "event" | "answer" | "command";
 export interface Message {
   id: string;
   created_at: string;
@@ -371,7 +372,31 @@ export interface ChannelSummary {
 export const chat_list = (a: { workspace_id?: string } = {}) => call<ChannelSummary[]>("chat_list", a);
 export const chat_read = (a: { workspace_id?: string; channel: string; since?: string; limit?: number }) => call<Message[]>("chat_read", a);
 export const chat_send = (a: { workspace_id?: string; channel: string; text: string }) => call<Message>("chat_send", a);
+/** Types a /command into the channel's session terminal (a card's, or the planner's) and stores it; never relayed to the planner. */
+export const chat_command = (a: { workspace_id?: string; channel: string; text: string }) => call<Message>("chat_command", a);
 export const chat_post = (a: { workspace_id?: string; channel: string; text: string }) => call<Message>("chat_post", a);
+
+// ---- the composer's / and @ menus ----
+/** Whose folder and commands the composer completes against: a card, or the planner. */
+export interface ComposerTarget {
+  workspace_id?: string;
+  card?: string;
+  planner?: boolean;
+}
+export interface SlashCommand {
+  /** without the slash; a command in a subfolder is "ns:cmd" */
+  name: string;
+  description: string;
+  source: "built-in" | "project" | "user";
+  kind: "command" | "skill";
+}
+export interface FileHit {
+  /** relative to the session's folder */
+  path: string;
+  is_dir: boolean;
+}
+export const session_commands_list = (a: ComposerTarget) => call<SlashCommand[]>("session_commands_list", a);
+export const files_search = (a: ComposerTarget & { q?: string; limit?: number }) => call<FileHit[]>("files_search", a);
 export const widget_post = (a: { workspace_id?: string; channel: string; title: string; html: string }) => call<Message>("widget_post", a);
 export const card_report = (a: { card?: string; kind: ReportKind; text: string }) => call<Message>("card_report", a);
 

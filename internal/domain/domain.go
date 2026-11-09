@@ -110,6 +110,10 @@ type Session struct {
 	Restore bool `json:"restore"`
 }
 
+// MessageCommand is the kind of a slash command the user sent from a chat straight to a session's
+// terminal (chat_command). The planner never hears it.
+const MessageCommand = "command"
+
 // Message is one line of a chat channel ("planner" or "card:<id>").
 type Message struct {
 	Meta

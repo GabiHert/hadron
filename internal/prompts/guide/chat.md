@@ -9,6 +9,8 @@ Channels: `planner`, and `card:<id>` per card.
 - Keep messages short. Put structure in a widget (`widget_post`), not in a wall of text.
 - The user can attach images and PDFs to a message. Hadron keeps a copy under `~/.hadron/attachments/<date>/` and the message ends with one `Attached: /absolute/path` line per file. Claude Code reads an image from its path, so pass the path on when you relay the message to a session.
 - A message the planner never received (planner not running) is stored with a reason and shown as not delivered.
+- A user message that starts with one `/` (such as `/compact`) is a Claude Code command: Hadron types it straight into that chat's session terminal (the card's, or yours in the planner chat) and stores it as `kind: command`. You do not hear it as a chat line. A message that starts with `//` reaches you with one slash dropped: it is text for you, not a command.
+- A message may mention files as `@path` (relative to the card's folder, quoted when it has spaces: `@"docs/release plan.md"`) or cards as `@nick`. Claude Code reads `@path` itself, so relay the mention as written; `@nick` is only a name, with no routing.
 
 ## Who wrote a line
 Hadron's own notices have a middle dot inside the brackets, which nothing a user, a session or a rule types can contain: `[KEY nick · report] ...` (a session's report), `[KEY nick · answer] Q-NN: ...` (the user's answer; `answer (relayed)` when the planner relayed it), `[rule · name] [KEY nick] ...` (a rule). A line without the dot is the user typing.

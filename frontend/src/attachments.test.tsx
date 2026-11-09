@@ -104,8 +104,8 @@ describe("chat attachments", () => {
     render(<Composer id="m" label="Message" placeholder="" onSend={onSend} />);
     const box = screen.getByLabelText("Message");
     fireEvent.paste(box, { clipboardData: clip([png()]) });
-    const chips = await screen.findByLabelText("Attachments to send");
-    expect(chips.querySelector("img")).toHaveAttribute("src", "/attachments/2026-11-09/00000000-0000-4000-8000-000000000001.png");
+    // The row shows "Attaching…" first; wait for the saved chip itself.
+    await waitFor(() => expect(screen.getByLabelText("Attachments to send").querySelector("img")).toHaveAttribute("src", "/attachments/2026-11-09/00000000-0000-4000-8000-000000000001.png"));
     await user.type(box, "what is wrong here?{Enter}");
     expect(onSend).toHaveBeenCalledWith(`what is wrong here?\n\nAttached: ${PATH1}`);
     await waitFor(() => expect(screen.queryByLabelText("Attachments to send")).toBeNull());
