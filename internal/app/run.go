@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/GabiHert/hadron/internal/attachments"
 	"github.com/GabiHert/hadron/internal/board"
 	"github.com/GabiHert/hadron/internal/run"
 	"github.com/GabiHert/hadron/internal/sessions"
@@ -121,7 +122,11 @@ func appOptions(assets embed.FS, a *App, m *menu.Menu, primary bool) *options.Ap
 			// A second launch only brings the running window forward; its process exits at once.
 			OnSecondInstanceLaunch: func(options.SecondInstanceData) { a.showWindow() },
 		},
-		AssetServer: &assetserver.Options{Assets: assets},
+		// /attachments/ serves the thumbnails of attached images, from ~/.hadron/attachments only.
+		AssetServer: &assetserver.Options{Assets: assets, Middleware: attachments.Middleware(run.Home())},
+		// Files dropped on the window reach the page as absolute paths (runtime.OnFileDrop), which
+		// the terminal types and the chat composer attaches. The page's own drag and drop still works.
+		DragAndDrop: &options.DragAndDrop{EnableFileDrop: true},
 		Bind:        []interface{}{a},
 	}
 	if primary {

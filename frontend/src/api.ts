@@ -296,6 +296,18 @@ export interface ChangelogInfo {
 }
 export const changelog_get = (a: { version?: string } = {}) => call<ChangelogInfo>("changelog_get", a);
 
+// ---- attachments ----
+/** A file kept under ~/.hadron/attachments. url is set for an image: the window loads its thumbnail from it. */
+export interface Attachment {
+  path: string;
+  url: string;
+  mime: string;
+  size: number;
+  name: string;
+}
+/** data is the file's bytes in base64. Only the user attaches files. */
+export const attachment_save = (a: { name?: string; data: string }) => call<Attachment>("attachment_save", a);
+
 // ---- models ----
 export interface ModelOption {
   id: string;

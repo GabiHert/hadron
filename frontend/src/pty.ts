@@ -30,7 +30,22 @@ export async function attach(sessionId: string): Promise<{ end: number; bytes: U
   return { end: Number(raw.slice(0, cut)) || 0, bytes: bytesFromB64(raw.slice(cut + 1)) };
 }
 
-export const write = (sessionId: string, text: string) => PtyWrite(sessionId, b64FromText(text));
+// Wails runs every bound call on its own goroutine, so two PtyWrite calls in flight at once can reach
+// the PTY in either order: "/model" typed fast could arrive as "/mdoel", and Esc Esc or a dead key's
+// composition could be split around another key. Each session's writes therefore go one at a time,
+// in the order they were typed: a write starts only when the one before it has returned.
+const tails = new Map<string, Promise<unknown>>();
+
+/** Sends keystrokes to a session, after every earlier write to it has landed. */
+export function write(sessionId: string, text: string): Promise<void> {
+  const prev = tails.get(sessionId) ?? Promise.resolve();
+  const next = prev.catch(() => undefined).then(() => PtyWrite(sessionId, b64FromText(text)));
+  tails.set(sessionId, next);
+  void next.finally(() => {
+    if (tails.get(sessionId) === next) tails.delete(sessionId);
+  }).catch(() => undefined);
+  return next;
+}
 export const resize = (sessionId: string, cols: number, rows: number) => PtyResize(sessionId, cols, rows);
 
 /** Subscribes to a session's output. Returns the unsubscribe function. */

@@ -227,6 +227,24 @@ describe("shell", () => {
     expect(await screen.findByRole("dialog", { name: "New session" })).toBeInTheDocument();
   });
 
+  it("leaves Ctrl+K and Esc to a focused terminal, but Cmd+K still opens the palette there", async () => {
+    await openApp();
+    const xt = document.createElement("div");
+    xt.className = "xterm";
+    const ta = document.createElement("textarea");
+    xt.appendChild(ta);
+    document.body.appendChild(xt);
+    fireEvent.keyDown(ta, { key: "k", ctrlKey: true });
+    fireEvent.keyDown(ta, { key: "n", ctrlKey: true });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.keyDown(ta, { key: "k", metaKey: true });
+    expect(await screen.findByRole("dialog", { name: "Command palette" })).toBeInTheDocument();
+    // Esc in the terminal is Claude Code's, so it does not close the palette either.
+    fireEvent.keyDown(ta, { key: "Escape" });
+    expect(screen.getByRole("dialog", { name: "Command palette" })).toBeInTheDocument();
+    xt.remove();
+  });
+
   it("shows the Settings columns tab with the extendable nav", async () => {
     const user = userEvent.setup();
     await openApp();

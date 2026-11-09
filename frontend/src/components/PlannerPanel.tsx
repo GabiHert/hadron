@@ -106,6 +106,7 @@ export function ChatView({ board }: { board: Board }) {
         label="Message the planner"
         placeholder="Goes to the planner, tagged [planner]."
         onSend={ch.send}
+        onError={actions.toast}
         suggestions={ch.loaded && ch.messages.length === 0 ? ["What needs me right now?", "Start a session for a new card"] : undefined}
       />
     </>

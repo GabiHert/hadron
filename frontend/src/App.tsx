@@ -20,6 +20,11 @@ function isNarrowWindow(): boolean {
   return typeof window.matchMedia === "function" && window.matchMedia("(max-width: 960px)").matches;
 }
 
+/** True when a key event comes from inside a terminal. */
+function inTerminal(target: EventTarget | null): boolean {
+  return target instanceof Element && !!target.closest(".xterm, .xterm-host");
+}
+
 /** The tooltip of the "<tag> available" pill: the first highlights of the release's notes. */
 function updateTitle(tag: string, notes: string): string {
   const h = releaseHighlights(notes ?? "", 3);
@@ -57,6 +62,9 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
+      // In a terminal, Ctrl+K, Ctrl+N and Esc belong to the program (Claude Code kills a line,
+      // moves down, interrupts). Only the Cmd shortcuts are the app's there.
+      if (inTerminal(e.target) && (!e.metaKey || e.key === "Escape")) return;
       if ((e.metaKey || e.ctrlKey) && k === "k") {
         e.preventDefault();
         setModal((m) => (m === "palette" ? null : "palette"));

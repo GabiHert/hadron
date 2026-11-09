@@ -5,7 +5,9 @@ Channels: `planner`, and `card:<id>` per card.
 - The user's messages are typed into the planner's terminal as `[planner] text` or `[KEY nick] text` (no key: `[nick] text`). Text is stripped of control characters and capped at 8,000 characters.
 - Reply with `chat_post {channel, text}`: `planner` for the planner chat, `card:<id>` for a card's chat. Only the planner (and the user) may call it.
 - `chat_read {channel, since?}` reads a channel. `chat_list` lists channels.
+- Messages are shown as Markdown (GitHub flavour): tables, lists, headings, quotes, task lists, `code` and fenced code blocks (with a Copy button), and links, which open in the user's browser. Use a table for a list of PRs or runs instead of pipes in plain text. Raw HTML is shown as text and images are never loaded, so do not embed either.
 - Keep messages short. Put structure in a widget (`widget_post`), not in a wall of text.
+- The user can attach images and PDFs to a message. Hadron keeps a copy under `~/.hadron/attachments/<date>/` and the message ends with one `Attached: /absolute/path` line per file. Claude Code reads an image from its path, so pass the path on when you relay the message to a session.
 - A message the planner never received (planner not running) is stored with a reason and shown as not delivered.
 
 ## Who wrote a line

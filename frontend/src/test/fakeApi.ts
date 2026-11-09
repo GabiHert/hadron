@@ -123,6 +123,7 @@ export const state: {
   update: ReturnType<typeof idleUpdate>;
   /** what changelog_get answers as `show` */
   changelogShow: boolean;
+  attachSeq?: number;
   profiles: LaunchProfile[];
   /** the planner's launch profile name, by workspace id */
   plannerProfile: Record<string, string>;
@@ -159,6 +160,7 @@ export const state: {
 export const reset = (fx: Fixture = defaultFixture()) => {
   state.update = idleUpdate();
   state.changelogShow = false;
+  state.attachSeq = 0;
   state.dash = defaultDash();
   state.schema = defaultSchema();
   state.views = [];
@@ -522,6 +524,13 @@ const fns = {
       highlights: ["A board for your sessions", "Run `hadron --help` to see commands", "Dark mode"],
       releases, seen: "", show: state.changelogShow,
     };
+  }),
+  attachment_save: vi.fn(async (a: { name?: string; data: string }) => {
+    state.attachSeq = (state.attachSeq ?? 0) + 1;
+    const id = `00000000-0000-4000-8000-${String(state.attachSeq).padStart(12, "0")}`;
+    const pdf = (a.name ?? "").endsWith(".pdf");
+    const file = `${id}.${pdf ? "pdf" : "png"}`;
+    return { path: `/Users/you/.hadron/attachments/2026-11-09/${file}`, url: pdf ? "" : `/attachments/2026-11-09/${file}`, mime: pdf ? "application/pdf" : "image/png", size: atob(a.data).length, name: a.name ?? "" };
   }),
   client_log: vi.fn(async () => ({})),
   onChanged: vi.fn(() => () => {}),

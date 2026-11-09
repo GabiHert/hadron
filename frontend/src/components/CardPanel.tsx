@@ -188,7 +188,7 @@ function CardConversation({ board }: { board: Board }) {
         onAnswer={ch.answer}
         empty={ch.loaded ? <div className="empty">Nothing yet. Reports and questions from {c.nick} appear here, and what you write goes to the planner.</div> : null}
       />
-      <Composer id={`card-msg-${c.id}`} label="Message about this card" placeholder={`Goes to the planner tagged ${tag}; it relays to the session.`} onSend={ch.send} />
+      <Composer id={`card-msg-${c.id}`} label="Message about this card" placeholder={`Goes to the planner tagged ${tag}; it relays to the session.`} onSend={ch.send} onError={actions.toast} />
     </>
   );
 }
