@@ -1104,3 +1104,50 @@ export interface Feedback {
 export const feedback_create = (a: { kind: FeedbackKind; text: string; area?: string; attach_diagnostics?: boolean }) => call<Feedback>("feedback_create", a);
 export const feedback_list = (a: { status?: FeedbackStatus } = {}) => call<Feedback[]>("feedback_list", a);
 export const feedback_update = (a: { id: string; status?: FeedbackStatus; note?: string; github_url?: string }) => call<Feedback>("feedback_update", a);
+
+// ---- routines ----
+
+/** A prompt sent to the planner or a card's session on a schedule. */
+export interface Routine {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  workspace_id: string;
+  name: string;
+  enabled: boolean;
+  /** a five-field cron spec in local time, or empty when every_minutes is set */
+  cron: string;
+  every_minutes: number;
+  target: "planner" | "card";
+  card_id: string;
+  prompt: string;
+  catch_up: boolean;
+  next_run_at: string | null;
+  last_run_at: string | null;
+  last_result: string;
+}
+export const routine_list = (a: { workspace_id?: string } = {}) => call<Routine[]>("routine_list", a);
+export const routine_create = (a: {
+  workspace_id?: string;
+  name: string;
+  cron?: string;
+  every_minutes?: number;
+  target?: "planner" | "card";
+  card?: string;
+  prompt: string;
+  enabled?: boolean;
+  catch_up?: boolean;
+}) => call<Routine>("routine_create", a);
+export const routine_update = (a: {
+  routine_id: string;
+  name?: string;
+  cron?: string;
+  every_minutes?: number;
+  target?: "planner" | "card";
+  card?: string;
+  prompt?: string;
+  enabled?: boolean;
+  catch_up?: boolean;
+}) => call<Routine>("routine_update", a);
+export const routine_delete = (a: { routine_id: string }) => call<{ deleted: string }>("routine_delete", a);
+export const routine_run = (a: { routine_id: string }) => call<Routine>("routine_run", a);

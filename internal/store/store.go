@@ -54,6 +54,7 @@ type Store struct {
 	MCPCalls       *MCPCalls
 	Settings       *Settings
 	Feedback       *Feedback
+	Routines       *Routines
 }
 
 // queryer is what both *sql.DB and *sql.Tx offer, so a repo method can run in either.
@@ -99,6 +100,7 @@ func (s *Store) wire() {
 	s.Gates = &Gates{s}
 	s.Links = &Links{s}
 	s.Rules = &Rules{s}
+	s.Routines = &Routines{s}
 	s.Views = &Views{s}
 	s.Blocks = &Blocks{s}
 	s.Prompts = &Prompts{s}

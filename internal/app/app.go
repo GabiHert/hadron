@@ -152,13 +152,17 @@ func (a *App) startup(ctx context.Context) {
 	go a.restoreSessions(ctx)
 }
 
-// ruleTimer fires the idle_for and cron rules that come due. The first tick only starts the clock.
+// ruleTimer fires the idle_for and cron rules that come due (the first tick only starts their clock),
+// the routines that are due, the dashboard's refreshes and the integration polls.
 func (a *App) ruleTimer(ctx context.Context) {
 	tick := time.NewTicker(30 * time.Second)
 	defer tick.Stop()
 	for {
 		if err := a.reg.TickRules(ctx, time.Now().UTC()); err != nil {
 			log.Printf("rule timer: %v", err)
+		}
+		if err := a.reg.TickRoutines(ctx, time.Now().UTC()); err != nil {
+			log.Printf("routine timer: %v", err)
 		}
 		if err := a.reg.TickDashboard(ctx, time.Now().UTC()); err != nil {
 			log.Printf("dashboard timer: %v", err)

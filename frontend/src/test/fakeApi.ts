@@ -2,7 +2,7 @@
 // like the backend enough for the UI to react (rename, move, delete...), so tests can assert both
 // the calls made and what the user then sees.
 import { vi } from "vitest";
-import type { ModelOption, Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
+import type { Routine, ModelOption, Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
 
 export interface Fixture {
   workspaces: Workspace[];
@@ -129,6 +129,7 @@ export const state: {
   schema: FieldEntry[];
   views: View[];
   rules: Rule[];
+  routines: Routine[];
   ruleLog: RuleLogEntry[];
   dryRun: DryRunItem[];
   prompts: Record<PromptKind, PromptInfo>;
@@ -163,7 +164,7 @@ export const state: {
   commands: SlashCommand[];
   /** the folder files_search searches, filtered by a plain substring */
   files: FileHit[];
-} = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
+} = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], routines: [], ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
   mcp: { running: true, url: "http://127.0.0.1:47820/mcp", port: 47820, token: "tok-0123456789abcdef", tool_count: 61, connect_command: "" },
   mcpCalls: [],
   messages: [],
@@ -185,6 +186,7 @@ export const reset = (fx: Fixture = defaultFixture()) => {
   state.schema = defaultSchema();
   state.views = [];
   state.rules = [];
+  state.routines = [];
   state.ruleLog = [];
   state.dryRun = [];
   state.prompts = defaultPrompts();
@@ -417,6 +419,34 @@ const fns = {
     const v = state.views.find((x) => x.id === a.view_id)!;
     state.views = state.views.filter((x) => x.id !== a.view_id);
     return clone(v);
+  }),
+  routine_list: vi.fn(async () => clone(state.routines)),
+  routine_create: vi.fn(async (a: { workspace_id?: string; name: string; cron?: string; every_minutes?: number; target?: Routine["target"]; card?: string; prompt: string; enabled?: boolean; catch_up?: boolean }) => {
+    const r: Routine = { id: "rt" + (state.routines.length + 1), created_at: ts, updated_at: ts, workspace_id: a.workspace_id ?? "w1", name: a.name, enabled: a.enabled ?? true,
+      cron: a.cron ?? "", every_minutes: a.every_minutes ?? 0, target: a.target ?? (a.card ? "card" : "planner"), card_id: a.card ?? "", prompt: a.prompt, catch_up: a.catch_up ?? true,
+      next_run_at: "2026-11-11T12:00:00Z", last_run_at: null, last_result: "" };
+    state.routines.push(r);
+    return clone(r);
+  }),
+  routine_update: vi.fn(async (a: { routine_id: string; name?: string; cron?: string; every_minutes?: number; target?: Routine["target"]; card?: string; prompt?: string; enabled?: boolean; catch_up?: boolean }) => {
+    const r = state.routines.find((x) => x.id === a.routine_id)!;
+    if (a.name !== undefined) r.name = a.name;
+    if (a.cron) [r.cron, r.every_minutes] = [a.cron, 0];
+    if (a.every_minutes) [r.cron, r.every_minutes] = ["", a.every_minutes];
+    if (a.target) [r.target, r.card_id] = [a.target, a.target === "card" ? (a.card ?? r.card_id) : ""];
+    if (a.prompt !== undefined) r.prompt = a.prompt;
+    if (a.catch_up !== undefined) r.catch_up = a.catch_up;
+    if (a.enabled !== undefined) [r.enabled, r.next_run_at] = [a.enabled, a.enabled ? "2026-11-11T12:00:00Z" : null];
+    return clone(r);
+  }),
+  routine_delete: vi.fn(async (a: { routine_id: string }) => {
+    state.routines = state.routines.filter((x) => x.id !== a.routine_id);
+    return { deleted: a.routine_id };
+  }),
+  routine_run: vi.fn(async (a: { routine_id: string }) => {
+    const r = state.routines.find((x) => x.id === a.routine_id)!;
+    [r.last_run_at, r.last_result] = ["2026-11-10T12:00:00Z", "sent the prompt to the running session"];
+    return clone(r);
   }),
   rule_list: vi.fn(async () => clone(state.rules)),
   rule_create: vi.fn(async (a: { workspace_id?: string; name: string; trigger: Rule["trigger"]; condition?: string; actions: Rule["actions"] }) => {
