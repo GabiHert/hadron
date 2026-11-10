@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Fixed
+- Text sent to a session right after it starts or restarts (by the planner or a tool) is no longer lost: Hadron waits for Claude's prompt before typing it, and says so with an error, typing nothing, if the prompt does not show within 20 seconds.
+
 ## [0.2.26] - 2026-11-10
 
 ### Added
