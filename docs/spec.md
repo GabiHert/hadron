@@ -58,6 +58,7 @@ Every table has `id TEXT PRIMARY KEY` (a ULID or UUID), `created_at` and `update
 | `questions` | `workspace_id`, `card_id`, `seq` (Q-01, Q-02 per card), `kind` (`decision`, `unblock`, `approval`), `text`, `context`, `options` (JSON `[{label, description}]`), `multi` (bool), `approval` (JSON `{target, runs_as, reversible, command}`), `status` (`open`, `answered`, `withdrawn`), `answer` (JSON `{selections, notes, via}`), `answered_at` |
 | `gates` | `workspace_id`, `card_id`, `kind` (`merge`, `promote`, `deploy-confirm`, `close`), `summary`, `since` |
 | `links` | `workspace_id`, `card_id`, `integration`, `item_id`, `title`, `url`, `fields` (JSON snapshot), `synced_at` |
+| `routines` | `workspace_id`, `name`, `enabled`, `cron` (five fields, local time) or `every_minutes` (5 to 10080), `target` (`planner` or `card`), `card_id`, `prompt`, `catch_up` (bool), `next_run_at`, `last_run_at`, `last_result` |
 | `rules` | `workspace_id`, `position`, `name`, `enabled`, `trigger` (JSON `{on: field_changed, field}` or `{on: column_entered, column}`, `card_created`, `report`, `question_opened`, `idle_for {minutes}`, `no_report_for {minutes}`, `cron {spec}`), `condition` (CEL string, may be empty), `actions` (JSON list: `move {column_id}`, `set_field {path, value}`, `notify {text}`, `tell_planner {text}`, `run_action {script, action}`), `builtin` (bool) |
 | `views` | `workspace_id`, `name`, `filters` (JSON `{vals: {path: value}, q, expr}`), `position` |
 | `dash_blocks` | `workspace_id`, `position`, `type`, `title`, `span` (1 or 2), `source` (JSON `{query, args}`), `html`, `schedule`, `text`, `text_at` |
@@ -116,6 +117,7 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
   - `gate_set`, `gate_clear`, `gate_list`.
 - **Fields and links:** `field_schema_get`, `card_fields_get`, `card_field_set {card, path, value}`, `link_search {integration, q}`, `link_add`, `link_remove`, `link_refresh`, `link_action_run`.
 - **Remote sessions:** `remote_session_list`, `remote_session_output`, `remote_session_send`, `remote_session_start`, `remote_session_stop`. These delegate to integrations that declare `sessions`.
+- **Routines:** `routine_list`, `routine_create`, `routine_update` (`enabled: false` pauses), `routine_delete`, `routine_run` (now, the schedule unchanged). A session may only list them.
 - **Rules:** `rule_list`, `rule_create`, `rule_update`, `rule_reorder`, `rule_delete`, `rule_dry_run`, `rule_log`.
 - **Filters and views:** `filter_eval {expr}` (returns card ids), `filter_bar_set`, `view_list`, `view_save`, `view_apply`, `view_delete`.
 - **Dashboard:** `dash_get`, `dash_set`, `dash_block_add`, `dash_block_update`, `dash_block_move`, `dash_block_remove`, `dash_block_refresh`, `dash_query_run`.
@@ -231,6 +233,11 @@ Every layer supports the variables below. The handoff kinds have no core: they a
   1. An open question or gate moves the card to the first `needs-you` column.
   2. When the last question is answered or the last gate cleared, the card returns to `return_column_id`.
 - **`rule_dry_run`:** returns `[{card, rule, from, to}]` without applying anything.
+- **Routines** (Settings → Routines): a prompt typed into the planner or one card's session on a schedule. Cron rules were not enough: they fire once per card, can only notify, tell the planner, move, set a field or run a script action, read the spec in UTC and drop times missed while Hadron was closed.
+  - The rule timer (every 30 s) runs each enabled routine whose `next_run_at` has passed, once, then sets the next run after now. A running session gets the prompt typed in (as `session_send`); a stopped one is started with the prompt as its handoff, typed once Claude shows its input box.
+  - A run more than two minutes late was missed (Hadron closed, the Mac asleep). With `catch_up` (the default) it runs once, however many times were missed; without, it is skipped and `last_result` says so.
+  - At most every 5 minutes: `every_minutes` is at least 5, and a cron spec whose next 200 times ever come closer is refused. At most 50 routines per workspace. Pausing clears `next_run_at`; resuming starts from the next time after now, so paused runs are not caught up.
+  - Each run posts a `system` event in the target's chat with the result. Routines are not in the config history (`config_revert` does not restore them).
 
 ## 8. Script sandbox (`internal/script`)
 

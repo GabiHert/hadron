@@ -2260,6 +2260,141 @@
     ]
   },
   {
+    "name": "routine_create",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "cron",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "every_minutes",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "target",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "prompt",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "enabled",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "catch_up",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "routine_delete",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "routine_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "routine_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "routine_run",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "routine_id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "routine_update",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "routine_id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "cron",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "every_minutes",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "target",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "prompt",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "enabled",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "catch_up",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
     "name": "rule_create",
     "mutates": true,
     "fields": [

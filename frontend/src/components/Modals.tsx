@@ -4,6 +4,7 @@ import { HistoryTab } from "./HistoryTab";
 import { McpPanel } from "./McpPanel";
 import { PromptsTab } from "./PromptsTab";
 import { RulesTab } from "./RulesTab";
+import { RoutinesTab } from "./RoutinesTab";
 import { UpdatesCard } from "./UpdatesCard";
 import { DiagnosticsTab } from "./DiagnosticsTab";
 import { FeedbackTab } from "./FeedbackTab";
@@ -291,6 +292,7 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "models", label: "Models", render: (b) => <ModelsTab board={b} /> },
   { id: "planner", label: "Planner", render: (b) => <PlannerTab board={b} /> },
   { id: "rules", label: "Rules", render: (b) => <RulesTab board={b} /> },
+  { id: "routines", label: "Routines", render: (b) => <RoutinesTab board={b} /> },
   { id: "integrations", label: "Integrations", render: (b) => <IntegrationsTab board={b} /> },
   { id: "import", label: "Import", render: (b) => <ImportTab board={b} /> },
   { id: "widgets", label: "Widgets", render: () => <WidgetsTab /> },

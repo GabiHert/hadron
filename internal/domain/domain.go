@@ -192,6 +192,32 @@ type Rule struct {
 	Builtin     bool            `json:"builtin"`
 }
 
+// Routine sends a prompt to the planner or a card's session on a schedule: a five-field cron spec
+// in local time, or every N minutes. A stopped session is started and gets the prompt once ready.
+type Routine struct {
+	Meta
+	WorkspaceID  string `json:"workspace_id"`
+	Name         string `json:"name"`
+	Enabled      bool   `json:"enabled"`
+	Cron         string `json:"cron"`
+	EveryMinutes int    `json:"every_minutes"`
+	// Target is planner or card; CardID names the card.
+	Target string `json:"target"`
+	CardID string `json:"card_id"`
+	Prompt string `json:"prompt"`
+	// CatchUp runs a time missed while Hadron was closed once, when it opens; off skips it.
+	CatchUp    bool       `json:"catch_up"`
+	NextRunAt  *time.Time `json:"next_run_at"`
+	LastRunAt  *time.Time `json:"last_run_at"`
+	LastResult string     `json:"last_result"`
+}
+
+// Routine targets.
+const (
+	RoutinePlanner = "planner"
+	RoutineCard    = "card"
+)
+
 // View is a saved filter.
 type View struct {
 	Meta
