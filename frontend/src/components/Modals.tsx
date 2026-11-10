@@ -91,6 +91,33 @@ export function ModalHead({ id, title, onClose }: { id: string; title: string; o
   );
 }
 
+/**
+ * A folder path you can type, with a Choose… button that opens the macOS folder picker at the
+ * typed path (or its nearest existing parent, else home). The chosen folder replaces the text.
+ */
+export function FolderInput({ id, labelledBy, value, onChange, onError }: { id: string; labelledBy: string; value: string; onChange: (v: string) => void; onError: (text: string) => void }) {
+  const [picking, setPicking] = useState(false);
+  const choose = async () => {
+    setPicking(true);
+    try {
+      const dir = await api.chooseFolder(value);
+      if (dir) onChange(dir);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPicking(false);
+    }
+  };
+  return (
+    <div style={{ display: "flex", gap: 6 }}>
+      <input id={id} className="in mono" style={{ flex: 1, minWidth: 0 }} aria-labelledby={labelledBy} value={value} onChange={(e) => onChange(e.target.value)} />
+      <button type="button" className="btn" disabled={picking} title="Choose the folder in Finder" onClick={() => void choose()}>
+        Choose…
+      </button>
+    </div>
+  );
+}
+
 export function NewWorkspace({ board, onClose }: { board: Board; onClose: () => void }) {
   const [name, setName] = useState("");
   const [root, setRoot] = useState("~/Documents/Projects/");
@@ -109,7 +136,10 @@ export function NewWorkspace({ board, onClose }: { board: Board; onClose: () => 
         <ModalHead id="nw-t" title="New workspace" onClose={onClose} />
         <div className="mb">
           <label className="field"><span>Name</span><input id="nw-name" className="in" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Side project" /></label>
-          <label className="field"><span>Root folder</span><input id="nw-root" className="in mono" value={root} onChange={(e) => setRoot(e.target.value)} /></label>
+          <div className="field">
+            <span id="nw-root-l">Root folder</span>
+            <FolderInput id="nw-root" labelledBy="nw-root-l" value={root} onChange={setRoot} onError={board.actions.toast} />
+          </div>
           <div className="field">
             <span>Colour</span>
             <div className="swatches">

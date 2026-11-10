@@ -35,7 +35,7 @@ internal/script         goja sandbox + strict host API (§8)
 internal/dash           dashboard blocks + named queries
 internal/mcpserver      MCP HTTP server; registers every action as a tool
 internal/update         release-updater template (unchanged)
-internal/app            Wails-bound App: Invoke(action, json), PTY bridge, events
+internal/app            Wails-bound App: Invoke(action, json), PTY bridge, folder picker, events
 frontend/               React app
 docs/                   spec, work items, MCP tool list, logo
 scripts/                release.sh, build-release.sh (release-updater templates), sign/check helpers
@@ -80,7 +80,7 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
 
 - **The frontend** calls one Wails method: `App.Invoke(name string, argsJSON string) (string, error)`. A typed TS client (`frontend/src/api.ts`) wraps it per action. The TS types are hand-written to match the action structs, and a Go test lists the action names so the TS client can be checked against them.
 - **The MCP server** registers every action as a tool, with the input schema derived from `In`.
-- **Parity by construction:** the UI cannot do anything MCP can't. A test asserts that `len(registry) == number of registered MCP tools`. A second test fails if any `App` method other than `Invoke` and the PTY bridge is bound.
+- **Parity by construction:** the UI cannot do anything MCP can't. A test asserts that `len(registry) == number of registered MCP tools`. A second test fails if any `App` method other than `Invoke`, the PTY bridge and `ChooseFolder` is bound. `ChooseFolder` opens the native folder picker and only returns a path, which the UI then passes to an action such as `workspace_create`; it changes nothing itself, and a session has no window to show a picker in.
 - **The actor** comes from the caller:
   - the UI is `you`;
   - MCP uses the `X-Hadron-Session` header: the planner's session id maps to `planner`, a card's session to `session:<nick>`, and a missing header to `external`.
