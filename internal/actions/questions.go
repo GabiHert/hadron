@@ -294,6 +294,9 @@ func registerQuestions(r *Registry) {
 					return q, err
 				}
 			}
+			if err := deliverAnswer(c, card, q, labels, notes, via); err != nil {
+				return q, err
+			}
 			return q, reconcile(c, card)
 		})
 
@@ -849,4 +852,34 @@ func reconcile(c *Call, card domain.Card) error {
 		c.AfterCommit(func() { sv.SetWaiting(ws, id, waiting) })
 	}
 	return nil
+}
+
+// deliverAnswer types the answer into the asking card's session once the answer is committed, so
+// a session waiting on its question wakes up and carries on, however the question was answered.
+// A session that is not running cannot get it: the card's chat says so.
+func deliverAnswer(c *Call, card domain.Card, q domain.Question, labels []string, notes, via string) error {
+	if c.Deps.Sessions == nil {
+		return nil
+	}
+	by := ""
+	switch via {
+	case KindPlanner:
+		by = "by the planner"
+	case ViaPlannerRelay:
+		by = "relayed by the planner"
+	}
+	line := chat.SessionAnswerLine(q.Seq, labels, notes, by)
+	t, err := target(c, card.WorkspaceID, &card)
+	if err == nil && t.Live != nil {
+		live, log := t.Live, c.Deps.Log
+		c.AfterCommit(func() {
+			if err := live.Send(line, true); err != nil {
+				log.Warn("answer delivery", "card", card.Nick, "error", err.Error())
+			}
+		})
+		return nil
+	}
+	ev := domain.Message{WorkspaceID: card.WorkspaceID, Channel: chat.CardChannel(card.ID), Author: "system", Kind: "event", QuestionID: q.ID, Delivered: true,
+		Text: fmt.Sprintf("Q-%02d's answer was not typed into the session because it is not running. Start the session and send it the answer.", q.Seq)}
+	return c.Store.Messages.Create(&ev)
 }

@@ -10,4 +10,4 @@
 
 **gate_set / gate_clear / gate_withdraw / gate_list**: a gate is a merge, promote, deploy-confirm or close waiting on the user. A session sets it; the user clears it (done or declined). `gate_withdraw` takes back a gate that no longer applies: the session that set it, the planner and the user may. When the last question is answered and the last gate cleared, the card returns to its earlier column.
 
-The planner relays the user's answer: after `question_answer` Hadron types `[KEY nick · answer] Q-NN: <labels>; notes: ...` into the planner terminal.
+After `question_answer`, however it was answered, Hadron types `[· answer] Q-NN: <labels>; notes: ...` into the asking card's session (`[· answer, by the planner]` or `[· answer, relayed by the planner]` when the planner answered), so the session carries on by itself. A user's answer is also typed into the planner terminal as `[KEY nick · answer] Q-NN: ...`. If the card's session is not running, its chat says the answer was not delivered.

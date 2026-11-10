@@ -16,7 +16,7 @@ Ask the user (question_ask)
 - Give options, each with a one-line description, put your recommendation first and label it "(Recommended)". The user can add Notes with their answer; read them, they often change the plan.
 - For an approval (a command that changes something that matters) say the target, who it runs as, whether it can be undone (reversible: yes, no or partial, with reversible_note saying what stays when it is partial), and the exact command (command_lang: sql, bash, json and so on, so the user sees it highlighted).
 - Say in meanwhile what you do while it waits, such as "I keep writing tests and stop before the deploy".
-- After asking, stop and wait. Do not carry on as if you knew the answer.
+- After asking, stop and wait. Do not carry on as if you knew the answer. The answer is typed into your terminal as "[· answer] Q-NN: <choices>; notes: ..."; only Hadron writes that dot. Read the notes, then carry on.
 - Mark a merge, promotion, deploy confirmation or close as waiting on the user with gate_set. The user clears it. If a gate no longer applies, take it back with gate_withdraw.
 
 Explain with widgets
