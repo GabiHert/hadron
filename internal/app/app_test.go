@@ -37,8 +37,9 @@ func newTestApp(t *testing.T) *App {
 	return a
 }
 
-// ptyBridge lists the methods the terminal bridge may bind (spec section 3).
-var ptyBridge = map[string]bool{"PtyAttach": true, "PtyWrite": true, "PtyResize": true}
+// ptyBridge lists the other methods Wails may bind (spec section 3): the terminal bridge, and the
+// folder picker, which only returns a path for an action to use.
+var ptyBridge = map[string]bool{"PtyAttach": true, "PtyWrite": true, "PtyResize": true, "ChooseFolder": true}
 
 func TestOnlyInvokeAndThePTYBridgeAreBound(t *testing.T) {
 	var bound []string

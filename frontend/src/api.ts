@@ -1,7 +1,7 @@
 // Typed client for the action registry. Every UI mutation goes through here, and so through
 // App.Invoke. The types are hand-written to match internal/domain and internal/actions; a Vitest
 // test checks that every action in internal/actions/testdata/actions.json has a wrapper below.
-import { Invoke } from "../wailsjs/go/app/App";
+import { ChooseFolder, Invoke } from "../wailsjs/go/app/App";
 import { EventsOn } from "../wailsjs/runtime/runtime";
 
 export type Role = "needs-you" | "active" | "blocked" | "done" | "backlog" | "";
@@ -93,6 +93,12 @@ export async function call<T>(name: string, args: object = {}): Promise<T> {
 export function onChanged(cb: (e: ChangedEvent) => void): () => void {
   return EventsOn("changed", (e: ChangedEvent) => cb(e));
 }
+
+/**
+ * Opens the macOS folder picker at start (or its nearest existing parent, else home) and returns
+ * the chosen folder, or "" when cancelled. A window binding, not an action: no MCP tool.
+ */
+export const chooseFolder = (start: string): Promise<string> => ChooseFolder(start);
 
 // ---- app and settings ----
 export const app_status = () => call<AppStatus>("app_status");

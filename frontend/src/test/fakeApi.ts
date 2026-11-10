@@ -666,6 +666,7 @@ const fns = {
     return { path: `/Users/you/.hadron/attachments/2026-11-09/${file}`, url: pdf ? "" : `/attachments/2026-11-09/${file}`, mime: pdf ? "application/pdf" : "image/png", size: atob(a.data).length, name: a.name ?? "" };
   }),
   client_log: vi.fn(async () => ({})),
+  chooseFolder: vi.fn(async (_start: string) => ""),
   onChanged: vi.fn(() => () => {}),
   onEvent: vi.fn(() => () => {}),
   onNotify: vi.fn(() => () => {}),
