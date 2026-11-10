@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.19] - 2026-11-10
+
 ### Added
 - Collapse a board column to a thin rail with the button in its header (or z on the board). The rail shows the column's name and card count, marks the cards that arrived since you collapsed it, and turns red when a card in it waits on you. Click the rail, or press z or ↩ on it, to expand it again; a collapsed column stays collapsed after a restart. You can drop a card on a rail, and ⌘K has "Expand every collapsed column".
 
