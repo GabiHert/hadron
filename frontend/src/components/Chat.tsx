@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Message, Question } from "../api";
 import { hm } from "../lib";
@@ -223,14 +223,37 @@ export function ChatThread({ messages, questions, onAnswer, empty, className, sc
   const box = useRef<HTMLDivElement>(null);
   const replying = useReplying(messages);
   const byId = new Map(questions.map((q) => [q.id, q]));
+  // stick: the view follows the newest line. last: where the view was the last time we looked, so
+  // a scroll event can tell the reader scrolling up from the content changing under the view.
   const stick = useRef(true);
-  useEffect(() => {
+  const last = useRef({ top: 0, height: 0 });
+  const follow = () => {
+    const el = box.current;
+    if (!el || !stick.current) return;
+    el.scrollTop = el.scrollHeight;
+    last.current = { top: el.scrollTop, height: el.scrollHeight };
+  };
+  // Layout effects run before the browser paints and dispatches scroll events, so a new
+  // conversation is at its newest line before anything can be seen or scrolled.
+  useLayoutEffect(() => {
     stick.current = true;
   }, [scope]);
+  useLayoutEffect(follow, [messages.length, questions.length, replying, scope]);
+  // Lines that grow after they render (a widget sizing itself, a font arriving) keep the view pinned.
+  const grow = useRef<ResizeObserver | null>(null);
   useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => follow());
+    grow.current = ro;
+    return () => ro.disconnect();
+  }, []);
+  useLayoutEffect(() => {
     const el = box.current;
-    if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [messages.length, questions.length, replying, scope]);
+    const ro = grow.current;
+    if (!el || !ro) return;
+    ro.observe(el);
+    for (const child of Array.from(el.children)) ro.observe(child);
+  });
   return (
     <div
       className={className}
@@ -239,7 +262,12 @@ export function ChatThread({ messages, questions, onAnswer, empty, className, sc
       aria-label="Conversation"
       onScroll={(e) => {
         const el = e.currentTarget;
-        stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+        const before = last.current;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 48) stick.current = true;
+        // Only the reader scrolling up stops the follow. A scroll the browser makes because the
+        // lines changed (the old card's emptied, the new card's not yet pinned) does not.
+        else if (el.scrollHeight === before.height && el.scrollTop < before.top) stick.current = false;
+        last.current = { top: el.scrollTop, height: el.scrollHeight };
       }}
     >
       {messages.length === 0 ? empty : null}
