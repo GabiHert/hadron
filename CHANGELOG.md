@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.29] - 2026-11-10
+
 ### Added
 - New workspace: a Choose… button next to the root folder opens the Finder folder picker (you can make a new folder there too). It starts at the path you typed, and typing a path still works.
 
