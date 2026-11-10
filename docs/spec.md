@@ -157,7 +157,7 @@ Every operation is an **action**: `name` (snake_case, which is also the MCP tool
   - When a terminal mounts, the frontend calls `PtyAttach(sessionId)`, which returns the scrollback, so the terminal repaints.
 - **Input:**
   - `PtyWrite(sessionId, base64)` from the frontend. Wails runs every bound call on its own goroutine, so two calls in flight could reach the PTY in either order; the frontend (`pty.ts`) therefore sends a session's writes one at a time, each after the previous one returned.
-  - `session_send` writes text with bracketed paste (`ESC[200~ … ESC[201~`), then `\r` when `enter`. Writes to one PTY are serialized through a per-session mutex queue, so lines never interleave.
+  - `session_send` writes text with bracketed paste (`ESC[200~ … ESC[201~`), then `\r` when `enter`. A session (or planner) that started less than 20 s ago and has not yet shown Claude's input box (`ScreenShowsInput`, the check the first prompt and handoffs use) makes `session_send` and `planner_send` wait for it first; if it does not show by 20 s after the start, they fail and type nothing. A session seen ready once, or older than that, gets the text at once. Both actions are `NoTx`, so the wait holds no transaction. Writes to one PTY are serialized through a per-session mutex queue, so lines never interleave.
 - **Liveness:** derived as follows, and changes emit `changed`.
   - `working`: output in the last 3 s;
   - `waiting`: the card has an open question;

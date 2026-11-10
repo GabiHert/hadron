@@ -1242,7 +1242,7 @@ Stop the planner's session if it runs and start it again, resuming its conversat
 
 ### `planner_send`
 
-Type text into the planner's session like a paste, then press Enter.
+Type text into the planner's session like a paste, then press Enter. Right after planner_start or planner_restart it first waits (up to 20 s from the start) for Claude's prompt; it fails, typing nothing, if the prompt does not show by then.
 
 *changes data*
 
@@ -1854,7 +1854,7 @@ Stop a card's session if it runs and start it again. It resumes the last Claude 
 
 ### `session_send`
 
-Type text into a card's session like a paste, then press Enter. The call fails if the session is not running.
+Type text into a card's session like a paste, then press Enter. Right after session_start or session_restart it first waits (up to 20 s from the start) for Claude's prompt, so nothing is lost; it fails, typing nothing, if the prompt does not show by then or the session is not running.
 
 *changes data*
 

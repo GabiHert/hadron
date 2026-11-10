@@ -4,6 +4,7 @@
 package sessions
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,6 +39,9 @@ const DefaultMCPPort = 47820
 // screen has not shown its input box by then.
 const DefaultFirstPromptDelay = 1500 * time.Millisecond
 
+// DefaultReadyTimeout is how long after a session starts a send waits for Claude's input box.
+const DefaultReadyTimeout = 20 * time.Second
+
 // Config is what a Service needs from the app.
 type Config struct {
 	// Store is the root store. Actions pass their transaction store to Prepare; the callbacks that
@@ -53,6 +57,8 @@ type Config struct {
 	OnData func(sessionID string, data []byte, end int64)
 	// FirstPromptDelay overrides DefaultFirstPromptDelay. Tests shorten it.
 	FirstPromptDelay time.Duration
+	// ReadyTimeout overrides DefaultReadyTimeout. Tests shorten it.
+	ReadyTimeout time.Duration
 	// MCPPort returns the port the MCP server listens on, or 0 while it is not listening. Nil or 0
 	// reads HADRON_MCP_PORT, then the setting, then the default.
 	MCPPort func() int
@@ -69,6 +75,7 @@ type Service struct {
 
 	mu       sync.Mutex
 	failures map[string]string // session id -> why it never started
+	ready    map[string]bool   // session id -> Claude's input box has been seen
 	// closing is set when Hadron is quitting: sessions that end after that are meant to come back.
 	closing atomic.Bool
 }
@@ -78,7 +85,10 @@ func New(cfg Config) *Service {
 	if cfg.FirstPromptDelay <= 0 {
 		cfg.FirstPromptDelay = DefaultFirstPromptDelay
 	}
-	return &Service{cfg: cfg, pty: pty.NewManager(cfg.Env), failures: map[string]string{}}
+	if cfg.ReadyTimeout <= 0 {
+		cfg.ReadyTimeout = DefaultReadyTimeout
+	}
+	return &Service{cfg: cfg, pty: pty.NewManager(cfg.Env), failures: map[string]string{}, ready: map[string]bool{}}
 }
 
 // Request says what to start.
@@ -355,6 +365,9 @@ func (s *Service) onExit(row domain.Session, cardID string, code int) {
 
 func (s *Service) markExited(row domain.Session, cardID string, code int) {
 	s.cfg.Log.Debug("pty exit", "session", row.ID, "kind", row.Kind, "exit_code", code)
+	s.mu.Lock()
+	delete(s.ready, row.ID)
+	s.mu.Unlock()
 	// A session that ends while Hadron runs ended on purpose or on its own, so it stays down.
 	// Quitting Hadron (and an update, which quits it) keeps the flag: those sessions come back.
 	if !s.closing.Load() {
@@ -647,4 +660,44 @@ func (s *Service) LiveSessions() []domain.Session {
 		}
 	}
 	return out
+}
+
+// ErrNotReady says a session did not show Claude's input box in time, so nothing was typed.
+var ErrNotReady = errors.New("not ready")
+
+// WaitReady waits until a session that is still starting shows Claude's input box, so text sent
+// to it is not lost before Claude reads its input. A session that showed the box once, or that
+// started more than ReadyTimeout ago, is ready at once. It fails (wrapping ErrNotReady) when the
+// box does not show by ReadyTimeout after the start, and when the session ends meanwhile.
+func (s *Service) WaitReady(ctx context.Context, row domain.Session, ps *pty.Session) error {
+	s.mu.Lock()
+	seen := s.ready[row.ID]
+	s.mu.Unlock()
+	if seen {
+		return nil
+	}
+	deadline := row.StartedAt.Add(s.cfg.ReadyTimeout)
+	if row.StartedAt.IsZero() || !time.Now().Before(deadline) {
+		return nil // an established session: its screen may show anything (a dialog, a pager)
+	}
+	tick := time.NewTicker(40 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		if ScreenShowsInput(ps.Screen(0, false)) {
+			s.mu.Lock()
+			s.ready[row.ID] = true
+			s.mu.Unlock()
+			return nil
+		}
+		if !time.Now().Before(deadline) {
+			return fmt.Errorf("%w: Claude's prompt did not show within %s of the session starting", ErrNotReady, s.cfg.ReadyTimeout)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ps.Done():
+			return fmt.Errorf("%w: the session ended before Claude was ready", ErrNotReady)
+		case <-tick.C:
+		}
+	}
 }

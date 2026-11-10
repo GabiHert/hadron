@@ -22,7 +22,7 @@ func (h *sessionHarness) relaunch(t *testing.T) *sessions.Service {
 	}
 	env := h.env
 	svc := sessions.New(sessions.Config{Store: h.reg.Deps().Store, Home: h.home, Env: func() []string { return env },
-		FirstPromptDelay: 200 * time.Millisecond, Window: 150 * time.Millisecond})
+		FirstPromptDelay: 200 * time.Millisecond, ReadyTimeout: harnessReadyTimeout, Window: 150 * time.Millisecond})
 	t.Cleanup(svc.StopAll)
 	return svc
 }

@@ -185,8 +185,8 @@ func registerSessions(r *Registry) {
 			return statusOf(&card, card.WorkspaceID, t), nil
 		})
 
-	Register(r, Spec{Name: "session_send", Description: "Type text into a card's session like a paste, then press Enter. The call fails if the session is not running.",
-		Mutates: true, Entities: []string{"sessions"}},
+	Register(r, Spec{Name: "session_send", Description: "Type text into a card's session like a paste, then press Enter. Right after session_start or session_restart it first waits (up to 20 s from the start) for Claude's prompt, so nothing is lost; it fails, typing nothing, if the prompt does not show by then or the session is not running.",
+		Mutates: true, NoTx: true, Entities: []string{"sessions"}},
 		func(ctx context.Context, c *Call, in SessionSendIn) (SessionStatus, error) {
 			card, err := cardByRef(c, in.Card)
 			if err != nil {
@@ -195,7 +195,7 @@ func registerSessions(r *Registry) {
 			if err := mayControl(c, card.WorkspaceID, &card, true, "session_send"); err != nil {
 				return SessionStatus{}, err
 			}
-			return sendTo(c, card.WorkspaceID, &card, in.Text, in.Enter)
+			return sendWhenReady(ctx, c, card.WorkspaceID, &card, in.Text, in.Enter)
 		})
 
 	Register(r, Spec{Name: "session_keys", Description: "Press keys in a card's session: Enter, Escape, Tab, arrows, Backspace, Ctrl-<letter>, or single characters. Use it for menus and confirmations.",
@@ -336,8 +336,8 @@ func registerSessions(r *Registry) {
 			return startPlanner(c, w, in.Fresh, true)
 		})
 
-	Register(r, Spec{Name: "planner_send", Description: "Type text into the planner's session like a paste, then press Enter.",
-		Mutates: true, Entities: []string{"sessions"}},
+	Register(r, Spec{Name: "planner_send", Description: "Type text into the planner's session like a paste, then press Enter. Right after planner_start or planner_restart it first waits (up to 20 s from the start) for Claude's prompt; it fails, typing nothing, if the prompt does not show by then.",
+		Mutates: true, NoTx: true, Entities: []string{"sessions"}},
 		func(ctx context.Context, c *Call, in PlannerSendIn) (SessionStatus, error) {
 			w, err := c.Workspace(in.WorkspaceID)
 			if err != nil {
@@ -346,7 +346,7 @@ func registerSessions(r *Registry) {
 			if err := mayControl(c, w.ID, nil, true, "planner_send"); err != nil {
 				return SessionStatus{}, err
 			}
-			return sendTo(c, w.ID, nil, in.Text, in.Enter)
+			return sendWhenReady(ctx, c, w.ID, nil, in.Text, in.Enter)
 		})
 
 	Register(r, Spec{Name: "planner_keys", Description: "Press keys in the planner's session: Enter, Escape, Tab, arrows, Backspace, Ctrl-<letter>, or single characters. Use it for menus and confirmations. It is a user-only action: see mcp.user_actions.",
@@ -599,6 +599,30 @@ func liveTarget(c *Call, workspaceID string, card *domain.Card) (sessions.Target
 func sendTo(c *Call, workspaceID string, card *domain.Card, text string, enter *bool) (SessionStatus, error) {
 	t, _, err := liveTarget(c, workspaceID, card)
 	if err != nil {
+		return SessionStatus{}, err
+	}
+	if err := t.Live.Send(text, enter == nil || *enter); err != nil {
+		return SessionStatus{}, err
+	}
+	return statusOf(card, workspaceID, t), nil
+}
+
+// sendWhenReady is sendTo for a session that may still be starting: it waits for Claude's input
+// box first, so the text is not typed before Claude reads it and lost. It holds no transaction
+// while it waits (session_send and planner_send are NoTx).
+func sendWhenReady(ctx context.Context, c *Call, workspaceID string, card *domain.Card, text string, enter *bool) (SessionStatus, error) {
+	t, who, err := liveTarget(c, workspaceID, card)
+	if err != nil {
+		return SessionStatus{}, err
+	}
+	sv, err := svc(c)
+	if err != nil {
+		return SessionStatus{}, err
+	}
+	if err := sv.WaitReady(ctx, t.Row, t.Live); err != nil {
+		if errors.Is(err, sessions.ErrNotReady) {
+			return SessionStatus{}, fmt.Errorf("nothing was typed into %s: %v. Look at it with session_read_screen (a dialog may be waiting for a key), then send again", who, strings.TrimPrefix(err.Error(), sessions.ErrNotReady.Error()+": "))
+		}
 		return SessionStatus{}, err
 	}
 	if err := t.Live.Send(text, enter == nil || *enter); err != nil {

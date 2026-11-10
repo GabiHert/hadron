@@ -37,6 +37,7 @@ done
 env > "$out.env"
 pwd > "$out.pwd"
 echo started > "$out.started"
+if [ -n "$HADRON_TEST_BOX_DELAY" ]; then sleep "$HADRON_TEST_BOX_DELAY"; date +%s > "$out.ready"; fi
 if [ -z "$HADRON_TEST_SILENT" ]; then printf '│ > \n'; fi
 while IFS= read -r line; do printf '%s\n' "$line" >> "$out.in"; [ "$line" = "/exit" ] && exit 0; done
 `
@@ -53,6 +54,15 @@ type sessionHarness struct {
 // newSessionHarness wires a real sessions.Service whose PATH holds only a fake claude.
 func newSessionHarness(t *testing.T, silent bool) *sessionHarness {
 	t.Helper()
+	return newSessionHarnessEnv(t, silent)
+}
+
+// harnessReadyTimeout is how long a send waits for a starting fake claude's input box.
+const harnessReadyTimeout = time.Second
+
+// newSessionHarnessEnv is newSessionHarness with extra environment for the fake claude.
+func newSessionHarnessEnv(t *testing.T, silent bool, extra ...string) *sessionHarness {
+	t.Helper()
 	deps, rec := testDeps(t)
 	bin := t.TempDir()
 	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(fakeClaude), 0o755); err != nil {
@@ -63,12 +73,14 @@ func newSessionHarness(t *testing.T, silent bool) *sessionHarness {
 	if silent {
 		env = append(env, "HADRON_TEST_SILENT=1")
 	}
+	env = append(env, extra...)
 	svc := sessions.New(sessions.Config{
 		Store: deps.Store, Home: deps.Home, Env: func() []string { return env },
 		Changed: func(ws string, entities ...string) {
 			rec.emit(EventChanged, ChangedEvent{WorkspaceID: ws, Entities: entities})
 		},
 		FirstPromptDelay: 200 * time.Millisecond,
+		ReadyTimeout:     harnessReadyTimeout,
 		Window:           150 * time.Millisecond,
 	})
 	deps.Sessions = svc
@@ -435,6 +447,8 @@ func TestLivenessUpdatesTheCardAndEmitsChanged(t *testing.T) {
 		t.Fatalf("a new session's card is %s, want idle", h.card(card.ID).Liveness)
 	}
 	before := h.rec.count()
+	// cat never draws Claude's prompt: send once the start-up wait is over, as to any running program.
+	time.Sleep(harnessReadyTimeout + 100*time.Millisecond)
 	h.do("session_send", m{"card": "live", "text": "ping"}, nil)
 	waitUntil(t, "working", func() bool { return h.card(card.ID).Liveness == domain.LivenessWorking })
 	waitUntil(t, "idle again", func() bool { return h.card(card.ID).Liveness == domain.LivenessIdle })
