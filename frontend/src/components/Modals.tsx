@@ -5,6 +5,7 @@ import { McpPanel } from "./McpPanel";
 import { PromptsTab } from "./PromptsTab";
 import { RulesTab } from "./RulesTab";
 import { RoutinesTab } from "./RoutinesTab";
+import { TagsTab } from "./TagColors";
 import { UpdatesCard } from "./UpdatesCard";
 import { DiagnosticsTab } from "./DiagnosticsTab";
 import { FeedbackTab } from "./FeedbackTab";
@@ -289,6 +290,7 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "keyboard", label: "Keyboard", render: (b) => <KeyboardTab toast={b.actions.toast} /> },
   { id: "prompts", label: "Harness", render: (b) => <PromptsTab board={b} /> },
   { id: "columns", label: "Columns", render: (b) => <ColumnsTab board={b} /> },
+  { id: "tags", label: "Tags", render: (b) => <TagsTab board={b} /> },
   { id: "models", label: "Models", render: (b) => <ModelsTab board={b} /> },
   { id: "planner", label: "Planner", render: (b) => <PlannerTab board={b} /> },
   { id: "rules", label: "Rules", render: (b) => <RulesTab board={b} /> },

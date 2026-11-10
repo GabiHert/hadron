@@ -7,6 +7,13 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Card tags have colours. Each value of a field (such as a Jira status), each stage and each model gets a steady colour of its own, and you can pick another from the card panel's tags or in Settings → Tags. Colour a key prefix (such as ACME) to tell projects apart, or switch automatic colours off for a field to keep it grey. The planner can set colours too. Colours follow the theme, so they read well in light and dark.
+- The card's stage now shows as a tag on the card face.
+
+### Fixed
+- ↩ on a button in the card or planner panel (such as Resume) presses that button instead of jumping to the message box.
+
 ## [0.2.22] - 2026-11-10
 
 ### Changed

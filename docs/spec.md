@@ -224,6 +224,7 @@ Every layer supports the variables below. The handoff kinds have no core: they a
 
 - **Field paths:** `card.<name>` (native: `column`, `assignee`, `liveness`, `key`, `nick`, `stage`), `custom.<name>`, and `<integration>.<field>`.
 - **Schema entry:** `{path, label, type (text|number|enum|user|date|bool), options?, filterable, editable, card_chip, source}`.
+- **Tag colours:** the pills on a card (its key, stage, `card_chip` fields and model) take a colour per field path and value, kept per workspace in the setting `chip_colors:<workspace>` (`{colors: {path: {value: colour}}, plain: [paths]}`). `chip_color_list`, `chip_color_set {path, value, color}` (empty removes it) and `chip_color_auto_set {path, auto}`; sessions may only list. Colours are palette names (grey, blue, teal, green, lime, amber, orange, red, pink, purple) that `tokens.css` defines as `--tag-<name>` and `--tag-<name>-b` for both themes, never raw hex. A value with no colour gets a stable automatic one (FNV-1a of its text over the palette without grey) unless its path is in `plain`; `card.key` is coloured by the key's prefix (ACME for ACME-508) and has no automatic colour. The card panel's tag row and Settings → Tags open a swatch picker on each tag.
 - **CEL:** the environment exposes one map variable per namespace (`card`, `custom`, and one per enabled integration), so `jira.status == "Finished"` works. Compile errors are returned verbatim.
 - **Rules:**
   - Rules run after every event that matches their trigger, in `position` order.

@@ -35,6 +35,27 @@
   /* Older widgets use --serif for titles; it now means the heading face. */
   --serif: var(--head);
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  /* Tag colours (chips on cards): text and background, one pair per palette name. */
+  --tag-grey: #5c6370;
+  --tag-grey-b: #eceef1;
+  --tag-blue: #2457b5;
+  --tag-blue-b: #e3ecfb;
+  --tag-teal: #11756f;
+  --tag-teal-b: #dcf1ef;
+  --tag-green: #2f7a4b;
+  --tag-green-b: #e2f1e7;
+  --tag-lime: #556a10;
+  --tag-lime-b: #ebf2d4;
+  --tag-amber: #8a5700;
+  --tag-amber-b: #fbefd5;
+  --tag-orange: #a24812;
+  --tag-orange-b: #fbe7da;
+  --tag-red: #b4322a;
+  --tag-red-b: #f9e1df;
+  --tag-pink: #a3316b;
+  --tag-pink-b: #f8e1ed;
+  --tag-purple: #6b3fb0;
+  --tag-purple-b: #ece4f8;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -61,6 +82,26 @@
     --termbar: #191817;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px -14px rgba(0, 0, 0, 0.7);
     --scrim: rgba(0, 0, 0, 0.55);
+    --tag-grey: #b4bac4;
+    --tag-grey-b: #2a2e35;
+    --tag-blue: #8fb2f0;
+    --tag-blue-b: #1d2a44;
+    --tag-teal: #6fd0c7;
+    --tag-teal-b: #163432;
+    --tag-green: #7fcf9b;
+    --tag-green-b: #1f3327;
+    --tag-lime: #bcd86a;
+    --tag-lime-b: #2b331a;
+    --tag-amber: #e6b65c;
+    --tag-amber-b: #3a2e14;
+    --tag-orange: #f2a272;
+    --tag-orange-b: #3d2617;
+    --tag-red: #f0877d;
+    --tag-red-b: #3d1f1d;
+    --tag-pink: #ee8fbe;
+    --tag-pink-b: #3b1d2c;
+    --tag-purple: #bb9bf0;
+    --tag-purple-b: #2c2140;
     color-scheme: dark;
   }
 }
@@ -88,5 +129,25 @@
   --termbar: #191817;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px -14px rgba(0, 0, 0, 0.7);
   --scrim: rgba(0, 0, 0, 0.55);
+  --tag-grey: #b4bac4;
+  --tag-grey-b: #2a2e35;
+  --tag-blue: #8fb2f0;
+  --tag-blue-b: #1d2a44;
+  --tag-teal: #6fd0c7;
+  --tag-teal-b: #163432;
+  --tag-green: #7fcf9b;
+  --tag-green-b: #1f3327;
+  --tag-lime: #bcd86a;
+  --tag-lime-b: #2b331a;
+  --tag-amber: #e6b65c;
+  --tag-amber-b: #3a2e14;
+  --tag-orange: #f2a272;
+  --tag-orange-b: #3d2617;
+  --tag-red: #f0877d;
+  --tag-red-b: #3d1f1d;
+  --tag-pink: #ee8fbe;
+  --tag-pink-b: #3b1d2c;
+  --tag-purple: #bb9bf0;
+  --tag-purple-b: #2c2140;
   color-scheme: dark;
 }
