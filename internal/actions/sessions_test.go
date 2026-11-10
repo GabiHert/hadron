@@ -17,7 +17,7 @@ import (
 
 // fakeClaude is a stand-in for the claude CLI. It records its argv (NUL separated), its environment
 // and a copy of the MCP config it was pointed at, draws Claude's input box unless HADRON_TEST_SILENT
-// is set, and appends every line typed into it to <out>.in.
+// is set, and appends every line typed into it to <out>.in. A typed /exit ends it, as it ends Claude.
 const fakeClaude = `#!/bin/sh
 out="$HADRON_TEST_OUT"
 : > "$out.argv"
@@ -38,7 +38,7 @@ env > "$out.env"
 pwd > "$out.pwd"
 echo started > "$out.started"
 if [ -z "$HADRON_TEST_SILENT" ]; then printf '│ > \n'; fi
-while IFS= read -r line; do printf '%s\n' "$line" >> "$out.in"; done
+while IFS= read -r line; do printf '%s\n' "$line" >> "$out.in"; [ "$line" = "/exit" ] && exit 0; done
 `
 
 type sessionHarness struct {
@@ -86,7 +86,17 @@ func (h *sessionHarness) file(suffix string) string {
 
 func waitUntil(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(6 * time.Second)
+	waitFor(t, what, 6*time.Second, cond)
+}
+
+// slowWait is the deadline for conditions that hang on processes exiting, which can take long
+// when the whole suite runs at once.
+const slowWait = 30 * time.Second
+
+// waitFor polls cond until it holds or the deadline passes.
+func waitFor(t *testing.T, what string, within time.Duration, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(within)
 	for time.Now().Before(deadline) {
 		if cond() {
 			return
