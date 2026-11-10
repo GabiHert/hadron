@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Board } from "../state/useBoard";
 import { Icon } from "./ui";
 import { withChord } from "../keys";
+import { themeActions } from "../theme";
 
 export function formatVersion(v: string): string {
   if (!v) return "";
@@ -65,14 +66,9 @@ export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSetting
       {updateSlot}
       <button className="ibtn" onClick={onFeedback} aria-label="Send feedback" title="Send feedback"><Icon name="bubble" /></button>
       <button className="ibtn" onClick={onPalette} aria-label="Command palette" title={withChord("Command palette", "palette.toggle")}><Icon name="search" /></button>
-      <button className="ibtn" onClick={() => void actions.setTheme(isDark(board.theme) ? "light" : "dark")} aria-label="Switch light or dark" title="Switch light or dark"><Icon name="moon" /></button>
+      <button className="ibtn" onClick={() => void themeActions.toggleMode()} aria-label="Switch light or dark" title="Switch light or dark"><Icon name="moon" /></button>
       <button className="ibtn" onClick={onSettings} aria-label="Settings" title={withChord("Settings", "settings.open")}><Icon name="gear" /></button>
     </header>
   );
 }
 
-export function isDark(theme: string): boolean {
-  if (theme === "dark") return true;
-  if (theme === "light") return false;
-  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches;
-}

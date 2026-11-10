@@ -127,7 +127,7 @@ textarea.in.grow-max{overflow-y:auto;scrollbar-width:thin}
 .boxh{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--row);min-width:0}
 .boxh b{font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fg{display:grid;grid-template-columns:100px minmax(0,1fr);gap:8px 10px;align-items:center;padding:10px 12px}
-.fg label{color:var(--fg3);font-size:12.5px}
+.fg label,.fg .fgl{color:var(--fg3);font-size:12.5px}
 .rrow{display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--row);font-size:12.5px}
 .rrow:first-child{border-top:0}
 .empty{color:var(--fg3);text-align:center;padding:30px 10px;line-height:1.6}
@@ -365,3 +365,42 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
 .cheat dd{margin:0;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .modal.confirm{max-width:440px}
 .pal ul{max-height:min(56vh,480px);overflow:auto}
+/* Settings → Appearance: theme swatches, the preview and the editor. */
+.tpick{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:12px;align-items:start}
+@media (max-width:860px){.tpick{grid-template-columns:1fr}}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;min-width:0}
+.tsw{border:1px solid var(--border);border-radius:9px;background:var(--card);display:flex;flex-direction:column;min-width:0}
+.tsw.on{box-shadow:0 0 0 2px var(--acc);border-color:transparent}
+.tsw-pick{display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:8px;border:0;background:transparent;color:var(--fg);text-align:left;border-radius:9px 9px 0 0}
+.tsw-pick:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.tsw-chip{display:grid;grid-template-columns:2fr 2fr 1fr 1fr 1fr 1fr;height:30px;border-radius:6px;overflow:hidden;background:var(--bg);padding:5px;gap:3px;border:1px solid var(--border)}
+.tsw-chip i{display:block;border-radius:3px}
+.tsw-name{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tsw-meta{font-size:11.5px;color:var(--fg3)}
+.tsw-meta b{color:var(--acc);font-weight:600}
+.tsw-acts{display:flex;gap:2px;padding:0 4px 6px;flex-wrap:wrap}
+.tprev{background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:12px;min-width:0}
+.tp-top{display:flex;gap:6px;align-items:center;padding:6px 9px;background:var(--side);border-bottom:1px solid var(--border);color:var(--fg2)}
+.tp-top b{font:600 12px var(--brand);color:var(--fg);margin-right:auto}
+.tp-top span{padding:1px 6px;border-radius:4px}.tp-top span.on{background:var(--sel);color:var(--fg)}
+.tp-body{display:grid;grid-template-columns:1.2fr 1fr;gap:6px;padding:8px}
+.tp-card{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:6px;min-width:0}
+.tp-k{font:10.5px var(--mono);color:var(--fg3)}.tp-t{font-weight:500;margin:2px 0 5px}
+.tp-chips,.tp-tags{display:flex;flex-wrap:wrap;gap:3px}.tp-tags{padding:0 8px 8px}
+.tp-pill{font-size:10.5px;font-weight:500;padding:0 6px;border-radius:99px;line-height:17px}
+.tp-side{display:flex;flex-direction:column;gap:6px;align-items:flex-start;min-width:0}
+.tp-bub{background:var(--card);border:1px solid var(--border);border-radius:8px 8px 8px 2px;padding:5px 7px;color:var(--fg2)}
+.tp-btn{background:var(--acc);color:var(--on);border-radius:5px;padding:2px 9px;font-weight:500}
+.tp-term{margin:0;background:var(--term);color:var(--tfg);font:11px/1.5 var(--mono);padding:6px 9px;white-space:pre-wrap}
+.teditor{margin-top:14px}
+.te-grid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:12px;padding:0 12px 10px;align-items:start}
+@media (max-width:860px){.te-grid{grid-template-columns:1fr}}
+.te-side{position:sticky;top:0;display:flex;flex-direction:column;gap:8px}
+.te-fields .fg{padding:10px 0}
+.te-group{border:0;padding:0;margin:0 0 10px}
+.te-group legend{margin-bottom:6px}
+.te-toks{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 10px}
+.te-tok{display:grid;grid-template-columns:26px 74px minmax(0,1fr);gap:6px;align-items:center;font-size:12px}
+.te-tok input[type=color]{width:26px;height:22px;padding:0;border:1px solid var(--border);border-radius:5px;background:none}
+.te-tok .in{padding:3px 6px;font-size:12px}
+.te-actions{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--row)}

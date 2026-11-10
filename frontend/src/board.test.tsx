@@ -215,12 +215,13 @@ describe("shell", () => {
     expect(screen.getByRole("button", { name: "Open dedupe-records" })).toBeInTheDocument();
   });
 
-  it("toggles the theme through settings_update and opens the palette with the keyboard", async () => {
+  it("toggles the theme through theme_set and opens the palette with the keyboard", async () => {
     const user = userEvent.setup();
     await openApp();
     await user.click(screen.getByRole("button", { name: "Switch light or dark" }));
-    await waitFor(() => expect(mocks.settings_update).toHaveBeenCalledWith({ values: { theme: "dark" } }));
-    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    await waitFor(() => expect(mocks.theme_set).toHaveBeenCalledWith({ theme: "classic-dark" }));
+    await waitFor(() => expect(document.documentElement.getAttribute("data-theme")).toBe("dark"));
+    expect(document.documentElement.style.getPropertyValue("--bg")).toBe("#1b1a18");
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     const input = await screen.findByPlaceholderText("Jump to a card, workspace or command");
     await user.type(input, "new session{Enter}");

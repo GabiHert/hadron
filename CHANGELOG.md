@@ -7,6 +7,12 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Colour themes: Settings → Appearance has six new themes (Nucleus, Deep Space, Aurora, Ember, Synthwave and High Contrast) beside Classic light and dark. Follow macOS with one theme for light and one for dark, or always use one. Widgets and terminals follow the theme.
+- Make your own theme: duplicate any theme, change its colours with a live preview (or try it on the whole app), then save, rename, export or delete it.
+- Import a VS Code colour theme (.json, comments allowed): its editor, button and terminal colours carry over and Hadron fills in the tag colours.
+- ⌘K lists "Switch theme" for every theme, and the planner can list, switch, import and delete themes.
+
 ## [0.2.25] - 2026-11-10
 
 ### Fixed

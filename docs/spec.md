@@ -288,6 +288,7 @@ An integration is `manifest` + `source`. The manifest's JSON Schema lives in `in
 - **Design system:**
   - Copy the tokens and base components from Deputy (`frontend/src/styles/tokens.css`, the components in `App.css` and `v2.css`) into `frontend/src/styles/`. The tokens are the ones the prototype uses.
   - Fonts: Inter Tight for the UI and headings, Unbounded for the wordmark only, and IBM Plex Mono for code and the terminal, bundled locally as woff2 (no CDN). No serif.
+  - Colour themes: built-in themes (Classic light and dark plus six more) live in `internal/themes`; custom and imported (VS Code) themes are JSON files under `$HADRON_HOME/themes`. The chosen theme (`ui.theme`, or `system` with `ui.theme.light` and `ui.theme.dark`) is applied as inline custom properties on `<html>`, so widgets and the terminal follow it.
   - Icons: inline SVG `Icon` component.
 - **Shell:**
   - macOS hidden-inset titlebar (`--wails-draggable: drag`), with traffic lights over the header, as in Deputy and Notted.

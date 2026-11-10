@@ -3,6 +3,7 @@ import { DEFAULTS, cheatSheet, fuzzyScore, keysOf, formatChord, speakChord } fro
 import type { CommandDef, Overrides } from "../keys";
 import type { Board } from "../state/useBoard";
 import { ModalHead, SETTINGS_TABS, Scrim } from "./Modals";
+import { currentTheme, themeActions, themeListNow } from "../theme";
 
 // ---- the palette ----
 
@@ -69,6 +70,7 @@ export function paletteItems(board: Board, overrides: Overrides, run: (id: strin
     })),
     ...board.visible.map((w, i) => ({ key: `ws:${w.id}`, label: `Switch workspace: ${w.name}`, hint: i < 9 ? formatChord(keysOf(DEFAULTS.find((d) => d.id === `workspace.${i + 1}`)!, overrides)[0] ?? "") : "workspace", group: "Workspaces", run: () => void board.actions.switchWorkspace(w.id) })),
     ...board.cards.map((x) => ({ key: `card:${x.id}`, label: `Go to card: ${x.nick}`, hint: x.key || "card", group: "Cards", run: () => run(`goto:${x.id}`) })),
+    ...(themeListNow()?.themes ?? []).map((t) => ({ key: `theme:${t.id}`, label: `Switch theme: ${t.name}`, hint: t.id === currentTheme()?.id ? "in use" : t.mode, group: "Themes", run: () => void themeActions.pick(t) })),
     ...SETTINGS_TABS.map((t) => ({ key: `settings:${t.id}`, label: `Open Settings: ${t.label}`, hint: "", group: "Settings", run: () => openSettings(t.id) })),
   ];
 }
