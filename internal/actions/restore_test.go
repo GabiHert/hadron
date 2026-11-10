@@ -115,23 +115,28 @@ func TestAStoppedOrExitedSessionIsNotRestored(t *testing.T) {
 	h.do("card_create", m{"workspace_id": w.ID, "nick": "billing-fix"}, &a)
 	h.do("card_create", m{"workspace_id": w.ID, "nick": "invoice-sync"}, &b)
 	h.do("card_create", m{"workspace_id": w.ID, "nick": "ledger-audit"}, &c)
-	waitUntil(t, "starts", func() bool { return len(h.history()) == 3 })
+	waitFor(t, "starts", slowWait, func() bool { return len(h.history()) == 3 })
 	// The user stops one; another ends by itself (the user typed /exit: the process leaves).
 	h.do("session_stop", m{"card": "billing-fix"}, nil)
-	h.do("session_interrupt", m{"card": "invoice-sync"}, nil)
-	waitUntil(t, "two ended", func() bool { return len(h.svc.LiveSessions()) == 1 })
-	waitUntil(t, "flags cleared", func() bool {
-		x, _ := h.reg.Deps().Store.Sessions.Get(h.latest(w.ID, a.ID).ID)
-		y, _ := h.reg.Deps().Store.Sessions.Get(h.latest(w.ID, b.ID).ID)
-		return !x.Restore && !y.Restore
-	})
+	h.do("session_send", m{"card": "invoice-sync", "text": "/exit"}, nil)
+	// Wait for what the restore reads: both rows recorded as exited, with their restore flag
+	// cleared. Under a loaded suite the processes can take seconds to go.
+	st := h.reg.Deps().Store
+	ended := func(card domain.Card) bool {
+		row, err := st.Sessions.Get(h.latest(w.ID, card.ID).ID)
+		return err == nil && row.Status == "exited" && !row.Restore
+	}
+	waitFor(t, "billing-fix and invoice-sync to end", slowWait, func() bool { return ended(a) && ended(b) })
+	if n := len(h.svc.LiveSessions()); n != 1 {
+		t.Fatalf("live sessions = %d, want only ledger-audit", n)
+	}
 
 	svc := h.relaunch(t)
 	before := len(h.history())
 	if n := svc.RestoreAll(context.Background(), 10*time.Millisecond); n != 1 {
 		t.Fatalf("only the session that was running comes back, got %d", n)
 	}
-	waitUntil(t, "one restart", func() bool { return len(h.history()) == before+1 })
+	waitFor(t, "one restart", slowWait, func() bool { return len(h.history()) == before+1 })
 	if got := h.history()[before]; !strings.HasPrefix(got, "card --session-id ") {
 		t.Errorf("history = %q", got)
 	}
