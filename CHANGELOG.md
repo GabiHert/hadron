@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.20] - 2026-11-10
+
 ### Added
 - Routines: in Settings → Routines, have Hadron send a prompt to the planner or a card on a schedule, such as weekdays at 09:00, every day at a time, every N minutes or hours, or a cron spec. A stopped session is started and gets the prompt once Claude is ready. Pause, run now, edit or delete each one, and see its next run and how the last one went. A run missed while Hadron was closed runs once when it opens, unless you turn that off. The planner can manage routines too.
 
