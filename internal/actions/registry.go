@@ -93,6 +93,8 @@ type Deps struct {
 	Log *dlog.Logger
 	// Changelog is the CHANGELOG.md text. Empty means the one embedded in the app.
 	Changelog string
+	// PlaySound plays one of the UI sounds at a volume from 0 to 1. It may be nil, as in tests.
+	PlaySound func(kind string, volume float64) error
 }
 
 // Spec describes an action.

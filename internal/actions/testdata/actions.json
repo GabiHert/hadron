@@ -3112,6 +3112,22 @@
     ]
   },
   {
+    "name": "sound_preview",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "sound",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "volume",
+        "required": false,
+        "type": "number"
+      }
+    ]
+  },
+  {
     "name": "start_update",
     "mutates": true,
     "fields": null

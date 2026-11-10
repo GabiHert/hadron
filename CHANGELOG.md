@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Sounds: a short rising chime when a card moves into Needs you (a question, a gate, or you moved it there) and a soft low note when it moves out, for every workspace and also while the window is hidden. Several cards at once play one sound. Settings → Sounds switches them off, sets the volume, plays each one, and mutes the current workspace. The planner can change them too.
+
 ## [0.2.23] - 2026-11-10
 
 ### Added

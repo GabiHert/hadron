@@ -229,6 +229,7 @@ const policyInfo = (id: string) => {
 const fns = {
   app_status: vi.fn(async () => ({ version: state.fx.version, home: "/tmp", actions: 25, schema_version: 1 })),
   settings_get: vi.fn(async () => clone(state.fx.settings)),
+  sound_preview: vi.fn(async (a: { sound: string; volume?: number }) => ({ played: a.sound, volume: a.volume ?? 0.6 })),
   settings_update: vi.fn(async (a: { values: Record<string, unknown> }) => {
     Object.assign(state.fx.settings, a.values);
     return clone(state.fx.settings);

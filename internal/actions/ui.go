@@ -98,7 +98,7 @@ func registerUI(r *Registry) {
 			return c.Store.Settings.All()
 		})
 
-	Register(r, Spec{Name: "settings_update", Description: "Change global settings, such as theme (light, dark or system) keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like \"Mod+D\" or \"Shift+Mod+P\"; see hadron_guide keyboard) or ui.zoom (the window zoom, 0.7 to 2, 1 is 100%). Returns all settings.", Mutates: true, Entities: []string{"settings"}},
+	Register(r, Spec{Name: "settings_update", Description: "Change global settings, such as theme (light, dark or system) keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like \"Mod+D\" or \"Shift+Mod+P\"; see hadron_guide keyboard) or ui.zoom (the window zoom, 0.7 to 2, 1 is 100%), or the sounds a card makes moving into and out of a needs-you column: sounds.enabled (true or false), sounds.volume (0 to 1) and sounds.muted_workspaces (workspace ids that stay silent). Returns all settings.", Mutates: true, Entities: []string{"settings"}},
 		func(ctx context.Context, c *Call, in SettingsUpdateIn) (map[string]json.RawMessage, error) {
 			for k, v := range in.Values {
 				if !settingKeyRe.MatchString(k) {
@@ -141,6 +141,9 @@ func registerUI(r *Registry) {
 					if err := checkKeyBindings(v); err != nil {
 						return nil, err
 					}
+				}
+				if err := checkSoundSetting(k, v); err != nil {
+					return nil, err
 				}
 				if k == SettingZoom {
 					z, ok := v.(float64)

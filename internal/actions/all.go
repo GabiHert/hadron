@@ -16,6 +16,7 @@ func RegisterAll(r *Registry) {
 	registerQuestions(r)
 	registerFields(r)
 	registerRules(r)
+	registerSounds(r)
 	registerChipColors(r)
 	registerRoutines(r)
 	registerFilters(r)
