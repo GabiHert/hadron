@@ -239,7 +239,7 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     const media = window.matchMedia?.("(prefers-color-scheme: dark)");
     media?.addEventListener?.("change", retheme);
-    // Plex Mono may load after the first measure; measure again when it has.
+    // The mono font may load after the first measure; measure again when it has.
     void document.fonts?.ready.then(refit);
 
     term.focus();

@@ -286,7 +286,7 @@ An integration is `manifest` + `source`. The manifest's JSON Schema lives in `in
 
 - **Design system:**
   - Copy the tokens and base components from Deputy (`frontend/src/styles/tokens.css`, the components in `App.css` and `v2.css`) into `frontend/src/styles/`. The tokens are the ones the prototype uses.
-  - Fonts: IBM Plex Sans, Newsreader and IBM Plex Mono, bundled locally as woff2 (no CDN), as Deputy does.
+  - Fonts: Inter Tight for the UI and headings, Unbounded for the wordmark only, and IBM Plex Mono for code and the terminal, bundled locally as woff2 (no CDN). No serif.
   - Icons: inline SVG `Icon` component.
 - **Shell:**
   - macOS hidden-inset titlebar (`--wails-draggable: drag`), with traffic lights over the header, as in Deputy and Notted.

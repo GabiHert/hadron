@@ -200,7 +200,7 @@ function BlockBody({ b, board, scripts, onRewrite }: { b: BlockView; board: Boar
     case "planner":
       return (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {b.text ? <Markdown className="md-serif" text={b.text} /> : <p style={{ margin: 0, font: "15px/1.5 var(--serif)" }}>The planner has not written this yet. Use Rewrite now.</p>}
+          {b.text ? <Markdown className="md-serif" text={b.text} /> : <p style={{ margin: 0, font: "14px/1.55 var(--sans)" }}>The planner has not written this yet. Use Rewrite now.</p>}
           <div className="inline">
             <span className="pill">{b.schedule || "on demand"}</span>
             <span className="hint" style={{ flex: 1 }}>{b.text_at ? `Written by the planner at ${hm(b.text_at)}` : "Written by the planner"}</span>

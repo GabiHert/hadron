@@ -55,7 +55,8 @@ button {
   gap: 8px;
 }
 .wordmark {
-  font: 500 19px var(--serif);
+  font: 600 15px var(--brand);
+  letter-spacing: -0.01em;
 }
 @media (prefers-reduced-motion: reduce) {
   * {
