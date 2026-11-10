@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.25] - 2026-11-10
+
 ### Fixed
 - An answered question now reaches the card that asked it: the answer is typed into its session as "[· answer] Q-NN: …", whether you answered in the app or the planner answered or relayed it. Before, an idle card never got the answer and waited until someone typed it in by hand. If the card's session is not running, its chat says the answer was not delivered.
 
