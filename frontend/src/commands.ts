@@ -118,11 +118,42 @@ export function focusedZone(): Zone | null {
   return ((el instanceof Element && el.closest("[data-zone]")?.getAttribute("data-zone")) as Zone | null) || null;
 }
 
-/** Runs act on the element once find returns it (the panel it lives in may still be rendering). */
-export function whenReady<T extends HTMLElement>(find: () => T | null, act: (el: T) => void, tries = 30): void {
-  const el = find();
-  if (el) return act(el);
-  if (tries > 0) setTimeout(() => whenReady(find, act, tries - 1), 16);
+/** The retry timers of whenReady calls still waiting for their element. */
+const readyTimers = new Set<ReturnType<typeof setTimeout>>();
+
+/**
+ * Runs act on the element once find returns it (the panel it lives in may still be rendering).
+ * It retries every 16 ms, up to tries times. The returned function cancels the wait. Without a
+ * document (a test environment already torn down) it stops instead of looking.
+ */
+export function whenReady<T extends HTMLElement>(find: () => T | null, act: (el: T) => void, tries = 30): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const cancel = () => {
+    if (timer !== undefined) readyTimers.delete(timer);
+    clearTimeout(timer);
+    timer = undefined;
+  };
+  const attempt = (left: number) => {
+    timer = undefined;
+    if (typeof document === "undefined") return;
+    const el = find();
+    if (el) return act(el);
+    if (left <= 0) return;
+    const t = setTimeout(() => {
+      readyTimers.delete(t);
+      attempt(left - 1);
+    }, 16);
+    timer = t;
+    readyTimers.add(t);
+  };
+  attempt(tries);
+  return cancel;
+}
+
+/** Cancels every whenReady still waiting. Tests call it on cleanup so no retry outlives them. */
+export function cancelPendingReady(): void {
+  for (const t of readyTimers) clearTimeout(t);
+  readyTimers.clear();
 }
 
 /** A collapsed column's rail. */

@@ -15,6 +15,8 @@ HTMLCanvasElement.prototype.getContext = (() => null) as unknown as typeof HTMLC
 import { afterEach } from "vitest";
 afterEach(async () => {
   (await import("../theme")).resetThemesForTest();
+  // A whenReady retry must not outlive the test: after teardown it would find no document.
+  (await import("../commands")).cancelPendingReady();
   try {
     localStorage.clear();
   } catch {
