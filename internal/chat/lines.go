@@ -106,6 +106,29 @@ func AnswerNotice(card domain.Card, seq int, selections []string, notes string) 
 	return answerLine(card, seq, selections, notes, "")
 }
 
+// SessionAnswerLine is what the asking session receives when its question is answered:
+// "[· answer] Q-NN: <labels>; notes: ...". by says who answered when it was not the user
+// directly ("the planner", "relayed by the planner").
+func SessionAnswerLine(seq int, selections []string, notes, by string) string {
+	clean := make([]string, len(selections))
+	for i, l := range selections {
+		clean[i] = Clean(l)
+	}
+	tag := "[" + strings.TrimSpace(sep) + " answer]"
+	if by != "" {
+		tag = "[" + strings.TrimSpace(sep) + " answer, " + by + "]"
+	}
+	choice := strings.Join(clean, ", ")
+	if choice == "" {
+		choice = "(no option chosen; see the notes)"
+	}
+	line := fmt.Sprintf("%s Q-%02d: %s", tag, seq, choice)
+	if notes = strings.TrimSpace(notes); notes != "" {
+		line += "; notes: " + oneLine(Clean(notes), MaxText)
+	}
+	return line
+}
+
 // RelayedAnswerNotice is AnswerNotice for an answer the planner relayed for the user.
 func RelayedAnswerNotice(card domain.Card, seq int, selections []string, notes string) string {
 	return answerLine(card, seq, selections, notes, " (relayed)")
