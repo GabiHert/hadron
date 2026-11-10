@@ -1190,3 +1190,8 @@ export interface ChipColors {
 export const chip_color_list = (a: { workspace_id?: string } = {}) => call<ChipColors>("chip_color_list", a);
 export const chip_color_set = (a: { workspace_id?: string; path: string; value: string; color?: TagColor | "" }) => call<ChipColors>("chip_color_set", a);
 export const chip_color_auto_set = (a: { workspace_id?: string; path: string; auto: boolean }) => call<ChipColors>("chip_color_auto_set", a);
+
+// ---- sounds ----
+
+export type SoundKind = "needs_you" | "back_to_work";
+export const sound_preview = (a: { sound: SoundKind; volume?: number }) => call<{ played: SoundKind; volume: number }>("sound_preview", a);

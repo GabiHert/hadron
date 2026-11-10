@@ -23,6 +23,7 @@ import (
 	"github.com/GabiHert/hadron/internal/run"
 	"github.com/GabiHert/hadron/internal/script"
 	"github.com/GabiHert/hadron/internal/sessions"
+	"github.com/GabiHert/hadron/internal/sounds"
 	"github.com/GabiHert/hadron/internal/store"
 	"github.com/GabiHert/hadron/internal/update"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -44,6 +45,8 @@ type App struct {
 	log    *dlog.Logger
 	feeds  *ptyFeeds
 	cancel context.CancelFunc
+	// sound plays the needs-you sounds when cards move into and out of needs-you columns.
+	sound *sounds.Watcher
 
 	mu  sync.Mutex
 	ctx context.Context
@@ -100,7 +103,19 @@ func New(st *store.Store) *App {
 	a.integ.Notify = func(workspaceID, title, body string) {
 		a.emit(actions.EventNotify, actions.NotifyEvent{WorkspaceID: workspaceID, Title: title, Body: body})
 	}
-	a.reg = actions.NewRegistry(actions.Deps{Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
+	player := &sounds.Player{Dir: filepath.Join(run.Home(), "sounds")}
+	a.sound = &sounds.Watcher{
+		Snapshot: func() (map[string]sounds.CardState, error) { return actions.SoundSnapshot(st) },
+		Prefs:    func() sounds.Prefs { return actions.SoundPrefs(st) },
+		Play: func(kind string, vol float64) {
+			if err := player.Play(kind, vol); err != nil {
+				a.log.Warn("sound", "error", err.Error())
+			}
+		},
+		Debounce: soundDebounce,
+		Quiet:    soundQuiet,
+	}
+	a.reg = actions.NewRegistry(actions.Deps{PlaySound: player.Play, Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
 	a.integ.FieldChanged = a.reg.FieldChanged
 	a.integ.Events = a.reg.RunEvents
 	if err := a.integ.Sync(); err != nil {
@@ -142,6 +157,10 @@ func (a *App) startup(ctx context.Context) {
 	a.mu.Unlock()
 	a.log.Info("startup", "version", run.Version)
 	reconcile(a.st, sessions.RealProcOps(), a.log.Warn)
+	// The board as it is at launch makes no sound; only moves from here on do.
+	if err := a.sound.Seed(); err != nil {
+		a.log.Warn("sound", "error", err.Error())
+	}
 	// The MCP server must be listening before any planner starts, so the config files it writes
 	// name the port the server really got.
 	if err := a.mcp.Start(); err != nil {
@@ -189,6 +208,13 @@ func (a *App) restoreSessions(ctx context.Context) {
 	}
 	a.autostartPlanner(ctx)
 }
+
+// soundDebounce is how long a burst of board changes may last and still play one sound; soundQuiet
+// is the least time between two sounds.
+const (
+	soundDebounce = 400 * time.Millisecond
+	soundQuiet    = 1500 * time.Millisecond
+)
 
 // restoreStagger is the pause between two restored sessions, so a dozen claude processes do not
 // start at once.
@@ -243,8 +269,14 @@ func (a *App) emit(event string, data any) {
 	if c := a.context(); c != nil {
 		emitEvent(c, event, data)
 	}
-	if ev, ok := data.(actions.ChangedEvent); ok && event == actions.EventChanged && slices.Contains(ev.Entities, "settings") {
-		a.refreshMenu()
+	if ev, ok := data.(actions.ChangedEvent); ok && event == actions.EventChanged {
+		if slices.Contains(ev.Entities, "settings") {
+			a.refreshMenu()
+		}
+		// Any change to cards or columns may move a card into or out of needs-you, in any workspace.
+		if a.sound != nil && (slices.Contains(ev.Entities, "cards") || slices.Contains(ev.Entities, "columns")) {
+			a.sound.Changed()
+		}
 	}
 }
 

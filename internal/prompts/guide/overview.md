@@ -17,3 +17,5 @@ Hadron is a macOS app. A **workspace** has a **board** of columns; every **card*
 - `session_adopt` and `planner_adopt` take that `cwd`: the transcript is looked up there and the card, or the planner, runs there from then on. Claude can resume a conversation only in the folder it was run in.
 
 Read next: `chat`, `questions`, `reports`, `widgets`.
+
+**Sounds.** Hadron plays a chime when a card moves into a needs-you column and a soft note when it leaves, in every workspace. The user controls them with the settings `sounds.enabled`, `sounds.volume` (0 to 1) and `sounds.muted_workspaces` (workspace ids) through `settings_update`; `sound_preview {sound: needs_you | back_to_work}` plays one. Change them only when the user asks.
