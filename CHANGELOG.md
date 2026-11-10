@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.28] - 2026-11-10
+
 ### Fixed
 - Opening a card shows its newest messages again, instead of sometimes starting at the top of the conversation. The chat keeps following new messages while you are at the bottom, and stays put while you read further up.
 
