@@ -102,6 +102,7 @@ func New(st *store.Store) *App {
 	}
 	a.reg = actions.NewRegistry(actions.Deps{Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
 	a.integ.FieldChanged = a.reg.FieldChanged
+	a.integ.Events = a.reg.RunEvents
 	if err := a.integ.Sync(); err != nil {
 		log.Printf("integrations: %v", err)
 	}

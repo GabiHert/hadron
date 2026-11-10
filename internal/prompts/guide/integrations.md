@@ -6,6 +6,11 @@ Build one: `integration_scaffold {name, template}` then `integration_write_file`
 
 Once enabled, its fields appear as `<integration>.<field>`; `link_add` ties cards to items; `poll_seconds` keeps snapshots fresh; rules can call a script with `run_action`.
 
+## Cards from new items (discovery)
+An integration can fill a column with cards for new items, such as the issues of the open sprint. Declare `"discover": {}` under `ops`, add `"card.create"` to `permissions.api`, and set `poll_seconds`. `ops.discover({limit})` returns `{items: [{item_id, title, key?, url?, fields?}]}`; it may return every matching item each time, because Hadron skips the ones a card already holds. The user (or the planner) switches it on per workspace: `integration_discover_set {name, enabled: true, column: "backlog", max_per_run: 10}`; `integration_discover_run {name}` runs it now. The cards have no session (the user starts them), are linked to their item, and are named from the key (`PROJ-123` → `proj-123`). An item is never made into a card twice, even after its card is archived; `forget: true` resets that. The `jira` template has a discover op that searches its `discover_jql` setting (the open sprint without Cancelled issues by default).
+
+Any op can also make a card itself with `host.card.create({key, title, column?, item_id?, url?, fields?})` (needs `card.create` in `permissions.api`, at most 25 a run); an item a card already links returns that card with `created: false`.
+
 ## Dashboard queries
 An integration can feed dashboard blocks with data it fetches itself. Declare each query in the manifest under `ops.queries` and define it in `index.js` as `ops.queries.<name> = function (args) { ... }`. It returns `{groups: [{key, label, count}], ttl_s?}` and registers the query `<integration>.<name>`, which `dash_get` lists and a block's `source.query` can use. `args` is whatever the block passes.
 

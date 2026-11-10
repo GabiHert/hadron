@@ -58,6 +58,7 @@ Every table has `id TEXT PRIMARY KEY` (a ULID or UUID), `created_at` and `update
 | `questions` | `workspace_id`, `card_id`, `seq` (Q-01, Q-02 per card), `kind` (`decision`, `unblock`, `approval`), `text`, `context`, `options` (JSON `[{label, description}]`), `multi` (bool), `approval` (JSON `{target, runs_as, reversible, command}`), `status` (`open`, `answered`, `withdrawn`), `answer` (JSON `{selections, notes, via}`), `answered_at` |
 | `gates` | `workspace_id`, `card_id`, `kind` (`merge`, `promote`, `deploy-confirm`, `close`), `summary`, `since` |
 | `links` | `workspace_id`, `card_id`, `integration`, `item_id`, `title`, `url`, `fields` (JSON snapshot), `synced_at` |
+| `discovered` | `workspace_id`, `integration`, `item_id`, `card_id`, `created_at`: items discovery made a card of or found linked; never removed with the card |
 | `routines` | `workspace_id`, `name`, `enabled`, `cron` (five fields, local time) or `every_minutes` (5 to 10080), `target` (`planner` or `card`), `card_id`, `prompt`, `catch_up` (bool), `next_run_at`, `last_run_at`, `last_result` |
 | `rules` | `workspace_id`, `position`, `name`, `enabled`, `trigger` (JSON `{on: field_changed, field}` or `{on: column_entered, column}`, `card_created`, `report`, `question_opened`, `idle_for {minutes}`, `no_report_for {minutes}`, `cron {spec}`), `condition` (CEL string, may be empty), `actions` (JSON list: `move {column_id}`, `set_field {path, value}`, `notify {text}`, `tell_planner {text}`, `run_action {script, action}`), `builtin` (bool) |
 | `views` | `workspace_id`, `name`, `filters` (JSON `{vals: {path: value}, q, expr}`), `position` |
@@ -242,7 +243,7 @@ Every layer supports the variables below. The handoff kinds have no core: they a
 ## 8. Script sandbox (`internal/script`)
 
 An integration is `manifest` + `source`. The manifest's JSON Schema lives in `internal/script/manifest.schema.json`:
-- `name`, `version`, `fields` (schema entries without the namespace), `ops` (`search`, `get`, `update`, `actions`, `sessions.*`, `poll`), `config` (keys and types), `permissions` (`network: [url patterns]`, `secrets: [names]`, `api: [host method names]`, `exec: [binaries]`), `poll_seconds`.
+- `name`, `version`, `fields` (schema entries without the namespace), `ops` (`search`, `get`, `update`, `actions`, `sessions.*`, `poll`, `discover`), `config` (keys and types), `permissions` (`network: [url patterns]`, `secrets: [names]`, `api: [host method names]`, `exec: [binaries]`), `poll_seconds`.
 
 **Runtime:**
 - **Engine:** goja, one runtime per call.
@@ -252,7 +253,9 @@ An integration is `manifest` + `source`. The manifest's JSON Schema lives in `in
   - `secret(name)`: returns an opaque handle that is valid only as `auth` or a header value. Its value is never returned to JS as a string, and never logged.
   - `mcp.call(server, tool, args)`: calls an MCP server from the user's Claude config. It needs `mcp: <server>` in `network`.
   - `exec(binary, args)`: allowed only for binaries in `exec`; 20 s timeout; returns stdout and stderr.
-  - App data: `link.upsert`, `link.list`, `field.set`, `card.read`, `card.move`, `card.list`, `session.list_remote`, `notify`, `log`.
+  - App data: `link.upsert`, `link.list`, `field.set`, `card.read`, `card.move`, `card.list`, `card.create`, `session.list_remote`, `notify`, `log`.
+  - `card.create({nick?, key?, title?, column?, item_id?, url?, fields?})`: a card with no session in a column (id, name or role; default the backlog column, else the first active one), linked to `item_id` of this integration. The nick defaults to one made from the key or title (`PROJ-123` → `proj-123`), with `-2`, `-3` … when taken. An item a card already links returns that card with `created: false`. At most 25 per run. It returns `{card_id, nick, created}` and fires `card_created` rules.
+- **Discovery** (`ops.discover`, which needs `card.create` in `permissions.api` and a `poll_seconds`): switched on per workspace with `integration_discover_set {name, enabled, column?, max_per_run? (1 to 50, default 10), forget?}` or in Settings → Integrations, and run now with `integration_discover_run`. Every `poll_seconds` the op gets `{limit}` and returns `{items: [{item_id, title, key?, url?, fields?}]}`; Hadron makes a card (no session) for each item that is new, up to the cap, and leaves the rest for the next run. The `discovered` table remembers every item it made a card of, or found already linked, so an item never comes back, even after its card is archived or deleted; `forget: true` clears it. The last run's time, count and error are kept with the setting (`integration_discover:<workspace>:<name>`) and shown in `integration_list` as `discover`. The `jira` template's discover searches `discover_jql` (by default `sprint in openSprints() AND status != Cancelled ORDER BY rank`).
   - `config`: the integration's config values (read-only).
 - **Tests:** `integration_test` runs each recorded test in the manifest (`{op, input, http_fixtures, expect}`) with `http.request` answered from the fixtures, and compares the output. Status becomes `pending` until approved. An edit that keeps the same permissions re-tests, and if the tests pass, re-enables.
 - **Starter templates** (embedded): `linear` (through `mcp.call` to the Linear MCP), `jira` (REST), `github` (`exec gh`), `empty`.

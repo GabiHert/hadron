@@ -55,6 +55,8 @@ type Manager struct {
 	Log *dlog.Logger
 	// Changed tells the frontend what to refetch. May be nil.
 	Changed func(workspaceID string, entities ...string)
+	// Events runs the rules for events a background run made (cards that discovery created). May be nil.
+	Events func(ctx context.Context, workspaceID string, events []board.Event) error
 
 	// QueryTTL overrides DefaultQueryTTL; Now overrides the clock. Tests use both.
 	QueryTTL time.Duration
@@ -278,7 +280,25 @@ func resolveCard(st *store.Store, ws domain.Workspace, ref string) (domain.Card,
 
 func (m *Manager) app(ctx context.Context, st *store.Store, ws domain.Workspace, sc domain.Script, events *[]board.Event) script.App {
 	str := func(in map[string]any, k string) string { s, _ := in[k].(string); return s }
+	creates := 0
 	return script.App{
+		CardCreate: func(in map[string]any) (any, error) {
+			if creates >= MaxCardCreatesPerRun {
+				return nil, fmt.Errorf("one run may create at most %d cards; the rest can wait for the next run", MaxCardCreatesPerRun)
+			}
+			if str(in, "key") == "" && str(in, "title") == "" && str(in, "nick") == "" {
+				return nil, errors.New("host.card.create needs a nick, key or title")
+			}
+			fl, _ := in["fields"].(map[string]any)
+			card, created, err := m.CreateCard(st, ws, sc.Name, CardSpec{Nick: str(in, "nick"), Key: str(in, "key"), Title: str(in, "title"), Column: str(in, "column"), ItemID: str(in, "item_id"), URL: str(in, "url"), Fields: fl}, events)
+			if err != nil {
+				return nil, err
+			}
+			if created {
+				creates++
+			}
+			return map[string]any{"card_id": card.ID, "nick": card.Nick, "created": created}, nil
+		},
 		LinkUpsert: func(in map[string]any) (any, error) {
 			card, err := resolveCard(st, ws, str(in, "card"))
 			if err != nil {
@@ -541,6 +561,11 @@ func (m *Manager) Poll(ctx context.Context, now time.Time) error {
 		}
 		if err := m.pollOne(ctx, sc, man); err != nil && firstErr == nil {
 			firstErr = fmt.Errorf("poll %s: %w", sc.Name, err)
+		}
+		if man.HasOp("discover") {
+			if err := m.discoverAll(ctx, sc); err != nil && firstErr == nil {
+				firstErr = fmt.Errorf("poll %s: %w", sc.Name, err)
+			}
 		}
 	}
 	return firstErr

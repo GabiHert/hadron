@@ -514,6 +514,17 @@ const fns = {
   integration_secret_set: vi.fn(async () => ({})),
   integration_secret_clear: vi.fn(async () => ({})),
   integration_use: vi.fn(async () => ({})),
+  integration_discover_set: vi.fn(async (a: { name: string; enabled?: boolean; column?: string; max_per_run?: number; forget?: boolean }) => {
+    const i = state.integrations.find((x) => x.name === a.name)!;
+    if (i.discover) {
+      if (a.enabled !== undefined) i.discover.enabled = a.enabled;
+      if (a.column !== undefined) i.discover.column = a.column;
+      if (a.max_per_run !== undefined) i.discover.max_per_run = a.max_per_run;
+      if (a.forget) i.discover.discovered = 0;
+    }
+    return clone(i);
+  }),
+  integration_discover_run: vi.fn(async () => ({ created: [card("d1", "w1", "needs", "acme-20", 9)], known: 2, left: 1 })),
   link_list: vi.fn(async () => clone(state.links)),
   link_search: vi.fn(async () => ({ items: [] as { item_id: string; title: string; url: string; fields: Record<string, unknown> }[] })),
   link_add: vi.fn(async () => ({})),

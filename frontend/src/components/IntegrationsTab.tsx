@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import * as api from "../api";
-import type { ScriptConfig, ScriptLog, ScriptView } from "../api";
+import type { Column, ScriptConfig, ScriptLog, ScriptView } from "../api";
 import type { Board } from "../state/useBoard";
 import { useReload } from "./LinksTab";
 
@@ -56,7 +56,7 @@ export function IntegrationsTab({ board }: { board: Board }) {
       <p className="sub">An integration is a small script that links cards to items in another tool. It runs in a sandbox and only gets the network, secrets and app access you approve.</p>
       {!ints.length ? <div className="empty">No integrations yet.</div> : null}
       {[...enabled, ...others].map((i) => (
-        <IntegrationBox key={i.id} i={i} run={run} toast={actions.toast} />
+        <IntegrationBox key={i.id} i={i} run={run} toast={actions.toast} columns={board.columns} />
       ))}
       <div className="box">
         <div className="boxh"><b>Scaffold a new integration</b></div>
@@ -95,7 +95,7 @@ export function IntegrationsTab({ board }: { board: Board }) {
 
 type Run = <T>(fn: () => Promise<T>) => Promise<T | undefined>;
 
-function IntegrationBox({ i, run, toast }: { i: ScriptView; run: Run; toast: (t: string) => void }) {
+function IntegrationBox({ i, run, toast, columns }: { i: ScriptView; run: Run; toast: (t: string) => void; columns: Column[] }) {
   const [files, setFiles] = useState<Record<string, string> | null>(null);
   const [open, setOpen] = useState(false);
   const [testing, setTesting] = useState<ScriptView["test_result"]>(null);
@@ -156,6 +156,7 @@ function IntegrationBox({ i, run, toast }: { i: ScriptView; run: Run; toast: (t:
         </details>
       ) : null}
       {i.status === "enabled" ? <ConfigForm i={i} run={run} /> : null}
+      {i.status === "enabled" && i.used_here && i.discover ? <Discovery i={i} run={run} toast={toast} columns={columns} /> : null}
       {i.status === "enabled" && i.secrets?.length ? <Secrets i={i} run={run} /> : null}
       <div className="rrow">
         <button className="btn sm" onClick={async () => { const r = await run(() => api.integration_test({ name: i.name })); if (r) setTesting(r); }}>Run tests</button>
@@ -236,5 +237,46 @@ function SecretRow({ name, set, value, onChange, onSave, onClear }: { name: stri
         {set ? <button className="btn sm" aria-label={`Clear secret ${name}`} onClick={onClear}>Clear</button> : null}
       </div>
     </>
+  );
+}
+
+/** Card discovery: new items of the integration become session-less cards in a column. */
+function Discovery({ i, run, toast, columns }: { i: ScriptView; run: Run; toast: (t: string) => void; columns: Column[] }) {
+  const d = i.discover!;
+  const backlog = columns.find((c) => c.role === "backlog");
+  const colValue = columns.find((c) => c.id === d.column || c.name.toLowerCase() === d.column.toLowerCase() || c.role === d.column)?.id ?? "";
+  const set = (patch: { enabled?: boolean; column?: string; max_per_run?: number; forget?: boolean }) => run(() => api.integration_discover_set({ name: i.name, ...patch }));
+  const when = d.last_run_at ? new Date(d.last_run_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+  return (
+    <div className="rrow" role="group" aria-label={`Card discovery for ${i.name}`} style={{ display: "block" }}>
+      <div className="inline">
+        <button className={"switch" + (d.enabled ? " on" : "")} role="switch" aria-checked={d.enabled} aria-label={`Create cards from new ${i.name} items`} onClick={() => void set({ enabled: !d.enabled })} />
+        <b style={{ fontWeight: 500 }}>Create cards from new items</b>
+        <span className="hint">every {Math.round(i.poll_seconds / 60) || 1} min, without starting a session</span>
+      </div>
+      <div className="inline" style={{ marginTop: 6 }}>
+        <span className="hint">into</span>
+        <select className="in" value={colValue} aria-label="Column for new cards" onChange={(e) => void set({ column: e.target.value })}>
+          <option value="">{backlog ? `${backlog.name} (backlog)` : "The first active column"}</option>
+          {columns.filter((c) => c.id !== backlog?.id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <span className="hint">at most</span>
+        <input className="in" type="number" min={1} max={50} style={{ width: 64 }} defaultValue={d.max_per_run || 10} key={d.max_per_run} aria-label="Cards per run"
+          onBlur={(e) => { const n = parseInt(e.target.value, 10); if (n >= 1 && n <= 50 && n !== (d.max_per_run || 10)) void set({ max_per_run: n }); }} />
+        <span className="hint">cards a run</span>
+        <div style={{ flex: 1 }} />
+        <button className="btn sm" onClick={async () => {
+          const r = await run(() => api.integration_discover_run({ name: i.name }));
+          if (r) toast(r.created.length ? `${i.name} added ${r.created.length} card${r.created.length === 1 ? "" : "s"}${r.left ? `; ${r.left} more next run` : ""}.` : `Nothing new in ${i.name}.`);
+        }}>Run now</button>
+      </div>
+      <div className="hint" data-testid={`discover-status-${i.name}`} style={{ marginTop: 6 }}>
+        {d.discovered} item{d.discovered === 1 ? "" : "s"} on the board so far; archived cards do not come back.
+        {when ? ` Last run ${when}: ${d.last_error ? `failed: ${d.last_error}` : `${d.last_created} new`}.` : ""}
+        {d.discovered ? (
+          <> <button className="btn sm quiet" onClick={() => { if (window.confirm(`Forget the ${d.discovered} items ${i.name} found? Items whose cards you deleted can then come back.`)) void set({ forget: true }); }}>Forget them</button></>
+        ) : null}
+      </div>
+    </div>
   );
 }

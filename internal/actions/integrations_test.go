@@ -25,8 +25,10 @@ const jiraToken = "jira-API-token-VALUE-7788"
 // fakeJira stands in for Jira Cloud behind the sandbox's Backend. It echoes the credential it
 // received into its answers, like a careless server, so the tests can prove nothing leaks.
 type fakeJira struct {
-	mu      sync.Mutex
-	status  string
+	mu     sync.Mutex
+	status string
+	// sprint, when set, is what a search answers: issues with these keys and summaries.
+	sprint  [][2]string
 	calls   []string
 	updates int
 }
@@ -55,6 +57,12 @@ func (f *fakeJira) HTTP(_ context.Context, req script.HTTPRequest, _ func(string
 		f.status = map[string]string{"31": "Finished", "21": "In progress"}[body.Transition.ID]
 		f.updates++
 		return script.HTTPResponse{Status: 204, Headers: map[string]string{}}, nil
+	case req.Method == "GET" && strings.HasSuffix(u.Path, "/search/jql") && f.sprint != nil:
+		var issues []any
+		for _, it := range f.sprint {
+			issues = append(issues, map[string]any{"key": it[0], "fields": map[string]any{"summary": it[1], "status": map[string]any{"name": "To Do"}}})
+		}
+		return ok(map[string]any{"issues": issues})
 	case req.Method == "GET" && strings.HasSuffix(u.Path, "/search/jql"):
 		return ok(map[string]any{"issues": []any{issue}})
 	case req.Method == "GET" && strings.Contains(u.Path, "/issue/ACME-12"):
@@ -124,7 +132,7 @@ func TestScaffoldTestApproveEnablesAnIntegrationAndItsFields(t *testing.T) {
 	h.fails("integration_run_op", m{"name": "jira", "op": "search", "input": m{"q": "x"}}, "pending", "integration_test")
 	var res script.TestResult
 	h.do("integration_test", m{"name": "jira"}, &res)
-	if !res.OK || res.Passed != 4 {
+	if !res.OK || res.Passed != 5 {
 		t.Fatalf("the jira template must pass its recorded tests: %+v", res)
 	}
 	h.do("integration_approve", m{"name": "jira"}, &v)
@@ -138,7 +146,7 @@ func TestScaffoldTestApproveEnablesAnIntegrationAndItsFields(t *testing.T) {
 	}
 	var list []ScriptView
 	h.do("integration_list", nil, &list)
-	if len(list) != 1 || list[0].Secrets[0].Set || len(list[0].Config) != 2 {
+	if len(list) != 1 || list[0].Secrets[0].Set || len(list[0].Config) != 3 {
 		t.Errorf("list = %+v", list)
 	}
 	var scripts []ScriptView

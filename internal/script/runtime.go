@@ -79,6 +79,7 @@ type App struct {
 	CardRead          func(card string) (any, error)
 	CardMove          func(card, column string) error
 	CardList          func(in map[string]any) (any, error)
+	CardCreate        func(in map[string]any) (any, error)
 	SessionListRemote func(in map[string]any) (any, error)
 	Notify            func(title, body string)
 }
@@ -338,6 +339,14 @@ func (s *sandbox) install() error {
 				return nil, errNoApp("card.list")
 			}
 			return s.c.App.CardList(in)
+		})
+	})
+	set(cardObj, "create", func(call goja.FunctionCall) (any, error) {
+		return s.api(APICardCreate, call, func(in map[string]any) (any, error) {
+			if s.c.App.CardCreate == nil {
+				return nil, errNoApp(APICardCreate)
+			}
+			return s.c.App.CardCreate(in)
 		})
 	})
 	set(sessObj, "list_remote", func(call goja.FunctionCall) (any, error) {

@@ -67,6 +67,19 @@ var ops = {
     return { items: input.items.map(function (it) { return ops.get({ item_id: it.item_id }); }) };
   },
 
+  // Discovery: the issues of discover_jql (the open sprint by default) for Hadron to make cards of.
+  // Hadron skips the ones a card already holds, so this may return the whole sprint every time.
+  discover: function (input) {
+    var jql = host.config.discover_jql || "sprint in openSprints() AND status != Cancelled ORDER BY rank";
+    var res = call("GET", "/search/jql", { query: { jql: jql, fields: FIELDS, maxResults: Math.min(100, Math.max(input.limit || 50, 50)) } });
+    return {
+      items: (res.issues || []).map(function (issue) {
+        var it = toItem(issue);
+        return { item_id: it.item_id, key: issue.key, title: it.fields.summary || issue.key, url: it.url, fields: it.fields };
+      })
+    };
+  },
+
   actions: {
     comment: function (input) {
       var body = { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: input.text }] }] };

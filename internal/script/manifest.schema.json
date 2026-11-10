@@ -35,6 +35,7 @@
         "get": {"$ref": "#/$defs/op"},
         "update": {"$ref": "#/$defs/op"},
         "poll": {"$ref": "#/$defs/op"},
+        "discover": {"$ref": "#/$defs/op", "description": "Runs every poll_seconds for each workspace that switched discovery on, and returns new items {items: [{item_id, title, key?, url?, fields?}]}. Hadron creates a session-less card for each item no card holds yet. Needs card.create in permissions.api."},
         "actions": {"type": "object", "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"}, "additionalProperties": {"$ref": "#/$defs/op"}},
         "queries": {"type": "object", "description": "Named dashboard queries. ops.queries.<name> takes the block's args and returns {groups: [{key, label, count}], ttl_s?}; the app registers <integration>.<name> and caches the result.", "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"}, "additionalProperties": {"$ref": "#/$defs/query"}},
         "sessions": {
@@ -73,7 +74,7 @@
       "properties": {
         "network": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "URL patterns http.request may call, such as https://*.atlassian.net/*, or mcp:<server> for mcp.call."},
         "secrets": {"type": "array", "items": {"type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$"}},
-        "api": {"type": "array", "items": {"enum": ["link.upsert", "link.list", "field.set", "card.read", "card.move", "card.list", "session.list_remote", "notify"]}},
+        "api": {"type": "array", "items": {"enum": ["link.upsert", "link.list", "field.set", "card.read", "card.move", "card.list", "card.create", "session.list_remote", "notify"]}},
         "exec": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"}}
       }
     },

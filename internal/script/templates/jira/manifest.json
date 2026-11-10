@@ -1,7 +1,7 @@
 {
   "name": "jira",
   "version": "1.0.0",
-  "description": "Link cards to Jira Cloud issues. Reads status, summary, assignee and priority; changing the status moves the issue through its workflow.",
+  "description": "Link cards to Jira Cloud issues. Reads status, summary, assignee and priority; changing the status moves the issue through its workflow. With discovery on, issues of the open sprint become cards.",
   "fields": [
     {
       "name": "status",
@@ -43,6 +43,9 @@
     "poll": {
       "description": "Re-read every linked issue."
     },
+    "discover": {
+      "description": "New issues for the board: the discover_jql search (by default the open sprint, without Cancelled issues)."
+    },
     "actions": {
       "comment": {
         "description": "Add a comment to an issue.",
@@ -75,6 +78,12 @@
       "type": "string",
       "label": "Account email",
       "required": true
+    },
+    "discover_jql": {
+      "type": "string",
+      "label": "Discovery search",
+      "description": "The JQL whose issues become cards when discovery is on",
+      "default": "sprint in openSprints() AND status != Cancelled ORDER BY rank"
     }
   },
   "permissions": {
@@ -84,7 +93,9 @@
     "secrets": [
       "token"
     ],
-    "api": []
+    "api": [
+      "card.create"
+    ]
   },
   "poll_seconds": 300,
   "tests": [
@@ -262,6 +273,54 @@
       ],
       "expect": {
         "comment_id": "9001"
+      }
+    },
+    {
+      "name": "discover the open sprint",
+      "op": "discover",
+      "input": {
+        "limit": 10
+      },
+      "config": {
+        "site": "acme.atlassian.net",
+        "email": "me@acme.com"
+      },
+      "http_fixtures": [
+        {
+          "method": "GET",
+          "url": "https://acme.atlassian.net/rest/api/3/search/jql*",
+          "json": {
+            "issues": [
+              {
+                "key": "ACME-12",
+                "fields": {
+                  "summary": "Fix billing",
+                  "status": {
+                    "name": "To Do"
+                  },
+                  "assignee": null,
+                  "priority": {
+                    "name": "High"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "items": [
+          {
+            "item_id": "ACME-12",
+            "key": "ACME-12",
+            "title": "Fix billing",
+            "url": "https://acme.atlassian.net/browse/ACME-12",
+            "fields": {
+              "status": "To Do",
+              "priority": "High"
+            }
+          }
+        ]
       }
     }
   ]
