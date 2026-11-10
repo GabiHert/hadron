@@ -372,7 +372,7 @@ Set the order of the board's columns. Pass every column id of the workspace exac
 
 ### `column_update`
 
-Rename a column or change its role, WIP limit, fold state or colour. A rename keeps the column's id, so rules and cards keep pointing at it.
+Rename a column or change its role, WIP limit, colour, or collapse it to a narrow rail (collapsed, or its older name fold; the column's fold field says whether it is collapsed). A rename keeps the column's id, so rules and cards keep pointing at it.
 
 *changes data*
 
@@ -382,7 +382,8 @@ Rename a column or change its role, WIP limit, fold state or colour. A rename ke
 | `name` | string | no | new name |
 | `role` | string | no | new role, or an empty string for none |
 | `wip` | number | no | new WIP limit; 0 means no limit |
-| `fold` | boolean | no | fold the column to a narrow strip |
+| `fold` | boolean | no | collapse the column to a narrow rail (true) or expand it (false); the same as collapsed |
+| `collapsed` | boolean | no | collapse the column to a narrow rail that shows its name and card count (true), or expand it (false) |
 | `color` | string | no | new #rrggbb colour |
 
 ## config

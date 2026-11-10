@@ -128,7 +128,7 @@ export const workspace_switch = (a: { workspace_id: string }) => call<Workspace>
 export const column_list = (a: { workspace_id?: string } = {}) => call<Column[]>("column_list", a);
 export const column_create = (a: { workspace_id?: string; name: string; role?: Role; wip?: number; color?: string }) =>
   call<Column>("column_create", a);
-export const column_update = (a: { column_id: string; name?: string; role?: Role; wip?: number; fold?: boolean; color?: string }) =>
+export const column_update = (a: { column_id: string; name?: string; role?: Role; wip?: number; fold?: boolean; collapsed?: boolean; color?: string }) =>
   call<Column>("column_update", a);
 export const column_reorder = (a: { workspace_id?: string; column_ids: string[] }) => call<Column[]>("column_reorder", a);
 export const column_delete = (a: { column_id: string; move_to?: string }) => call<ColumnDeleteOut>("column_delete", a);

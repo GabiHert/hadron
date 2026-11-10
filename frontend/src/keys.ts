@@ -90,6 +90,8 @@ export const DEFAULTS: CommandDef[] = [
   { id: "card.delete", title: "Delete the card", group: "Card", scope: "board", keys: [], confirm: true },
   { id: "card.resume", title: "Resume the card's Claude conversation", group: "Card", scope: "board", keys: [] },
   { id: "column.new", title: "Add a column", group: "Board", scope: "board", keys: [] },
+  { id: "column.collapse", title: "Collapse or expand the column", group: "Board", scope: "board", keys: ["Z"] },
+  { id: "column.expandAll", title: "Expand every collapsed column", group: "Board", scope: "board", keys: [] },
   { id: "planner.start", title: "Start the planner", group: "Conversation", scope: "global", keys: [] },
   { id: "planner.restart", title: "Restart the planner", group: "Conversation", scope: "global", keys: [], confirm: true },
   { id: "planner.adopt", title: "Adopt a planner conversation", group: "Conversation", scope: "global", keys: [] },

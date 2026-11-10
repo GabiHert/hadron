@@ -553,6 +553,11 @@
         "type": "boolean"
       },
       {
+        "name": "collapsed",
+        "required": false,
+        "type": "boolean"
+      },
+      {
         "name": "color",
         "required": false,
         "type": "string"

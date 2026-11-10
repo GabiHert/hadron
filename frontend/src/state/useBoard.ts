@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "../api";
 import type { Card, Column, LaunchProfile, Question, Role, Workspace } from "../api";
+import { clearSeen, markSeen } from "./foldSeen";
 
 export interface WsData {
   columns: Column[];
@@ -198,6 +199,12 @@ export function useBoard() {
       renameColumn: (id: string, name: string) => run(() => api.column_update({ column_id: id, name })),
       updateColumn: (id: string, patch: { role?: Role; wip?: number; fold?: boolean; name?: string }) =>
         run(() => api.column_update({ column_id: id, ...patch })),
+      /** Collapses a column to its rail, or expands it. The rail badges the cards that arrive meanwhile. */
+      collapseColumn: (id: string, on: boolean) => {
+        if (on) markSeen(id, (sRef.current.data[sRef.current.activeId]?.cards ?? []).filter((c) => c.column_id === id).map((c) => c.id));
+        else clearSeen(id);
+        return run(() => api.column_update({ column_id: id, fold: on }));
+      },
       addColumn: async (): Promise<Column | undefined> =>
         run(() => api.column_create({ workspace_id: sRef.current.activeId, name: "New column", role: "active" })),
       moveColumn: (id: string, dir: -1 | 1) => {

@@ -90,7 +90,12 @@ textarea.in.grow-max{overflow-y:auto;scrollbar-width:thin}
 .chips{display:flex;gap:5px;flex-wrap:wrap}
 .addcol{width:200px;flex:none;border:1px dashed var(--border);border-radius:10px;background:transparent;color:var(--fg3);height:44px}
 .addcol:hover{color:var(--fg);border-color:var(--fg3)}
-.fold{writing-mode:vertical-rl;border:0;background:transparent;padding:8px 0;color:var(--fg3);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.rail{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;flex:1;min-height:120px;border:1px solid var(--border);border-radius:8px;background:transparent;padding:8px 0;color:var(--fg3);cursor:pointer}
+.rail:hover{color:var(--fg);border-color:var(--fg3)}
+.rail.needs{border-color:color-mix(in srgb,var(--bad) 55%,var(--border))}
+.rail .rname{writing-mode:vertical-rl;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.rbadge{min-width:18px;padding:0 4px;border-radius:9px;background:var(--acc);color:#fff;font-size:10.5px;font-weight:600;line-height:18px;text-align:center}
+.rbadge.bad{background:var(--bad)}
 .menu{position:absolute;top:30px;right:0;z-index:20;width:230px;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:10px;display:flex;flex-direction:column;gap:8px}
 .menu label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--fg2)}
 /* card panel */

@@ -125,6 +125,9 @@ export function whenReady<T extends HTMLElement>(find: () => T | null, act: (el:
   if (tries > 0) setTimeout(() => whenReady(find, act, tries - 1), 16);
 }
 
+/** A collapsed column's rail. */
+export const railEl = (columnId: string) => document.querySelector<HTMLElement>(`[data-col-id="${attrEsc(columnId)}"] .rail`);
+
 export function focusEl(el: HTMLElement | null | undefined): boolean {
   if (!el) return false;
   el.focus({ preventScroll: true });
@@ -207,6 +210,12 @@ export interface Env {
 
 type Handler = (env: Env, arg?: string) => boolean | void;
 
+/** True when the focus is on a board control that is not a card (a rail, a column's name): Enter and Space press it. */
+function onBoardButton() {
+  const el = document.activeElement;
+  return el instanceof HTMLElement && el.tagName === "BUTTON" && !el.closest("[data-card-id]") && !!el.closest('[data-zone="board"]');
+}
+
 /** The card a board command acts on: the focused card, else the selected one. */
 function targetCard(env: Env) {
   const el = document.activeElement instanceof HTMLElement ? document.activeElement.closest<HTMLElement>("[data-card-id]") : null;
@@ -232,6 +241,11 @@ const moveCard = (dir: Dir): Handler => (env) => {
   const to = moveTarget(env.board, c.id, dir);
   if (!to) return true;
   void env.board.actions.dropCard(c.id, to.column_id, to.position);
+  // Into a collapsed column the card is out of sight: the focus goes to the column's rail.
+  if (env.board.columns.find((x) => x.id === to.column_id)?.fold) {
+    whenReady(() => railEl(to.column_id), (el) => focusEl(el));
+    return true;
+  }
   // Across columns the card's element is rebuilt: wait for it in the new column.
   whenReady(() => document.querySelector<HTMLElement>(`[data-col-id="${attrEsc(to.column_id)}"] [data-card-id="${attrEsc(c.id)}"]`), (el) => focusEl(el));
   return true;
@@ -458,6 +472,7 @@ const HANDLERS: Record<string, Handler> = {
   "board.right": nav("right"),
   "board.left": nav("left"),
   "board.open": (env) => {
+    if (onBoardButton()) return false;
     const c = targetCard(env);
     if (!c) return false;
     env.board.actions.open(c.id);
@@ -467,6 +482,7 @@ const HANDLERS: Record<string, Handler> = {
     return true;
   },
   "board.peek": (env) => {
+    if (onBoardButton()) return false;
     const c = targetCard(env);
     if (!c) return false;
     env.board.actions.open(c.id);
@@ -490,7 +506,31 @@ const HANDLERS: Record<string, Handler> = {
     const lane = gotoLane(lanes, key, cur);
     if (!lane) return true;
     if (lane.cards.length) return selectAndFocus(env, lane.cards[0]);
-    focusEl(document.querySelector<HTMLElement>(`[data-col-id="${attrEsc(lane.id)}"] .cname`));
+    focusEl(document.querySelector<HTMLElement>(`[data-col-id="${attrEsc(lane.id)}"] :is(.cname, .rail)`));
+    return true;
+  },
+  "column.collapse": (env) => {
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const id = active?.closest<HTMLElement>("[data-col-id]")?.dataset.colId ?? targetCard(env)?.column_id;
+    const col = env.board.columns.find((c) => c.id === id);
+    if (!col) return false;
+    void env.board.actions.collapseColumn(col.id, !col.fold);
+    if (col.fold) {
+      // Expanded: back to the column's first card, else its name.
+      const sel = `[data-col-id="${attrEsc(col.id)}"]:not([data-folded])`;
+      whenReady(() => document.querySelector<HTMLElement>(`${sel} [data-card-id]`) ?? document.querySelector<HTMLElement>(`${sel} .cname`), (el) => {
+        const cid = el.dataset.cardId;
+        if (cid) env.board.actions.select(cid);
+        focusEl(el);
+      });
+    } else {
+      whenReady(() => railEl(col.id), (el) => focusEl(el));
+    }
+    return true;
+  },
+  "column.expandAll": (env) => {
+    const folded = env.board.columns.filter((c) => c.fold);
+    for (const c of folded) void env.board.actions.collapseColumn(c.id, false);
     return true;
   },
   "card.moveRight": moveCard("right"),

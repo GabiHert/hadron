@@ -319,6 +319,12 @@ func TestColumnCreateUpdateKeepsIdAndValidates(t *testing.T) {
 	if !folded.Fold || folded.WIP != 0 || folded.Role != "" || folded.Name != "Code review" {
 		t.Fatalf("update = %+v", folded)
 	}
+	var expanded, collapsed domain.Column
+	h.do("column_update", m{"column_id": col.ID, "collapsed": false}, &expanded)
+	h.do("column_update", m{"column_id": col.ID, "collapsed": true}, &collapsed)
+	if expanded.Fold || !collapsed.Fold {
+		t.Fatalf("collapsed false then true = %v, %v", expanded.Fold, collapsed.Fold)
+	}
 
 	for _, tc := range []struct {
 		action string
@@ -326,6 +332,7 @@ func TestColumnCreateUpdateKeepsIdAndValidates(t *testing.T) {
 		want   string
 	}{
 		{"column_create", m{"workspace_id": w.ID, "name": ""}, "name is required"},
+		{"column_update", m{"column_id": col.ID, "fold": true, "collapsed": false}, "pass one of them"},
 		{"column_create", m{"workspace_id": w.ID, "name": "x", "role": "boss"}, `role "boss" is not one of`},
 		{"column_create", m{"workspace_id": w.ID, "name": "x", "wip": -1}, "wip must be"},
 		{"column_create", m{"workspace_id": w.ID, "name": "x", "color": "red"}, "#24408e"},
