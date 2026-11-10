@@ -48,7 +48,7 @@ SOFTWARE.
 | `internal/pty/decmodes.go` | quant `internal/integration/process/decmodes.go` | streaming scanner kept across chunks; replay preamble reads the live tracker |
 | `internal/pty/session.go` (input framing) | quant `internal/integration/process/input.go` | bracketed paste only when the child enabled the mode; submit delay after a paste |
 | `internal/store/store.go` | embedded versioned SQL migrations replace the inline schema |
-| `frontend/src/styles/tokens.css`, `fonts.css` | `frontend/src/styles/` | prototype token names; IBM Plex Mono added |
+| `frontend/src/styles/tokens.css`, `fonts.css` | `frontend/src/styles/` | prototype token names; fonts replaced |
 | `frontend/src/components/ui.tsx` | `frontend/src/components/ui.tsx` | Hadron mark and the icons the board uses |
 
 ## Code from the release-updater skill
@@ -59,8 +59,8 @@ SOFTWARE.
 
 ## Fonts
 
-Newsreader, IBM Plex Sans and IBM Plex Mono are bundled under the SIL Open Font License 1.1; see
+Inter Tight, Unbounded and IBM Plex Mono are bundled under the SIL Open Font License 1.1; see
 `frontend/src/assets/fonts/OFL-*.txt`. The woff2 files come from the npm packages
-`@fontsource-variable/newsreader` 5.3.0, `@fontsource/ibm-plex-sans` 5.3.0 and
+`@fontsource-variable/inter-tight` 5.3.0, `@fontsource/unbounded` 5.3.0 and
 `@fontsource/ibm-plex-mono` 5.3.0, fetched with `npm pack`. The packages are not dependencies, and
 nothing is fetched at runtime.

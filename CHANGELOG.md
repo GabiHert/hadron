@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Changed
+- New typography: Inter Tight for the interface and headings and Unbounded for the Hadron wordmark replace the serif titles and IBM Plex Sans. The terminal and code keep IBM Plex Mono.
+
 ## [0.2.21] - 2026-11-10
 
 ### Added

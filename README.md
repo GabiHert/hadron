@@ -344,4 +344,4 @@ See [`CLAUDE.md`](CLAUDE.md) for the same rules in the form Claude Code reads th
 
 The repository does not include a license file yet. Hadron adapts code from
 [quant](https://github.com/brienze1/quant) (MIT) and from the author's Deputy and Notted projects, and
-bundles IBM Plex and Newsreader under the SIL Open Font License. See [`NOTICE.md`](NOTICE.md).
+bundles Inter Tight, Unbounded and IBM Plex Mono under the SIL Open Font License. See [`NOTICE.md`](NOTICE.md).
