@@ -65,6 +65,8 @@ type Ops struct {
 	Get      *OpSpec           `json:"get,omitempty"`
 	Update   *OpSpec           `json:"update,omitempty"`
 	Poll     *OpSpec           `json:"poll,omitempty"`
+	// Discover returns new items for Hadron to make cards of: {items: [{item_id, title, key?, url?, fields?}]}.
+	Discover *OpSpec `json:"discover,omitempty"`
 	Actions  map[string]OpSpec `json:"actions,omitempty"`
 	Sessions *SessionOps       `json:"sessions,omitempty"`
 	// Queries are named dashboard queries: each ops.queries.<name> returns {groups:[{key,label,count}]}
@@ -205,6 +207,12 @@ func (m Manifest) check() []string {
 			p = append(p, fmt.Sprintf("manifest: field %q is editable, so the manifest needs an ops.update", f.Name))
 		}
 	}
+	if m.Ops.Discover != nil && !m.Permissions.has(m.Permissions.API, APICardCreate) {
+		p = append(p, `manifest: ops.discover makes cards, so permissions.api must list "card.create"`)
+	}
+	if m.Ops.Discover != nil && m.PollSeconds <= 0 {
+		p = append(p, "manifest: ops.discover runs on poll_seconds, so set poll_seconds (such as 600)")
+	}
 	for _, pat := range m.Permissions.Network {
 		if _, err := ParsePattern(pat); err != nil {
 			p = append(p, "manifest: permissions.network: "+err.Error())
@@ -230,6 +238,7 @@ func (m Manifest) OpNames() []string {
 	add("get", m.Ops.Get)
 	add("update", m.Ops.Update)
 	add("poll", m.Ops.Poll)
+	add("discover", m.Ops.Discover)
 	names := make([]string, 0, len(m.Ops.Actions))
 	for n := range m.Ops.Actions {
 		names = append(names, n)
@@ -268,6 +277,8 @@ func (m Manifest) OpSpec(op string) (OpSpec, bool) {
 		s = m.Ops.Update
 	case "poll":
 		s = m.Ops.Poll
+	case "discover":
+		s = m.Ops.Discover
 	default:
 		if name, ok := strings.CutPrefix(op, "actions."); ok {
 			if a, found := m.Ops.Actions[name]; found {
@@ -426,3 +437,6 @@ func (p Permissions) has(list []string, v string) bool {
 	}
 	return false
 }
+
+// APICardCreate is the permissions.api name of host.card.create, which ops.discover also needs.
+const APICardCreate = "card.create"

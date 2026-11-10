@@ -806,6 +806,24 @@ export interface ScriptView {
   approved_at: string | null;
   sessions: boolean;
   links: number;
+  /** the workspace's card discovery, for an integration with ops.discover */
+  discover: DiscoverView | null;
+}
+/** A workspace's card discovery for one integration. */
+export interface DiscoverView {
+  enabled: boolean;
+  /** a column id, name or role; empty means the backlog column */
+  column: string;
+  max_per_run: number;
+  last_run_at: string | null;
+  last_created: number;
+  last_error: string;
+  discovered: number;
+}
+export interface DiscoverResult {
+  created: Card[];
+  known: number;
+  left: number;
 }
 export interface Link {
   id: string;
@@ -864,6 +882,9 @@ export const integration_logs = (a: { name?: string; limit?: number } = {}) => c
 export const integration_config_set = (a: { name: string; config: Record<string, unknown> }) => call<ScriptView>("integration_config_set", a);
 export const integration_secret_set = (a: { name: string; secret: string; value: string }) => call<ScriptView>("integration_secret_set", a);
 export const integration_secret_clear = (a: { name: string; secret: string }) => call<ScriptView>("integration_secret_clear", a);
+export const integration_discover_set = (a: WS & { name: string; enabled?: boolean; column?: string; max_per_run?: number; forget?: boolean }) =>
+  call<ScriptView>("integration_discover_set", a);
+export const integration_discover_run = (a: WS & { name: string }) => call<DiscoverResult>("integration_discover_run", a);
 export const integration_use = (a: WS & { name: string; enabled: boolean }) => call<ScriptView>("integration_use", a);
 
 export const script_list = (a: WS = {}) => call<ScriptView[]>("script_list", a);

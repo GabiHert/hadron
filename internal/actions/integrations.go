@@ -56,6 +56,15 @@ type ScriptView struct {
 	ApprovedAt  *time.Time         `json:"approved_at"`
 	Sessions    bool               `json:"sessions" jsonschema:"declares remote sessions"`
 	Links       int                `json:"links"`
+	// Discover is the workspace's card discovery, for an integration with ops.discover; else null.
+	Discover *DiscoverView `json:"discover"`
+}
+
+// DiscoverView is a workspace's card discovery for one integration.
+type DiscoverView struct {
+	integrations.DiscoverSettings
+	// Discovered is how many items this workspace has made cards of (or found linked) so far.
+	Discovered int `json:"discovered"`
 }
 
 // ConfigView is one setting and its current value.
@@ -100,6 +109,10 @@ func scriptView(c *Call, w domain.Workspace, sc domain.Script) ScriptView {
 	v.Ops, v.Tests = man.OpNames(), len(man.Tests)
 	v.Sessions = man.Ops.Sessions != nil
 	v.UsedHere = contains(w.Integrations, sc.Name)
+	if man.HasOp("discover") {
+		n, _ := c.Store.Discovered.Count(w.ID, sc.Name)
+		v.Discover = &DiscoverView{DiscoverSettings: integrations.LoadDiscover(c.Store, w.ID, sc.Name), Discovered: n}
+	}
 	if len(sc.TestResult) > 0 && string(sc.TestResult) != "null" {
 		var tr script.TestResult
 		if json.Unmarshal(sc.TestResult, &tr) == nil {

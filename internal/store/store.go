@@ -55,6 +55,7 @@ type Store struct {
 	Settings       *Settings
 	Feedback       *Feedback
 	Routines       *Routines
+	Discovered     *Discovered
 }
 
 // queryer is what both *sql.DB and *sql.Tx offer, so a repo method can run in either.
@@ -101,6 +102,7 @@ func (s *Store) wire() {
 	s.Links = &Links{s}
 	s.Rules = &Rules{s}
 	s.Routines = &Routines{s}
+	s.Discovered = &Discovered{s}
 	s.Views = &Views{s}
 	s.Blocks = &Blocks{s}
 	s.Prompts = &Prompts{s}

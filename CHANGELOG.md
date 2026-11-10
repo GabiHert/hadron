@@ -7,6 +7,11 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Integrations can fill the board with cards: switch on "Create cards from new items" for an integration in Settings → Integrations, pick the column (Backlog by default) and how many cards a run may add. Each new item becomes a card linked to it, without starting a session, and an item never comes back as a new card, even after you archive its card.
+- The Jira starter can create cards for the open sprint's issues (without Cancelled ones); change the search in its settings.
+- An integration's code can create a card with host.card.create, once its manifest asks for the card.create permission.
+
 ## [0.2.20] - 2026-11-10
 
 ### Added

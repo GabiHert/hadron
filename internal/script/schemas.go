@@ -9,6 +9,9 @@ import (
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
+// discoverItemSchema is one item ops.discover returns: itemSchema plus an optional key (such as PROJ-123).
+const discoverItemSchema = `{"type":"object","required":["item_id","title"],"properties":{"item_id":{"type":"string","minLength":1},"title":{"type":"string"},"key":{"type":"string"},"url":{"type":"string"},"fields":{"type":"object"}}}`
+
 const itemSchema = `{"type":"object","required":["item_id","title"],"properties":{"item_id":{"type":"string","minLength":1},"title":{"type":"string"},"url":{"type":"string"},"fields":{"type":"object"}}}`
 
 // DefaultSchemas are the input and output schemas of the standard ops. A manifest's op can
@@ -18,6 +21,7 @@ var DefaultSchemas = map[string][2]string{
 	"get":             {`{"type":"object","required":["item_id"],"properties":{"item_id":{"type":"string"}}}`, itemSchema},
 	"update":          {`{"type":"object","required":["item_id","field"],"properties":{"item_id":{"type":"string"},"field":{"type":"string"},"value":{},"fields":{"type":"object"}}}`, `{"type":["object","null"],"properties":{"fields":{"type":"object"},"title":{"type":"string"},"url":{"type":"string"}}}`},
 	"poll":            {`{"type":"object","required":["items"],"properties":{"items":{"type":"array","items":{"type":"object","required":["item_id"],"properties":{"item_id":{"type":"string"},"fields":{"type":"object"}}}}}}`, `{"type":"object","required":["items"],"properties":{"items":{"type":"array","items":` + itemSchema + `}}}`},
+	"discover":        {`{"type":"object","properties":{"limit":{"type":"integer"}}}`, `{"type":"object","required":["items"],"properties":{"items":{"type":"array","items":` + discoverItemSchema + `}}}`},
 	"sessions.list":   {`{"type":"object"}`, `{"type":"object","required":["sessions"],"properties":{"sessions":{"type":"array","items":{"type":"object","required":["id"],"properties":{"id":{"type":"string"},"title":{"type":"string"},"status":{"type":"string"},"url":{"type":"string"},"item_id":{"type":"string"}}}}}}`},
 	"sessions.output": {`{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}`, `{"type":"object","required":["text"],"properties":{"text":{"type":"string"}}}`},
 	"sessions.send":   {`{"type":"object","required":["id","text"],"properties":{"id":{"type":"string"},"text":{"type":"string"}}}`, `{"type":["object","null"]}`},
@@ -116,6 +120,7 @@ var hostSchemas = map[string]json.RawMessage{
 	"field.set":           json.RawMessage(`{"type":"object","required":["card","path"],"properties":{"card":{"type":"string","minLength":1},"path":{"type":"string","minLength":1},"value":{}},"additionalProperties":false}`),
 	"card.read":           json.RawMessage(`{"type":"object","required":["card"],"properties":{"card":{"type":"string","minLength":1}},"additionalProperties":false}`),
 	"card.move":           json.RawMessage(`{"type":"object","required":["card","column"],"properties":{"card":{"type":"string","minLength":1},"column":{"type":"string","minLength":1}},"additionalProperties":false}`),
+	"card.create":         json.RawMessage(`{"type":"object","properties":{"nick":{"type":"string"},"key":{"type":"string"},"title":{"type":"string"},"column":{"type":"string"},"item_id":{"type":"string"},"url":{"type":"string"},"fields":{"type":"object"}},"additionalProperties":false}`),
 	"card.list":           json.RawMessage(`{"type":"object","properties":{"column":{"type":"string"},"expr":{"type":"string"}},"additionalProperties":false}`),
 	"session.list_remote": json.RawMessage(`{"type":"object","properties":{"integration":{"type":"string"}},"additionalProperties":false}`),
 	"notify":              json.RawMessage(`{"type":"object","required":["body"],"properties":{"title":{"type":"string"},"body":{"type":"string"}},"additionalProperties":false}`),

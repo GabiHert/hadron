@@ -11,7 +11,7 @@ beforeEach(() => reset());
 const view = (over: Partial<ScriptView>): ScriptView => ({
   id: "i1", name: "jira", kind: "integration", status: "enabled", workspace_id: "w1", global: false, version: "1.0.0", description: "Jira issues",
   used_here: true, fields: [], ops: ["search", "actions.comment"], permissions: {}, new_domains: [], config: [], secrets: [], tests: 0, test_result: null,
-  poll_seconds: 0, problems: [], approved_by: "", approved_at: null, sessions: false, links: 0, ...over,
+  poll_seconds: 0, problems: [], approved_by: "", approved_at: null, sessions: false, links: 0, discover: null, ...over,
 });
 const link = (over: Partial<Link> = {}): Link => ({
   id: "l1", workspace_id: "w1", card_id: "c2", integration: "jira", item_id: "ACME-541", title: "Dashboard timeouts", url: "https://jira.example/ACME-541",
@@ -121,5 +121,37 @@ describe("linked-field chips", () => {
     const face = screen.getByRole("button", { name: "Open api-timeouts" });
     const chip = await within(face).findByText("In progress");
     expect(chip).toHaveAttribute("title", "Status: In progress");
+  });
+});
+
+describe("card discovery", () => {
+  const disc = (over: Partial<NonNullable<ScriptView["discover"]>> = {}) => ({ enabled: false, column: "", max_per_run: 0, last_run_at: null, last_created: 0, last_error: "", discovered: 0, ...over });
+
+  it("shows only for an integration with ops.discover that the workspace uses", async () => {
+    state.integrations = [view({ name: "jira", discover: disc() }), view({ id: "i2", name: "plain" }), view({ id: "i3", name: "off", used_here: false, discover: disc() })];
+    await openIntegrations();
+    expect(await screen.findByRole("group", { name: "Card discovery for jira" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Card discovery for plain" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Card discovery for off" })).not.toBeInTheDocument();
+  });
+
+  it("switches discovery on, picks the column and the cap, and runs it now", async () => {
+    state.integrations = [view({ name: "jira", poll_seconds: 600, discover: disc({ discovered: 3, last_run_at: "2026-11-10T12:00:00Z", last_created: 2 }) })];
+    const user = await openIntegrations();
+    const box = await screen.findByRole("group", { name: "Card discovery for jira" });
+    await user.click(within(box).getByRole("switch", { name: "Create cards from new jira items" }));
+    await waitFor(() => expect(mocks.integration_discover_set).toHaveBeenCalledWith({ name: "jira", enabled: true }));
+    await user.selectOptions(within(box).getByRole("combobox", { name: "Column for new cards" }), "working");
+    await waitFor(() => expect(mocks.integration_discover_set).toHaveBeenCalledWith({ name: "jira", column: "working" }));
+    const cap = within(box).getByRole("spinbutton", { name: "Cards per run" });
+    await user.clear(cap);
+    await user.type(cap, "5");
+    await user.tab();
+    await waitFor(() => expect(mocks.integration_discover_set).toHaveBeenCalledWith({ name: "jira", max_per_run: 5 }));
+    expect(screen.getByTestId("discover-status-jira")).toHaveTextContent("3 items on the board so far");
+    expect(screen.getByTestId("discover-status-jira")).toHaveTextContent("2 new");
+    await user.click(within(screen.getByRole("group", { name: "Card discovery for jira" })).getByRole("button", { name: "Run now" }));
+    await waitFor(() => expect(mocks.integration_discover_run).toHaveBeenCalledWith({ name: "jira" }));
+    expect(await screen.findByText("jira added 1 card; 1 more next run.")).toBeInTheDocument();
   });
 });

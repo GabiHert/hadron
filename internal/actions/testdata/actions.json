@@ -1196,6 +1196,58 @@
     ]
   },
   {
+    "name": "integration_discover_run",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "integration_discover_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "enabled",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "column",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "max_per_run",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "forget",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
     "name": "integration_list",
     "mutates": false,
     "fields": [

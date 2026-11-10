@@ -20,6 +20,7 @@ func RegisterAll(r *Registry) {
 	registerFilters(r)
 	registerPrompts(r)
 	registerIntegrations(r)
+	registerDiscover(r)
 	registerLinks(r)
 	registerDash(r)
 	registerHistory(r)
