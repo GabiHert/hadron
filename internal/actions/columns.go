@@ -25,12 +25,13 @@ type ColumnCreateIn struct {
 
 // ColumnUpdateIn is the input of column_update. Only the fields you pass change; the id never does.
 type ColumnUpdateIn struct {
-	ColumnID string  `json:"column_id" jsonschema:"the column id"`
-	Name     *string `json:"name,omitempty" jsonschema:"new name"`
-	Role     *string `json:"role,omitempty" jsonschema:"new role, or an empty string for none"`
-	WIP      *int    `json:"wip,omitempty" jsonschema:"new WIP limit; 0 means no limit"`
-	Fold     *bool   `json:"fold,omitempty" jsonschema:"fold the column to a narrow strip"`
-	Color    *string `json:"color,omitempty" jsonschema:"new #rrggbb colour"`
+	ColumnID  string  `json:"column_id" jsonschema:"the column id"`
+	Name      *string `json:"name,omitempty" jsonschema:"new name"`
+	Role      *string `json:"role,omitempty" jsonschema:"new role, or an empty string for none"`
+	WIP       *int    `json:"wip,omitempty" jsonschema:"new WIP limit; 0 means no limit"`
+	Fold      *bool   `json:"fold,omitempty" jsonschema:"collapse the column to a narrow rail (true) or expand it (false); the same as collapsed"`
+	Collapsed *bool   `json:"collapsed,omitempty" jsonschema:"collapse the column to a narrow rail that shows its name and card count (true), or expand it (false)"`
+	Color     *string `json:"color,omitempty" jsonschema:"new #rrggbb colour"`
 }
 
 // ColumnReorderIn is the input of column_reorder.
@@ -89,7 +90,7 @@ func registerColumns(r *Registry) {
 			return col, nil
 		})
 
-	Register(r, Spec{Name: "column_update", Description: "Rename a column or change its role, WIP limit, fold state or colour. A rename keeps the column's id, so rules and cards keep pointing at it.",
+	Register(r, Spec{Name: "column_update", Description: "Rename a column or change its role, WIP limit, colour, or collapse it to a narrow rail (collapsed, or its older name fold; the column's fold field says whether it is collapsed). A rename keeps the column's id, so rules and cards keep pointing at it.",
 		Mutates: true, Entities: []string{"columns"}},
 		func(ctx context.Context, c *Call, in ColumnUpdateIn) (domain.Column, error) {
 			col, err := getColumn(c, in.ColumnID)
@@ -114,8 +115,14 @@ func registerColumns(r *Registry) {
 				}
 				col.WIP = *in.WIP
 			}
+			if in.Fold != nil && in.Collapsed != nil && *in.Fold != *in.Collapsed {
+				return col, errors.New("fold and collapsed name the same setting: pass one of them")
+			}
 			if in.Fold != nil {
 				col.Fold = *in.Fold
+			}
+			if in.Collapsed != nil {
+				col.Fold = *in.Collapsed
 			}
 			if in.Color != nil {
 				if err := checkColor(*in.Color); err != nil {

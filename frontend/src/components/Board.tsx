@@ -10,6 +10,7 @@ import { FilterBar } from "./FilterBar";
 import { Icon, closeOnEscape } from "./ui";
 import { withChord } from "../keys";
 import { attrEsc } from "../commands";
+import { unseen } from "../state/foldSeen";
 
 interface Props {
   board: BoardState;
@@ -145,14 +146,44 @@ export function ColumnView(p: ColProps) {
   const overWip = col.wip > 0 && all.length > col.wip;
   const pillCls = overWip ? " warn" : col.role === "needs-you" && all.length ? " bad" : "";
 
-  if (col.fold)
+  if (col.fold) {
+    const fresh = unseen(col.id, all.map((c) => c.id));
+    const asking = all.filter((c) => board.openQuestions.some((q) => q.card_id === c.id)).length;
+    const notes = [`${all.length} card${all.length === 1 ? "" : "s"}`, fresh.length ? `${fresh.length} new since you collapsed it` : "", asking ? `${asking} waiting on you` : ""].filter(Boolean).join(", ");
     return (
-      <section className="col folded" data-col-id={col.id} data-col-name={col.name}>
-        <button className="fold" onClick={() => void actions.updateColumn(col.id, { fold: false })} aria-label={`Unfold ${col.name}`}>
-          {col.name} · {all.length}
+      <section
+        className={"col folded" + (p.over ? " drop" : "")}
+        aria-label={`Column ${col.name}, collapsed`}
+        data-col-id={col.id}
+        data-col-name={col.name}
+        data-folded=""
+        onDragOver={(e) => {
+          e.preventDefault();
+          p.setOver(true);
+        }}
+        onDragLeave={() => p.setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          const id = dragId;
+          p.setDragId(null);
+          p.setOver(false);
+          if (id) void actions.dropCard(id, col.id);
+        }}
+      >
+        <button
+          className={"rail" + (col.role === "needs-you" && all.length ? " needs" : "")}
+          onClick={() => void actions.collapseColumn(col.id, false)}
+          aria-label={`Expand ${col.name}`}
+          title={withChord(`Expand ${col.name}: ${notes}`, "column.collapse")}
+        >
+          <span className={"pill" + pillCls} data-testid={`count-${col.id}`}>{all.length}</span>
+          {fresh.length ? <span className="rbadge" data-testid={`new-${col.id}`}>+{fresh.length}</span> : null}
+          {asking ? <span className="rbadge bad" data-testid={`asking-${col.id}`}>?</span> : null}
+          <span className="rname">{col.name}</span>
         </button>
       </section>
     );
+  }
 
   const commit = (value: string) => {
     if (cancelled.current) return;
@@ -224,6 +255,9 @@ export function ColumnView(p: ColProps) {
           {col.wip ? ` / ${col.wip}` : ""}
         </span>
         <div className="spacer" />
+        <button className="ibtn" style={{ width: 24, height: 24 }} onClick={() => void actions.collapseColumn(col.id, true)} aria-label={`Collapse ${col.name}`} title={withChord("Collapse the column", "column.collapse")}>
+          <Icon name="back" size={13} />
+        </button>
         <button className="ibtn" style={{ width: 24, height: 24 }} onClick={() => p.setMenuOpen(!p.menuOpen)} aria-label={`Column options for ${col.name}`} aria-expanded={p.menuOpen}>
           <Icon name="dots" size={14} />
         </button>
@@ -301,7 +335,7 @@ function ColumnMenu({ col, index, count, board, setMenuOpen }: ColProps) {
       <div className="inline">
         <button className="btn sm" onClick={() => void actions.moveColumn(col.id, -1)} disabled={index === 0}>← Move</button>
         <button className="btn sm" onClick={() => void actions.moveColumn(col.id, 1)} disabled={index === count - 1}>Move →</button>
-        <button className="btn sm" onClick={() => { void actions.updateColumn(col.id, { fold: true }); setMenuOpen(false); }}>Fold</button>
+        <button className="btn sm" onClick={() => { void actions.collapseColumn(col.id, true); setMenuOpen(false); }}>Collapse</button>
       </div>
       <button className="btn sm danger" onClick={() => { void actions.deleteColumn(col.id); setMenuOpen(false); }} disabled={count < 2}>Delete column</button>
     </div>

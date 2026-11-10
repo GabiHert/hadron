@@ -97,16 +97,16 @@ describe("column menu", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Column deleted. Its cards moved to Needs you.");
   });
 
-  it("reorders and folds", async () => {
+  it("reorders and collapses", async () => {
     const user = userEvent.setup();
     await openApp();
     await user.click(screen.getByRole("button", { name: "Column options for Working" }));
     await user.click(screen.getByRole("button", { name: "Move →" }));
     await waitFor(() => expect(mocks.column_reorder).toHaveBeenCalledWith({ workspace_id: "w1", column_ids: ["needs", "done", "working"] }));
     await user.click(screen.getByRole("button", { name: "Column options for Done" }));
-    await user.click(screen.getByRole("button", { name: "Fold" }));
+    await user.click(screen.getByRole("button", { name: "Collapse" }));
     await waitFor(() => expect(mocks.column_update).toHaveBeenCalledWith({ column_id: "done", fold: true }));
-    expect(await screen.findByRole("button", { name: "Unfold Done" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Expand Done" })).toBeInTheDocument();
   });
 
   it("adds a column and goes straight to renaming it", async () => {
