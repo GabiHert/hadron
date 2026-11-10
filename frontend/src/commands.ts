@@ -601,7 +601,8 @@ const HANDLERS: Record<string, Handler> = {
     const el = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const msg = el?.closest<HTMLElement>("[data-msg]");
     if (msg && el === msg && actOnMessage(msg)) return true;
-    if (el?.closest("[data-msg]") && el.matches("button, a[href], summary")) return false;
+    // Enter on a button, link or summary (in a message or the panel's header) is that control's own.
+    if (el && el !== msg && el.matches("button, a[href], summary")) return false;
     return focusComposer(panelZone(env));
   },
   "panel.compose": (env) => {

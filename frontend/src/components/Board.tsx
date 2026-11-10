@@ -11,6 +11,8 @@ import { Icon, closeOnEscape } from "./ui";
 import { withChord } from "../keys";
 import { attrEsc } from "../commands";
 import { unseen } from "../state/foldSeen";
+import { EMPTY, KEY_PATH, MODEL_PATH, STAGE_PATH, tagClass, tagColor, useChipColors } from "../state/chipColors";
+import type { ChipColors } from "../api";
 
 interface Props {
   board: BoardState;
@@ -21,6 +23,7 @@ interface Props {
 export function Board({ board, onNewSession, onNewWorkspace }: Props) {
   const { ws, columns, cards, selected, actions } = board;
   const filters = useFilters(board);
+  const colors = useChipColors(ws?.id ?? "");
   const [editId, setEditId] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -111,6 +114,7 @@ export function Board({ board, onNewSession, onNewWorkspace }: Props) {
             setDragId={setDragId}
             over={overId === col.id}
             setOver={(on) => setOverId((o) => (on ? col.id : o === col.id ? null : o))}
+            colors={colors}
           />
         ))}
         <button className="addcol" onClick={() => void addColumn()} title={withChord("Add a column", "column.new")}>
@@ -137,6 +141,8 @@ interface ColProps {
   setDragId: (id: string | null) => void;
   over: boolean;
   setOver: (on: boolean) => void;
+  /** the workspace's tag colours */
+  colors?: ChipColors;
 }
 
 export function ColumnView(p: ColProps) {
@@ -270,6 +276,7 @@ export function ColumnView(p: ColProps) {
             card={c}
             question={board.openQuestions.find((q) => q.card_id === c.id)}
             chips={board.chips[c.id]}
+            colors={p.colors}
             model={effectiveModel(c, board.profiles, board.ws)}
             selected={selectedId === c.id}
             dragging={dragId === c.id}
@@ -350,6 +357,8 @@ interface FaceProps {
   chips?: { path: string; label: string; value: unknown }[];
   /** the model the card runs, shown as a small chip when one is set */
   model?: { id: string; source: string } | null;
+  /** the workspace's tag colours; none means every tag is plain */
+  colors?: ChipColors;
   selected: boolean;
   dragging: boolean;
   onOpen: () => void;
@@ -358,7 +367,8 @@ interface FaceProps {
   onDrop: (e: DragEvent) => void;
 }
 
-export function CardFace({ card: c, question, chips, model, selected, dragging, onOpen, onDragStart, onDragEnd, onDrop }: FaceProps) {
+export function CardFace({ card: c, question, chips, model, colors = EMPTY, selected, dragging, onOpen, onDragStart, onDragEnd, onDrop }: FaceProps) {
+  const keyColor = c.key ? tagColor(colors, KEY_PATH, c.key) : null;
   return (
     <button
       draggable
@@ -378,7 +388,7 @@ export function CardFace({ card: c, question, chips, model, selected, dragging, 
     >
       <span className="l1">
         <span className={`dot ${c.liveness}${c.liveness === "working" ? " pulse" : ""}`} title={c.liveness} />
-        <span className="key">{c.key || `~${c.nick}`}</span>
+        <span className={"key" + (keyColor ? " " + tagClass(keyColor) : "")}>{c.key || `~${c.nick}`}</span>
         {question ? (
           <span className={"pill " + (question.kind === "approval" ? "bad" : "warn")}>{question.kind === "approval" ? "approval" : `Q-${String(question.seq).padStart(2, "0")}`}</span>
         ) : null}
@@ -387,10 +397,11 @@ export function CardFace({ card: c, question, chips, model, selected, dragging, 
       </span>
       <span className="nick">{c.nick}</span>
       {question ? <span className="q">{short(question.text, 90)}</span> : null}
-      {c.liveness === "idle" || chips?.length || model ? (
+      {c.liveness === "idle" || chips?.length || model || c.stage ? (
         <div className="chips">
-          {chips?.map((ch) => <span key={ch.path} className="pill" title={`${ch.label}: ${String(ch.value)}`}>{String(ch.value)}</span>)}
-          {model ? <span className="pill" title={`Model: ${model.id} (${model.source})`}>{model.id}</span> : null}
+          {c.stage ? <span className={tagClass(tagColor(colors, STAGE_PATH, c.stage))} title={`Stage: ${c.stage}`}>{c.stage}</span> : null}
+          {chips?.map((ch) => <span key={ch.path} className={tagClass(tagColor(colors, ch.path, ch.value))} title={`${ch.label}: ${String(ch.value)}`}>{String(ch.value)}</span>)}
+          {model ? <span className={tagClass(tagColor(colors, MODEL_PATH, model.id))} title={`Model: ${model.id} (${model.source})`}>{model.id}</span> : null}
           {c.liveness === "idle" ? <span className="pill">idle</span> : null}
         </div>
       ) : null}

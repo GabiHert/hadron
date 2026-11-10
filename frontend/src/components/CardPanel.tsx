@@ -14,6 +14,7 @@ import { AutoText } from "./PromptsTab";
 import { ModelOptions, useModels } from "./ModelsTab";
 import { effectiveModel } from "../state/useBoard";
 import { cardFolder, tildePath } from "../lib";
+import { CardTags } from "./TagColors";
 
 export type CardTab = "conv" | "links" | "ctx";
 
@@ -126,6 +127,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
         </div>
         <h2>{c.nick}</h2>
         {folder ? <div className="mono hint" aria-label="Card folder path" title={folder} style={{ fontSize: 11.5, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tildePath(folder)}</div> : null}
+        <CardTags board={board} cardId={c.id} />
         <div className="inline" style={{ marginBottom: 6 }}>
           <select className="in" id="card-model" style={{ width: "auto" }} aria-label="Model" title={withChord("Model", "card.model")} value={c.model} onChange={(e) => void actions.run(() => api.card_set_model({ card: c.id, model: e.target.value })).then((out) => out && actions.toast(out.note))}>
             <option value="">{`Use default (${inherited ? inherited.id : "Claude's own"})`}</option>

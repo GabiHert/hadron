@@ -1172,3 +1172,21 @@ export const routine_update = (a: {
 }) => call<Routine>("routine_update", a);
 export const routine_delete = (a: { routine_id: string }) => call<{ deleted: string }>("routine_delete", a);
 export const routine_run = (a: { routine_id: string }) => call<Routine>("routine_run", a);
+
+// ---- tag colours ----
+
+export type TagColor = "grey" | "blue" | "teal" | "green" | "lime" | "amber" | "orange" | "red" | "pink" | "purple";
+export interface ChipColorRule {
+  path: string;
+  value: string;
+  color: TagColor;
+}
+export interface ChipColors {
+  palette: TagColor[];
+  rules: ChipColorRule[];
+  /** field paths whose uncoloured values stay grey */
+  plain: string[];
+}
+export const chip_color_list = (a: { workspace_id?: string } = {}) => call<ChipColors>("chip_color_list", a);
+export const chip_color_set = (a: { workspace_id?: string; path: string; value: string; color?: TagColor | "" }) => call<ChipColors>("chip_color_set", a);
+export const chip_color_auto_set = (a: { workspace_id?: string; path: string; auto: boolean }) => call<ChipColors>("chip_color_auto_set", a);

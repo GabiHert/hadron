@@ -2,7 +2,7 @@
 // like the backend enough for the UI to react (rename, move, delete...), so tests can assert both
 // the calls made and what the user then sees.
 import { vi } from "vitest";
-import type { Routine, ModelOption, Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
+import type { ChipColors, Routine, ModelOption, Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
 
 export interface Fixture {
   workspaces: Workspace[];
@@ -130,6 +130,7 @@ export const state: {
   views: View[];
   rules: Rule[];
   routines: Routine[];
+  chipColors: ChipColors;
   ruleLog: RuleLogEntry[];
   dryRun: DryRunItem[];
   prompts: Record<PromptKind, PromptInfo>;
@@ -164,7 +165,7 @@ export const state: {
   commands: SlashCommand[];
   /** the folder files_search searches, filtered by a plain substring */
   files: FileHit[];
-} = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], routines: [], ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
+} = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], routines: [], chipColors: { palette: [], rules: [], plain: [] }, ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
   mcp: { running: true, url: "http://127.0.0.1:47820/mcp", port: 47820, token: "tok-0123456789abcdef", tool_count: 61, connect_command: "" },
   mcpCalls: [],
   messages: [],
@@ -187,6 +188,7 @@ export const reset = (fx: Fixture = defaultFixture()) => {
   state.views = [];
   state.rules = [];
   state.routines = [];
+  state.chipColors = { palette: [], rules: [], plain: [] };
   state.ruleLog = [];
   state.dryRun = [];
   state.prompts = defaultPrompts();
@@ -419,6 +421,19 @@ const fns = {
     const v = state.views.find((x) => x.id === a.view_id)!;
     state.views = state.views.filter((x) => x.id !== a.view_id);
     return clone(v);
+  }),
+  chip_color_list: vi.fn(async () => clone(state.chipColors)),
+  chip_color_set: vi.fn(async (a: { path: string; value: string; color?: string }) => {
+    const cc = state.chipColors;
+    cc.rules = cc.rules.filter((r) => !(r.path === a.path && r.value === a.value));
+    if (a.color) cc.rules.push({ path: a.path, value: a.value, color: a.color as ChipColors["rules"][number]["color"] });
+    return clone(cc);
+  }),
+  chip_color_auto_set: vi.fn(async (a: { path: string; auto: boolean }) => {
+    const cc = state.chipColors;
+    cc.plain = cc.plain.filter((p) => p !== a.path);
+    if (!a.auto) cc.plain.push(a.path);
+    return clone(cc);
   }),
   routine_list: vi.fn(async () => clone(state.routines)),
   routine_create: vi.fn(async (a: { workspace_id?: string; name: string; cron?: string; every_minutes?: number; target?: Routine["target"]; card?: string; prompt: string; enabled?: boolean; catch_up?: boolean }) => {

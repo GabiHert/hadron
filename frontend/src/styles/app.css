@@ -11,6 +11,13 @@
 .pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;padding:1px 8px;border-radius:99px;border:1px solid var(--border);background:var(--side);color:var(--fg2);white-space:nowrap;line-height:1.5}
 .pill.ok{background:var(--okb);color:var(--ok);border-color:transparent}.pill.warn{background:var(--warnb);color:var(--warn);border-color:transparent}
 .pill.bad{background:var(--badb);color:var(--bad);border-color:transparent}.pill.acc{background:var(--sel);color:var(--acc);border-color:transparent}
+.pill.tag-grey,.swatch.tag-grey{background:var(--tag-grey-b);color:var(--tag-grey);border-color:transparent}.pill.tag-blue,.swatch.tag-blue{background:var(--tag-blue-b);color:var(--tag-blue);border-color:transparent}.pill.tag-teal,.swatch.tag-teal{background:var(--tag-teal-b);color:var(--tag-teal);border-color:transparent}.pill.tag-green,.swatch.tag-green{background:var(--tag-green-b);color:var(--tag-green);border-color:transparent}.pill.tag-lime,.swatch.tag-lime{background:var(--tag-lime-b);color:var(--tag-lime);border-color:transparent}.pill.tag-amber,.swatch.tag-amber{background:var(--tag-amber-b);color:var(--tag-amber);border-color:transparent}.pill.tag-orange,.swatch.tag-orange{background:var(--tag-orange-b);color:var(--tag-orange);border-color:transparent}.pill.tag-red,.swatch.tag-red{background:var(--tag-red-b);color:var(--tag-red);border-color:transparent}.pill.tag-pink,.swatch.tag-pink{background:var(--tag-pink-b);color:var(--tag-pink);border-color:transparent}.pill.tag-purple,.swatch.tag-purple{background:var(--tag-purple-b);color:var(--tag-purple);border-color:transparent}
+.pill.tag{cursor:pointer}
+.swatches{display:flex;flex-wrap:wrap;gap:6px}
+.swatch{width:26px;height:22px;border-radius:99px;border:1px solid transparent;font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+.swatch[aria-pressed="true"]{outline:2px solid currentColor;outline-offset:1px}
+.tagrow{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.tagpick{position:absolute;z-index:30;top:24px;left:0;width:240px;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:10px;display:flex;flex-direction:column;gap:8px}
 button.pill{cursor:pointer}
 .src{font-size:10px;font-weight:600;letter-spacing:.04em;padding:0 5px;border-radius:4px;background:var(--bg);border:1px solid var(--border);color:var(--fg2)}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--dot);flex:none;display:inline-block}
@@ -85,6 +92,7 @@ textarea.in.grow-max{overflow-y:auto;scrollbar-width:thin}
 .card.dragging{opacity:.4}
 .card .l1{display:flex;gap:6px;align-items:center;min-width:0}
 .card .key{font:11.5px var(--mono);color:var(--fg3)}
+.card .key.pill{padding:0 6px;font-size:11px;line-height:1.5}.card .key.tag-grey{color:var(--tag-grey)}.card .key.tag-blue{color:var(--tag-blue)}.card .key.tag-teal{color:var(--tag-teal)}.card .key.tag-green{color:var(--tag-green)}.card .key.tag-lime{color:var(--tag-lime)}.card .key.tag-amber{color:var(--tag-amber)}.card .key.tag-orange{color:var(--tag-orange)}.card .key.tag-red{color:var(--tag-red)}.card .key.tag-pink{color:var(--tag-pink)}.card .key.tag-purple{color:var(--tag-purple)}
 .card .nick{font-weight:500;overflow-wrap:anywhere}
 .card .q{color:var(--fg2);font-size:12.5px;line-height:1.4}
 .chips{display:flex;gap:5px;flex-wrap:wrap}
