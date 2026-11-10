@@ -3133,6 +3133,91 @@
     "fields": null
   },
   {
+    "name": "theme_delete",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "id",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "theme_export",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "path",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "theme_import",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "path",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "json",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "theme_list",
+    "mutates": false,
+    "fields": null
+  },
+  {
+    "name": "theme_save",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "theme",
+        "required": true,
+        "type": "object"
+      }
+    ]
+  },
+  {
+    "name": "theme_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "theme",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "light",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "dark",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "ui_fullscreen",
     "mutates": true,
     "fields": [

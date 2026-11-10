@@ -179,7 +179,23 @@ export const state: {
   commands: defaultCommands(),
   files: defaultFiles(),
 };
+// Themes: a few built-ins with a handful of tokens, and the choice.
+type FakeTheme = { id: string; name: string; mode: "light" | "dark"; builtin: boolean; tokens: Record<string, string> };
+const fakeTheme = (id: string, name: string, mode: "light" | "dark", bg: string, fg: string, acc: string): FakeTheme => ({ id, name, mode, builtin: true, tokens: { bg, fg, acc, card: bg, term: "#101010", tfg: "#fefefe" } });
+const defaultThemes = (): { themes: FakeTheme[]; active: { theme: string; light: string; dark: string } } => ({
+  themes: [
+    fakeTheme("classic-light", "Classic Light", "light", "#fbfbf8", "#1d2330", "#24408e"),
+    fakeTheme("classic-dark", "Classic Dark", "dark", "#1b1a18", "#ece8df", "#8fa3e8"),
+    fakeTheme("nucleus", "Nucleus", "light", "#f7f8fb", "#121726", "#2346c8"),
+    fakeTheme("deep-space", "Deep Space", "dark", "#0b0e17", "#e6e9f5", "#7c9cff"),
+  ],
+  active: { theme: "system", light: "classic-light", dark: "classic-dark" },
+});
+export const themes = defaultThemes();
+const THEME_GROUPS = [{ name: "Surfaces", tokens: ["bg", "card"] }, { name: "Text", tokens: ["fg"] }, { name: "Accent and states", tokens: ["acc"] }, { name: "Terminal", tokens: ["term", "tfg"] }];
+
 export const reset = (fx: Fixture = defaultFixture()) => {
+  Object.assign(themes, defaultThemes());
   state.update = idleUpdate();
   state.changelogShow = false;
   state.attachSeq = 0;
@@ -424,6 +440,31 @@ const fns = {
     return clone(v);
   }),
   chip_color_list: vi.fn(async () => clone(state.chipColors)),
+  theme_list: vi.fn(async () => clone({ themes: themes.themes, groups: THEME_GROUPS, active: themes.active })),
+  theme_set: vi.fn(async (a: { theme?: string; light?: string; dark?: string }) => {
+    for (const id of [a.theme, a.light, a.dark]) if (id && id !== "system" && !themes.themes.some((t) => t.id === id)) throw new Error(`no such theme "${id}"`);
+    themes.active = { ...themes.active, ...Object.fromEntries(Object.entries(a).filter(([, v]) => v)) };
+    return clone(themes.active);
+  }),
+  theme_save: vi.fn(async (a: { theme: { id?: string; name: string; mode: "light" | "dark"; tokens: Record<string, string> } }) => {
+    const id = a.theme.id || a.theme.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const t: FakeTheme = { ...a.theme, id, builtin: false };
+    themes.themes = [...themes.themes.filter((x) => x.id !== id), t];
+    return clone(t);
+  }),
+  theme_import: vi.fn(async (a: { json?: string; name?: string }) => {
+    const v = JSON.parse(a.json ?? "{}") as { name?: string; type?: string; colors?: Record<string, string> };
+    if (!v.colors) throw new Error("this file is not a VS Code colour theme");
+    const t: FakeTheme = { id: (a.name || v.name || "imported").toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: a.name || v.name || "Imported", mode: v.type === "light" ? "light" : "dark", builtin: false, tokens: { bg: v.colors["editor.background"] ?? "#000000", fg: v.colors["editor.foreground"] ?? "#ffffff" } };
+    themes.themes.push(t);
+    return clone(t);
+  }),
+  theme_export: vi.fn(async (a: { id: string }) => ({ path: `/Users/me/Downloads/${a.id}.hadron-theme.json`, json: "{}" })),
+  theme_delete: vi.fn(async (a: { id: string }) => {
+    themes.themes = themes.themes.filter((t) => t.id !== a.id);
+    if (themes.active.theme === a.id) themes.active.theme = "system";
+    return clone(themes.active);
+  }),
   chip_color_set: vi.fn(async (a: { path: string; value: string; color?: string }) => {
     const cc = state.chipColors;
     cc.rules = cc.rules.filter((r) => !(r.path === a.path && r.value === a.value));

@@ -10,6 +10,7 @@ import { ACCEPT, filesOf, nativeFileDrop, onPathDrop, saveFiles, typedPaths } fr
 import { Icon } from "./ui";
 import { escapesTerminal } from "../keys";
 import { currentZoom, onZoom } from "../state/useZoom";
+import { THEME_EVENT } from "../theme";
 
 /** The terminal's font size at 100%; the zoom scales it. */
 export const TERM_FONT = 12;
@@ -53,6 +54,14 @@ export function termTheme(): ITheme {
     green: v("--tg", "#7fcf9b"),
     yellow: v("--ty", "#e6b65c"),
     blue: v("--tb", "#8fa3e8"),
+    magenta: v("--tm", "#d6a0e8"),
+    cyan: v("--tc", "#7fcfd6"),
+    brightRed: v("--tr", "#f0877d"),
+    brightGreen: v("--tg", "#7fcf9b"),
+    brightYellow: v("--ty", "#e6b65c"),
+    brightBlue: v("--tb", "#8fa3e8"),
+    brightMagenta: v("--tm", "#d6a0e8"),
+    brightCyan: v("--tc", "#7fcfd6"),
     brightBlack: v("--tdim", "#9c9da6"),
     brightWhite: fg,
   };
@@ -239,6 +248,7 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     const media = window.matchMedia?.("(prefers-color-scheme: dark)");
     media?.addEventListener?.("change", retheme);
+    window.addEventListener(THEME_EVENT, retheme);
     // The mono font may load after the first measure; measure again when it has.
     void document.fonts?.ready.then(refit);
 
@@ -257,6 +267,7 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
       ro.disconnect();
       mo.disconnect();
       media?.removeEventListener?.("change", retheme);
+      window.removeEventListener(THEME_EVENT, retheme);
       cancelAnimationFrame(frame);
       term.dispose();
     };

@@ -30,8 +30,6 @@ export interface Toast {
   text: string;
 }
 
-export type Theme = "light" | "dark" | "system";
-
 interface State {
   ready: boolean;
   /** why the first load failed; empty once data has loaded */
@@ -41,11 +39,10 @@ interface State {
   activeId: string;
   data: Record<string, WsData>;
   selected: Record<string, string | null>;
-  theme: Theme;
   toast: Toast | null;
 }
 
-const initial: State = { ready: false, loadError: "", version: "", workspaces: [], activeId: "", data: {}, selected: {}, theme: "system", toast: null };
+const initial: State = { ready: false, loadError: "", version: "", workspaces: [], activeId: "", data: {}, selected: {}, toast: null };
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -99,11 +96,10 @@ export function useBoard() {
       );
       if (!alive.current) return;
       const stored = typeof settings.active_workspace === "string" ? settings.active_workspace : "";
-      const theme = settings.theme === "light" || settings.theme === "dark" ? settings.theme : "system";
       setS((p) => {
         const keep = p.activeId && workspaces.some((w) => w.id === p.activeId) ? p.activeId : "";
         const activeId = keep || (workspaces.some((w) => w.id === stored) ? stored : (workspaces[0]?.id ?? ""));
-        return { ...p, ready: true, loadError: "", workspaces, activeId, data: Object.fromEntries(entries), theme, version: status ? status.version : p.version };
+        return { ...p, ready: true, loadError: "", workspaces, activeId, data: Object.fromEntries(entries), version: status ? status.version : p.version };
       });
     } catch (e) {
       if (!alive.current) return;
@@ -128,13 +124,6 @@ export function useBoard() {
       off();
     };
   }, [refetch]);
-
-  // Theme: light and dark set data-theme; system leaves it to the OS.
-  useEffect(() => {
-    const el = document.documentElement;
-    if (s.theme === "system") el.removeAttribute("data-theme");
-    else el.setAttribute("data-theme", s.theme);
-  }, [s.theme]);
 
   /** Runs a mutation, reports its error as a toast, and always reconciles with the backend. */
   const run = useCallback(
@@ -187,10 +176,6 @@ export function useBoard() {
         const cur = sRef.current;
         const w = cur.workspaces.find((x) => x.id === cur.activeId);
         if (w?.ui.collapsed?.card) void run(() => api.ui_panel_collapse({ workspace_id: cur.activeId, panel: "card", collapsed: false }));
-      },
-      setTheme: (theme: Theme) => {
-        setS((p) => ({ ...p, theme }));
-        return run(() => api.settings_update({ values: { theme } }));
       },
       setCollapsed: (panel: "planner" | "card", collapsed: boolean) =>
         run(() => api.ui_panel_collapse({ workspace_id: sRef.current.activeId, panel, collapsed })),

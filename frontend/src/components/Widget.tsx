@@ -13,6 +13,7 @@ import type { KeyboardEvent as ReactKeyboardEvent, Ref } from "react";
 import { createPortal } from "react-dom";
 import tokensCss from "../styles/tokens.css?raw";
 import { Icon } from "./ui";
+import { THEME_EVENT } from "../theme";
 
 export const WIDGET_MIN_HEIGHT = 80;
 export const WIDGET_MAX_HEIGHT = 1200;
@@ -69,6 +70,20 @@ function themeCss(): string {
     .filter(([, v]) => v !== "" && !/[<>{}]/.test(v))
     .map(([n, v]) => `${n}:${v};`);
   return `:root{${decls.join("")}}body{margin:0;font:13px/1.5 system-ui,sans-serif;color:var(--fg);background:transparent}`;
+}
+
+/** Re-renders when the theme changes, so a widget's copied tokens follow it. */
+function useThemeVersion() {
+  const [, bump] = useState(0);
+  useEffect(() => {
+    const on = () => bump((n) => n + 1);
+    window.addEventListener(THEME_EVENT, on);
+    window.matchMedia?.("(prefers-color-scheme: dark)")?.addEventListener?.("change", on);
+    return () => {
+      window.removeEventListener(THEME_EVENT, on);
+      window.matchMedia?.("(prefers-color-scheme: dark)")?.removeEventListener?.("change", on);
+    };
+  }, []);
 }
 
 const HEIGHT_SCRIPT =
@@ -241,6 +256,7 @@ export function Widget({ title, html, height, data, scripts, onPin, pinned, vari
   const reported = scripts && auto;
   const canGrow = !reported && !height && !guess.exact;
   const h = reported ? clampHeight(auto) : height ? clampHeight(height) : more && canGrow ? clampHeight(Math.max(guess.height * 2, 600)) : guess.height;
+  useThemeVersion();
   const srcDoc = widgetSrcDoc(html, { scripts, data });
   const chat = variant === "chat";
   const cls = ["widget", chat ? "w-chat" : "w-block", chat && isDiagram(html) ? "w-wide" : ""].filter(Boolean).join(" ");

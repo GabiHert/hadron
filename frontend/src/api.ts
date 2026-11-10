@@ -1191,6 +1191,15 @@ export const chip_color_list = (a: { workspace_id?: string } = {}) => call<ChipC
 export const chip_color_set = (a: { workspace_id?: string; path: string; value: string; color?: TagColor | "" }) => call<ChipColors>("chip_color_set", a);
 export const chip_color_auto_set = (a: { workspace_id?: string; path: string; auto: boolean }) => call<ChipColors>("chip_color_auto_set", a);
 
+// ---- themes ----
+
+export const theme_list = () => call<import("./theme").ThemeList>("theme_list");
+export const theme_set = (a: { theme?: string; light?: string; dark?: string }) => call<import("./theme").ThemeChoice>("theme_set", a);
+export const theme_save = (a: { theme: { id?: string; name: string; mode: "light" | "dark"; tokens: Record<string, string> } }) => call<import("./theme").ThemeDef>("theme_save", a);
+export const theme_import = (a: { path?: string; json?: string; name?: string }) => call<import("./theme").ThemeDef>("theme_import", a);
+export const theme_export = (a: { id: string; path?: string }) => call<{ path: string; json: string }>("theme_export", a);
+export const theme_delete = (a: { id: string }) => call<import("./theme").ThemeChoice>("theme_delete", a);
+
 // ---- sounds ----
 
 export type SoundKind = "needs_you" | "back_to_work";

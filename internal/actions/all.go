@@ -18,6 +18,7 @@ func RegisterAll(r *Registry) {
 	registerRules(r)
 	registerSounds(r)
 	registerChipColors(r)
+	registerThemes(r)
 	registerRoutines(r)
 	registerFilters(r)
 	registerPrompts(r)

@@ -19,7 +19,7 @@ import { useKeyboard, useLastPanel } from "./state/useKeyboard";
 import { useZoom } from "./state/useZoom";
 import { cardEl, focusEl, whenReady } from "./commands";
 import type { Env, ModalName } from "./commands";
-import { isDark } from "./components/Header";
+import { startThemes, themeActions } from "./theme";
 
 type Modal = null | ModalName;
 
@@ -55,6 +55,7 @@ export default function App() {
     Promise.resolve(api.changelog_get()).then((i) => { if (i?.show) setModal((m) => m ?? "whatsnew"); }).catch(() => undefined);
   }, [ws]);
   useEffect(() => api.onEvent("menu:whatsnew", () => setModal("whatsnew")), []);
+  useEffect(() => startThemes(), []);
   const openFeedback = () => {
     const nick = board.selected?.nick;
     setFeedbackArea(modal === "settings" ? `settings:${settingsTabNow.current}` : ws?.ui.main_view === "dashboard" ? "dashboard" : "board" + (nick ? `:card:${nick}` : ""));
@@ -88,7 +89,7 @@ export default function App() {
     confirm: (text, ok, run) => setConfirmReq({ text, ok, run }),
     zoom: zoomStep,
     lastPanel: () => lastPanel.current,
-    toggleTheme: () => void actions.setTheme(isDark(board.theme) ? "light" : "dark"),
+    toggleTheme: () => void themeActions.toggleMode(),
   };
   // The palette's "Go to card" rows: select the card, show it and put the focus on it.
   const run = useKeyboard(env, overrides, (id) => {
