@@ -3431,6 +3431,11 @@
         "name": "workspace_id",
         "required": true,
         "type": "string"
+      },
+      {
+        "name": "dry_run",
+        "required": false,
+        "type": "boolean"
       }
     ]
   },
@@ -3536,6 +3541,11 @@
         "name": "planner_cwd",
         "required": false,
         "type": "string"
+      },
+      {
+        "name": "position",
+        "required": false,
+        "type": "number"
       }
     ]
   },

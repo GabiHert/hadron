@@ -9,6 +9,14 @@ Hadron is a macOS app. A **workspace** has a **board** of columns; every **card*
 - **User-only actions** (`chat_send`, `planner_policy_set`, `planner_set_profile`, `models_set`, `integration_secret_set`, `settings_update` for `planner.policy` and `widgets.scripts`, and `planner_keys`/`planner_send` on the planner itself) follow the setting `mcp.user_actions`: `external` (default) lets token holders with no `X-Hadron-Session` call them, `all` lets the planner and card sessions too, `off` leaves them to the app. Every such call over MCP is written to the config history with the actor. Changing the setting needs the same permission, so a planner can change it only when it is already `all`. Do not use one unless the user asked.
 - The user can open any session's Terminal tab and type directly. That bypasses the planner.
 
+## Managing workspaces
+
+- `workspace_update` renames a workspace (`name`) and moves it in the tab bar (`position`: 0 is first, the order `workspace_list` returns; archived workspaces are not counted). The order is stored.
+- `workspace_archive` hides a workspace and stops its running sessions; nothing is deleted, and `archived: false` brings it back at the end of the tab bar. Prefer it to deleting.
+- `workspace_delete` stops the running sessions, then removes the workspace with its cards, sessions, chats, questions, rules and dashboard. It never touches files in the root folder or worktrees on disk, and cannot be undone. Call it with `dry_run: true` first to get the counts, and tell the user what goes.
+- The last workspace in the tab bar can be neither archived nor deleted. Archiving or deleting the active one makes the next one active (or the one before).
+- Change, archive or delete a workspace only when the user asked.
+
 ## Session folders and adoption
 
 - A session runs in the workspace root unless its card has a **folder** (`cwd`): `card_create` and `card_update` take an absolute path to an existing folder (`~` is expanded; empty means the root). A running session keeps its folder until it next starts. A launch profile with a worktree makes it from the card folder's repository.

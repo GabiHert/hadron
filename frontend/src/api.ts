@@ -125,9 +125,23 @@ export const workspace_update = (a: {
   filter_bar?: string[];
   default_model?: string;
   planner_cwd?: string;
+  /** the place in the tab bar, 0 first; archived workspaces are not counted */
+  position?: number;
 }) => call<Workspace>("workspace_update", a);
 export const workspace_archive = (a: { workspace_id: string; archived?: boolean }) => call<Workspace>("workspace_archive", a);
-export const workspace_delete = (a: { workspace_id: string }) => call<Workspace>("workspace_delete", a);
+/** What workspace_delete removed, or with dry_run would remove. */
+export interface WorkspaceDeleteOut {
+  workspace: Workspace;
+  deleted: boolean;
+  /** the active workspace afterwards */
+  active_id: string;
+  cards: number;
+  sessions: number;
+  running_sessions: number;
+  messages: number;
+  questions: number;
+}
+export const workspace_delete = (a: { workspace_id: string; dry_run?: boolean }) => call<WorkspaceDeleteOut>("workspace_delete", a);
 export const workspace_switch = (a: { workspace_id: string }) => call<Workspace>("workspace_switch", a);
 
 // ---- columns ----

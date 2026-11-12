@@ -7,6 +7,14 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Rename a workspace in place: double-click its tab, or press E on a focused tab (⇧⌘W), then Enter to save or Esc to cancel.
+- Reorder workspaces by dragging their tabs, or with ⌥← and ⌥→ on a focused tab. The order is kept across restarts.
+- Archive or delete a workspace from its tab's right-click menu or with ⌫ on a focused tab. The dialog says what goes with it (cards, sessions, chats, questions), offers Archive instead, stops its running sessions, and never touches files in its folder. Archived workspaces can be restored from the same menu.
+
+### Changed
+- The last workspace can no longer be archived or deleted, and archiving or deleting the active workspace switches to the next one first.
+
 ## [0.2.29] - 2026-11-10
 
 ### Added

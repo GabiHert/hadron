@@ -169,6 +169,32 @@ export function useBoard() {
         }
         return w;
       },
+      renameWorkspace: (id: string, name: string) => run(() => api.workspace_update({ workspace_id: id, name })),
+      /** Moves a workspace to index `to` of the tab bar, at once, then stores the order. */
+      moveWorkspace: (id: string, to: number) => {
+        setS((p) => {
+          const live = p.workspaces.filter((w) => !w.archived && w.id !== id);
+          const me = p.workspaces.find((w) => w.id === id);
+          if (!me) return p;
+          live.splice(Math.max(0, Math.min(to, live.length)), 0, me);
+          return { ...p, workspaces: [...live, ...p.workspaces.filter((w) => w.archived && w.id !== id)] };
+        });
+        return run(() => api.workspace_update({ workspace_id: id, position: Math.max(0, to) }));
+      },
+      archiveWorkspace: async (id: string) => {
+        const name = sRef.current.workspaces.find((w) => w.id === id)?.name ?? "";
+        const out = await run(() => api.workspace_archive({ workspace_id: id }));
+        if (out) toast(`Workspace ${name} archived. Nothing was deleted.`);
+        return out;
+      },
+      deleteWorkspace: async (id: string) => {
+        const out = await run(() => api.workspace_delete({ workspace_id: id }));
+        if (out) {
+          if (out.active_id) setS((p) => ({ ...p, activeId: out.active_id }));
+          toast(`Workspace ${out.workspace.name} deleted.`);
+        }
+        return out;
+      },
       select: (id: string | null) => setS((p) => (p.activeId ? { ...p, selected: { ...p.selected, [p.activeId]: id } } : p)),
       /** The user picked a card (a click, the palette, a keyboard select): show it, expanding a collapsed card panel. */
       open: (id: string) => {

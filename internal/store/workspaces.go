@@ -82,3 +82,63 @@ func (r *Workspaces) Update(w *domain.Workspace) error {
 func (r *Workspaces) Delete(id string) error {
 	return affected(r.s.q.Exec(`DELETE FROM workspaces WHERE id = ?`, id))
 }
+
+// Move puts a live workspace at index pos of the live list (0 is first), clamped to the ends, and
+// renumbers every workspace: the live ones in their new order, then the archived ones in theirs.
+func (r *Workspaces) Move(id string, pos int) error {
+	all, err := r.List(true)
+	if err != nil {
+		return err
+	}
+	var live, archived []domain.Workspace
+	var moved *domain.Workspace
+	for i := range all {
+		switch {
+		case all[i].ID == id:
+			moved = &all[i]
+		case all[i].Archived:
+			archived = append(archived, all[i])
+		default:
+			live = append(live, all[i])
+		}
+	}
+	if moved == nil {
+		return ErrNotFound
+	}
+	pos = max(0, min(pos, len(live)))
+	order := append([]domain.Workspace{}, live[:pos]...)
+	order = append(order, *moved)
+	order = append(order, live[pos:]...)
+	order = append(order, archived...)
+	for i, w := range order {
+		if w.Position == i && w.ID != id {
+			continue
+		}
+		if _, err := r.s.q.Exec(`UPDATE workspaces SET position = ?, updated_at = ? WHERE id = ?`, i, ts(now()), w.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Contents counts what a workspace holds, for the confirmation before it is deleted.
+type Contents struct {
+	Cards     int `json:"cards"`
+	Sessions  int `json:"sessions"`
+	Running   int `json:"running_sessions"`
+	Messages  int `json:"messages"`
+	Questions int `json:"questions"`
+}
+
+// Contents counts a workspace's cards (archived ones too), sessions, chat messages and questions.
+func (r *Workspaces) Contents(id string) (Contents, error) {
+	var c Contents
+	err := r.s.q.QueryRow(`SELECT
+		(SELECT COUNT(*) FROM cards WHERE workspace_id = ?),
+		(SELECT COUNT(*) FROM sessions WHERE workspace_id = ?),
+		(SELECT COUNT(*) FROM sessions WHERE workspace_id = ? AND status = 'running'),
+		(SELECT COUNT(*) FROM messages WHERE workspace_id = ?),
+		(SELECT COUNT(*) FROM questions WHERE workspace_id = ?)`, id, id, id, id, id).
+		Scan(&c.Cards, &c.Sessions, &c.Running, &c.Messages, &c.Questions)
+	return c, err
+}

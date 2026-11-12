@@ -281,6 +281,7 @@ func TestWorkspaceUpdateArchiveSwitchDelete(t *testing.T) {
 func TestWorkspaceActionsRecordConfigHistory(t *testing.T) {
 	h := newHarness(t)
 	w := h.workspace("old")
+	h.workspace("spare") // the last workspace cannot be deleted
 	h.do("workspace_update", m{"workspace_id": w.ID, "name": "new"}, nil)
 	h.do("workspace_delete", m{"workspace_id": w.ID}, nil)
 	changes, _ := h.reg.Deps().Store.Changes.List(w.ID, 10)
