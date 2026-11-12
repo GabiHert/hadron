@@ -537,8 +537,9 @@ func TestPlannerAutostartSettingStartsItWithTheWorkspace(t *testing.T) {
 	// Archiving a workspace hangs up its sessions; deleting does too.
 	var card domain.Card
 	h.do("card_create", m{"workspace_id": w.ID, "nick": "c1"}, &card)
+	h.workspace("Spare") // the last workspace in the tab bar cannot be archived
 	h.do("workspace_archive", m{"workspace_id": w.ID}, nil)
-	waitUntil(t, "the planner to be hung up", func() bool { return !h.status("c1").Running && !h.status("c1").Running })
+	waitUntil(t, "the sessions to be hung up", func() bool { return !h.runningIn(w.ID) })
 }
 
 func TestCommandNotFoundFailsStartButNotCardCreate(t *testing.T) {
@@ -673,4 +674,15 @@ func mustProfiles(t *testing.T, st *store.Store, ws string) []domain.LaunchProfi
 		t.Fatal(err)
 	}
 	return l
+}
+
+// runningIn reports whether any session of the workspace still runs.
+func (h *sessionHarness) runningIn(workspaceID string) bool {
+	rows, _ := h.reg.Deps().Store.Sessions.ListRunning()
+	for _, r := range rows {
+		if r.WorkspaceID == workspaceID {
+			return true
+		}
+	}
+	return false
 }

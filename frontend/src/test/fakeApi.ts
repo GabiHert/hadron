@@ -251,7 +251,7 @@ const fns = {
     return clone(state.fx.settings);
   }),
   sessions_running: vi.fn(async () => ({ count: state.running.sessions.length, sessions: [...state.running.sessions], restore_on_launch: state.running.restore_on_launch })),
-  workspace_list: vi.fn(async () => clone(state.fx.workspaces)),
+  workspace_list: vi.fn(async (a: { include_archived?: boolean } = {}) => clone(state.fx.workspaces.filter((w) => a.include_archived || !w.archived))),
   workspace_get: vi.fn(async (a: { workspace_id: string }) => clone(state.fx.workspaces.find((w) => w.id === a.workspace_id)!)),
   workspace_create: vi.fn(async (a: { name: string; template?: string }) => {
     const w = ws("new-" + a.name, a.name, { position: state.fx.workspaces.length });
@@ -260,13 +260,52 @@ const fns = {
     state.fx.cards[w.id] = [];
     return clone(w);
   }),
-  workspace_update: vi.fn(async (a: { workspace_id?: string; default_model?: string } = {}) => {
+  workspace_update: vi.fn(async (a: { workspace_id?: string; default_model?: string; name?: string; position?: number } = {}) => {
     const w = state.fx.workspaces.find((x) => x.id === (a.workspace_id ?? "w1"))!;
     if (a.default_model !== undefined) w.default_model = a.default_model;
+    if (a.name !== undefined) w.name = a.name;
+    if (a.position !== undefined) {
+      const live = state.fx.workspaces.filter((x) => !x.archived && x.id !== w.id);
+      live.splice(Math.min(a.position, live.length), 0, w);
+      const order = [...live, ...state.fx.workspaces.filter((x) => x.archived && x.id !== w.id)];
+      order.forEach((x, i) => (x.position = i));
+      state.fx.workspaces = order;
+    }
     return clone(w);
   }),
-  workspace_archive: vi.fn(async () => ({}) as Workspace),
-  workspace_delete: vi.fn(async () => ({}) as Workspace),
+  workspace_archive: vi.fn(async (a: { workspace_id: string; archived?: boolean }) => {
+    const live = state.fx.workspaces.filter((x) => !x.archived);
+    const w = state.fx.workspaces.find((x) => x.id === a.workspace_id)!;
+    const archived = a.archived ?? true;
+    if (archived && live.length < 2) throw new Error(`workspace "${w.name}" is the only one in the tab bar, and Hadron needs one. Create another workspace first`);
+    if (archived && state.fx.settings.active_workspace === w.id) {
+      const at = live.findIndex((x) => x.id === w.id);
+      state.fx.settings.active_workspace = (live[at + 1] ?? live[at - 1]).id;
+    }
+    w.archived = archived;
+    if (!archived) state.fx.workspaces = [...state.fx.workspaces.filter((x) => x.id !== w.id), w];
+    return clone(w);
+  }),
+  workspace_delete: vi.fn(async (a: { workspace_id: string; dry_run?: boolean }) => {
+    const live = state.fx.workspaces.filter((x) => !x.archived);
+    const w = state.fx.workspaces.find((x) => x.id === a.workspace_id)!;
+    if (live.length < 2) throw new Error(`workspace "${w.name}" is the only one in the tab bar, and Hadron needs one. Create another workspace first`);
+    const counts = {
+      cards: (state.fx.cards[w.id] ?? []).length,
+      sessions: Object.values(state.sessions).filter((x) => x.workspace_id === w.id).length,
+      running_sessions: state.running.sessions.length,
+      messages: state.messages.filter((m) => m.workspace_id === w.id).length,
+      questions: state.questions.filter((q) => q.workspace_id === w.id).length,
+    };
+    const active = typeof state.fx.settings.active_workspace === "string" ? state.fx.settings.active_workspace : "w1";
+    if (a.dry_run) return { workspace: clone(w), deleted: false, active_id: active, ...counts };
+    if (active === w.id) {
+      const at = live.findIndex((x) => x.id === w.id);
+      state.fx.settings.active_workspace = (live[at + 1] ?? live[at - 1]).id;
+    }
+    state.fx.workspaces = state.fx.workspaces.filter((x) => x.id !== w.id);
+    return { workspace: clone(w), deleted: true, active_id: state.fx.settings.active_workspace as string, ...counts };
+  }),
   workspace_switch: vi.fn(async (a: { workspace_id: string }) => {
     state.fx.settings.active_workspace = a.workspace_id;
     return clone(state.fx.workspaces.find((w) => w.id === a.workspace_id)!);

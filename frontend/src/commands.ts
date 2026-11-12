@@ -205,7 +205,7 @@ export function zoneCycle(collapsed: { planner?: boolean; card?: boolean } = {},
 
 // ---- UI events: what a handler asks a panel to do with its own state ----
 
-export type UIRequest = { do: "card.edit" } | { do: "card.model" } | { do: "planner.model" } | { do: "planner.adopt" };
+export type UIRequest = { do: "card.edit" } | { do: "card.model" } | { do: "planner.model" } | { do: "planner.adopt" } | { do: "workspace.rename"; id: string } | { do: "workspace.delete"; id: string };
 const UI_EVENT = "hadron:ui";
 export const requestUI = (r: UIRequest) => window.dispatchEvent(new CustomEvent<UIRequest>(UI_EVENT, { detail: r }));
 export function onUIRequest(cb: (r: UIRequest) => void): () => void {
@@ -281,6 +281,28 @@ const moveCard = (dir: Dir): Handler => (env) => {
   whenReady(() => document.querySelector<HTMLElement>(`[data-col-id="${attrEsc(to.column_id)}"] [data-card-id="${attrEsc(c.id)}"]`), (el) => focusEl(el));
   return true;
 };
+
+/** The workspace a workspace command acts on: the focused tab, else the active one. */
+function targetWorkspace(env: Env) {
+  const el = document.activeElement instanceof HTMLElement ? document.activeElement.closest<HTMLElement>("[data-ws-id]") : null;
+  const id = el?.dataset.wsId ?? env.board.activeId;
+  return env.board.visible.find((w) => w.id === id) ?? null;
+}
+
+/** The tab of a workspace in the workspace bar. */
+export const wsTabEl = (id: string) => document.querySelector<HTMLElement>(`[data-zone="workspaces"] [data-ws-id="${attrEsc(id)}"]`);
+
+function moveWorkspace(env: Env, d: -1 | 1): boolean {
+  const w = targetWorkspace(env);
+  if (!w) return false;
+  const at = env.board.visible.findIndex((x) => x.id === w.id);
+  const to = at + d;
+  if (to < 0 || to >= env.board.visible.length) return true;
+  const hadFocus = !!wsTabEl(w.id)?.contains(document.activeElement);
+  void env.board.actions.moveWorkspace(w.id, to);
+  if (hadFocus) whenReady(() => wsTabEl(w.id), (el) => focusEl(el));
+  return true;
+}
 
 /** The focused panel's element, for the chat commands. */
 function panelZone(env: Env): HTMLElement | null {
@@ -447,6 +469,30 @@ const HANDLERS: Record<string, Handler> = {
     return true;
   },
   "focus.workspaces": () => void focusZone("workspaces"),
+  "workspace.rename": (env) => {
+    const w = targetWorkspace(env);
+    if (!w) return false;
+    requestUI({ do: "workspace.rename", id: w.id });
+    return true;
+  },
+  "workspace.moveLeft": (env) => moveWorkspace(env, -1),
+  "workspace.moveRight": (env) => moveWorkspace(env, 1),
+  "workspace.archive": (env) => {
+    const w = targetWorkspace(env);
+    if (!w) return false;
+    if (env.board.visible.length < 2) {
+      env.board.actions.toast(`${w.name} is the only workspace, so it cannot be archived. Create another one first.`);
+      return true;
+    }
+    env.confirm(`Archive ${w.name}? It leaves the tab bar and its running sessions stop. Nothing is deleted, and you can restore it from a workspace tab's menu.`, "Archive", () => void env.board.actions.archiveWorkspace(w.id));
+    return true;
+  },
+  "workspace.delete": (env) => {
+    const w = targetWorkspace(env);
+    if (!w) return false;
+    requestUI({ do: "workspace.delete", id: w.id });
+    return true;
+  },
   ...Object.fromEntries(
     [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => [
       `workspace.${n}`,

@@ -10,10 +10,10 @@
 // Each command is one line of DEFAULTS. internal/app/menu_test.go reads this file to check that the
 // native menus carry the same default chords, so keep every entry on a single line.
 
-export type Scope = "global" | "board" | "panel" | "dashboard" | "terminal" | "dialog";
+export type Scope = "global" | "board" | "panel" | "dashboard" | "workspaces" | "terminal" | "dialog";
 export type Zone = "workspaces" | "planner" | "board" | "card" | "dashboard";
-export type Group = "General" | "Zones and panels" | "Board" | "Card" | "Conversation" | "Questions" | "Dashboard" | "Terminal";
-export const GROUPS: Group[] = ["General", "Zones and panels", "Board", "Card", "Conversation", "Questions", "Dashboard", "Terminal"];
+export type Group = "General" | "Zones and panels" | "Workspaces" | "Board" | "Card" | "Conversation" | "Questions" | "Dashboard" | "Terminal";
+export const GROUPS: Group[] = ["General", "Zones and panels", "Workspaces", "Board", "Card", "Conversation", "Questions", "Dashboard", "Terminal"];
 
 export interface CommandDef {
   id: string;
@@ -61,6 +61,11 @@ export const DEFAULTS: CommandDef[] = [
   { id: "focus.card", title: "Focus the card panel", group: "Zones and panels", scope: "global", keys: ["Shift+Mod+C"], terminal: true, menu: "Go" },
   { id: "focus.workspaces", title: "Focus the workspace bar", group: "Zones and panels", scope: "global", keys: ["Shift+Mod+W"], terminal: true, menu: "Go" },
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(ws),
+  { id: "workspace.rename", title: "Rename the workspace", group: "Workspaces", scope: "workspaces", keys: ["E"] },
+  { id: "workspace.moveLeft", title: "Move the workspace left", group: "Workspaces", scope: "workspaces", keys: ["Alt+ArrowLeft", "Shift+H"] },
+  { id: "workspace.moveRight", title: "Move the workspace right", group: "Workspaces", scope: "workspaces", keys: ["Alt+ArrowRight", "Shift+L"] },
+  { id: "workspace.archive", title: "Archive the workspace", group: "Workspaces", scope: "workspaces", keys: [], confirm: true },
+  { id: "workspace.delete", title: "Delete or archive the workspace", group: "Workspaces", scope: "workspaces", keys: ["Backspace", "Delete"], confirm: true },
   { id: "panel.planner.toggle", title: "Collapse or expand the planner", group: "Zones and panels", scope: "global", keys: ["Alt+Mod+ArrowLeft"], terminal: true, menu: "View" },
   { id: "panel.card.toggle", title: "Collapse or expand the card panel", group: "Zones and panels", scope: "global", keys: ["Alt+Mod+ArrowRight"], terminal: true, menu: "View" },
   { id: "view.terminal", title: "Switch Chat ⇄ Terminal in the focused panel", group: "Zones and panels", scope: "global", keys: ["Mod+J"], terminal: true, menu: "View" },
@@ -325,12 +330,14 @@ export function allowed(def: CommandDef, chord: string, ctx: KeyCtx): boolean {
       return ctx.zone === "dashboard" || (ctx.zone === null && ctx.mainView === "dashboard");
     case "panel":
       return ctx.zone === "planner" || ctx.zone === "card";
+    case "workspaces":
+      return ctx.zone === "workspaces";
     case "dialog":
       return false;
   }
 }
 
-const SPECIFIC: Scope[] = ["board", "dashboard", "panel", "terminal", "dialog"];
+const SPECIFIC: Scope[] = ["board", "dashboard", "panel", "workspaces", "terminal", "dialog"];
 
 /** The commands a chord could run in this context, the most specific scope first. */
 export function candidates(chord: string, ctx: KeyCtx, overrides: Overrides = {}): CommandDef[] {

@@ -2130,7 +2130,7 @@ Post a small HTML widget on a channel to explain something visually: a compariso
 
 ### `workspace_archive`
 
-Archive a workspace so it leaves the tab bar, or restore it with archived: false. Nothing is deleted.
+Archive a workspace so it leaves the tab bar, or restore it with archived: false. Its running sessions stop; nothing is deleted. The last workspace in the tab bar cannot be archived; archiving the active one makes the next one active.
 
 *changes data*
 
@@ -2156,13 +2156,14 @@ Create a workspace with its columns, the built-in rules, the default dashboard a
 
 ### `workspace_delete`
 
-Delete a workspace and everything in it: columns, cards, chats, rules, dashboard. This cannot be undone; prefer workspace_archive.
+Delete a workspace and everything Hadron keeps for it: columns, cards, sessions, chats, questions, rules, dashboard. Its running sessions stop first. Files in its root folder and worktrees on disk are not touched. This cannot be undone; prefer workspace_archive. The last workspace in the tab bar cannot be deleted; deleting the active one makes the next one active. dry_run: true only counts what would go.
 
 *changes data*
 
 | Argument | Type | Required | What it is |
 |---|---|---|---|
 | `workspace_id` | string | yes | the workspace id |
+| `dry_run` | boolean | no | only count what would be deleted; nothing changes |
 
 ### `workspace_get`
 
@@ -2209,7 +2210,7 @@ Make a workspace the active one. Actions that omit workspace_id then act on it.
 
 ### `workspace_update`
 
-Change a workspace's name, root folder, colour, enabled integrations, pinned filter fields or the planner's folder (planner_cwd, used from the planner's next start). Only the fields you pass change.
+Change a workspace's name, root folder, colour, enabled integrations, pinned filter fields, the planner's folder (planner_cwd, used from the planner's next start) or its place in the tab bar (position, 0 is first). Only the fields you pass change.
 
 *changes data*
 
@@ -2223,6 +2224,7 @@ Change a workspace's name, root folder, colour, enabled integrations, pinned fil
 | `filter_bar` | array | no | the field paths pinned in the filter bar |
 | `default_model` | string | no | the Claude model cards use when neither the card nor its launch profile names one (opus, sonnet, haiku or a full model name); empty means claude's own default. Applies to sessions that start afterwards |
 | `planner_cwd` | string | no | the folder the planner's session runs in: an absolute path to an existing folder, ~ is expanded. Empty means the root. Applies when the planner next starts |
+| `position` | number | no | move the workspace to this place in the tab bar, the order workspace_list returns: 0 is first; a number past the end means last. Archived workspaces are not counted |
 
 ## worktree
 

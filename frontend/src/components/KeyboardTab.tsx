@@ -10,6 +10,7 @@ export const SCOPE_LABEL: [Scope, string, string][] = [
   ["board", "Board", "When the board has the focus and no text field does."],
   ["panel", "Planner and card panels", "When a chat panel has the focus. Single keys never fire while you type."],
   ["dashboard", "Dashboard", "When the dashboard has the focus."],
+  ["workspaces", "Workspace bar", "When a workspace tab has the focus (⇧⌘W)."],
   ["terminal", "Terminal", "Leave a terminal without the key reaching Claude Code."],
 ];
 

@@ -10,6 +10,7 @@ The user can run Hadron with no mouse. Every shortcut lives in one registry (the
 
 **Defaults.**
 - Zones: ⌘[ ⌘] cycle planner, board, card panel; ⇧⌘P planner, ⇧⌘B board, ⇧⌘C card panel, ⇧⌘W workspace bar; ⌘1–⌘9 workspaces; ⌥⌘← ⌥⌘→ collapse or expand the planner or the card panel; ⌘J Chat ⇄ Terminal; ⇧⌘F full screen; ⌘D Board ⇄ Dashboard.
+- Workspace bar (⇧⌘W): ← → move between tabs; ↩ opens one; e renames it in place; ⌥← ⌥→ or ⇧H ⇧L move it; ⌫ opens Archive or delete. Right-click a tab for the same, and to restore an archived workspace; drag a tab to reorder.
 - Board: arrows or h j k l move; ↩ opens the card at its composer; Space shows it without moving the focus; ⌥ arrows or ⇧H ⇧J ⇧K ⇧L move the card; n new card in that column; s start, x stop, r restart, ⌫ archive (the last three ask first); e edit, m model; / or ⌘F search; g then a column's number or first letter jumps there; z collapses the column to a rail or expands it (h and l skip a collapsed column; g lands on its rail).
 - Panels: i writes a message; j k walk the messages; ↩ acts on the focused one (widget menu, link, question); Esc steps back out. ⌥⌘1–3 open Conversation, Links, Context.
 - Questions: 1–9 pick an option, n goes to Notes, ⌘↩ answers. ⇧⌘A approves and ⇧⌘X rejects the open approval, after a confirm.
