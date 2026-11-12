@@ -18,6 +18,8 @@ import (
 // fakeClaude is a stand-in for the claude CLI. It records its argv (NUL separated), its environment
 // and a copy of the MCP config it was pointed at, draws Claude's input box unless HADRON_TEST_SILENT
 // is set, and appends every line typed into it to <out>.in. A typed /exit ends it, as it ends Claude.
+// With HADRON_TEST_BOX_GATE set it draws the box only once that file exists: it then removes the
+// file (so a restarted claude waits for a new one) and writes <out>.ready.
 const fakeClaude = `#!/bin/sh
 out="$HADRON_TEST_OUT"
 : > "$out.argv"
@@ -37,7 +39,11 @@ done
 env > "$out.env"
 pwd > "$out.pwd"
 echo started > "$out.started"
-if [ -n "$HADRON_TEST_BOX_DELAY" ]; then sleep "$HADRON_TEST_BOX_DELAY"; date +%s > "$out.ready"; fi
+if [ -n "$HADRON_TEST_BOX_GATE" ]; then
+  while [ ! -e "$HADRON_TEST_BOX_GATE" ]; do sleep 0.02; done
+  rm -f "$HADRON_TEST_BOX_GATE"
+  : > "$out.ready"
+fi
 if [ -z "$HADRON_TEST_SILENT" ]; then printf '│ > \n'; fi
 while IFS= read -r line; do printf '%s\n' "$line" >> "$out.in"; [ "$line" = "/exit" ] && exit 0; done
 `
@@ -63,6 +69,12 @@ const harnessReadyTimeout = time.Second
 // newSessionHarnessEnv is newSessionHarness with extra environment for the fake claude.
 func newSessionHarnessEnv(t *testing.T, silent bool, extra ...string) *sessionHarness {
 	t.Helper()
+	return newSessionHarnessReady(t, silent, harnessReadyTimeout, extra...)
+}
+
+// newSessionHarnessReady is newSessionHarnessEnv with its own ready timeout.
+func newSessionHarnessReady(t *testing.T, silent bool, ready time.Duration, extra ...string) *sessionHarness {
+	t.Helper()
 	deps, rec := testDeps(t)
 	bin := t.TempDir()
 	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(fakeClaude), 0o755); err != nil {
@@ -80,7 +92,7 @@ func newSessionHarnessEnv(t *testing.T, silent bool, extra ...string) *sessionHa
 			rec.emit(EventChanged, ChangedEvent{WorkspaceID: ws, Entities: entities})
 		},
 		FirstPromptDelay: 200 * time.Millisecond,
-		ReadyTimeout:     harnessReadyTimeout,
+		ReadyTimeout:     ready,
 		Window:           150 * time.Millisecond,
 	})
 	deps.Sessions = svc
