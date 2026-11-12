@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.30] - 2026-11-11
+
 ### Added
 - Rename a workspace in place: double-click its tab, or press E on a focused tab (⇧⌘W), then Enter to save or Esc to cancel.
 - Reorder workspaces by dragging their tabs, or with ⌥← and ⌥→ on a focused tab. The order is kept across restarts.
