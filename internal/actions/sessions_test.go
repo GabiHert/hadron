@@ -403,6 +403,15 @@ func TestSendKeysScreenInterruptStopAndRestartResume(t *testing.T) {
 	if third.ID == second.ID || third.ClaudeSessionID != "abc-123-conversation" {
 		t.Fatalf("third = %+v", third)
 	}
+	// A replaced session is let go: its scrollback and terminal model are not kept for the life of the app.
+	waitUntil(t, "the replaced sessions to be released", func() bool {
+		_, a := h.reg.Deps().Sessions.Live(first.ID)
+		_, b := h.reg.Deps().Sessions.Live(second.ID)
+		return !a && !b
+	})
+	if _, ok := h.reg.Deps().Sessions.Live(third.ID); !ok {
+		t.Fatal("the running session must stay live")
+	}
 	// The old process's exit must not mark the card ended while the new one runs.
 	time.Sleep(300 * time.Millisecond)
 	if lv := h.card(card.ID).Liveness; lv == domain.LivenessEnded {

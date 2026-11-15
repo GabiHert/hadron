@@ -14,6 +14,10 @@ export function PtyAttach(arg1) {
   return window['go']['app']['App']['PtyAttach'](arg1);
 }
 
+export function PtyDetach(arg1) {
+  return window['go']['app']['App']['PtyDetach'](arg1);
+}
+
 export function PtyResize(arg1, arg2, arg3) {
   return window['go']['app']['App']['PtyResize'](arg1, arg2, arg3);
 }

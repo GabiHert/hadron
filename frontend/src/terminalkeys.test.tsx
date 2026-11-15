@@ -2,6 +2,7 @@
 // focused terminal must reach PtyWrite as the exact bytes Claude Code expects, in the order typed.
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
+import { PtyAttach, PtyDetach } from "../wailsjs/go/app/App";
 import { Terminal, routeKey } from "./components/Terminal";
 
 const sent: string[] = [];
@@ -11,6 +12,7 @@ const decode = (b64: string) => new TextDecoder().decode(Uint8Array.from(atob(b6
 
 vi.mock("../wailsjs/go/app/App", () => ({
   PtyAttach: vi.fn(async () => "0:"),
+  PtyDetach: vi.fn(async () => {}),
   PtyResize: vi.fn(async () => {}),
   // Each write takes a few milliseconds, as a Wails call does; the terminal must not start the next
   // one before this one returns, or the PTY could get them out of order.
@@ -53,6 +55,19 @@ function press(ta: HTMLTextAreaElement, key: string, keyCode: number, mods: Part
 }
 
 const settle = () => waitFor(() => expect(inFlight).toBe(0));
+
+describe("the terminal's attach", () => {
+  it("detaches from the session when it unmounts, after the attach, so Go stops sending its output", async () => {
+    vi.mocked(PtyAttach).mockClear();
+    vi.mocked(PtyDetach).mockClear();
+    const { unmount } = await openTerminal();
+    expect(PtyAttach).toHaveBeenCalledWith("s1");
+    expect(PtyDetach).not.toHaveBeenCalled();
+    unmount();
+    await waitFor(() => expect(PtyDetach).toHaveBeenCalledWith("s1"));
+    expect(vi.mocked(PtyAttach).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(PtyDetach).mock.invocationCallOrder[0]);
+  });
+});
 
 describe("typing into a focused terminal", () => {
   it("sends @, / and /model as typed, and Enter as CR", async () => {

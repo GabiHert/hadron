@@ -6,6 +6,8 @@ import type { SessionStatus } from "../api";
  * A session's status, fetched on mount and again on every `changed` event (the backend emits one
  * whenever a session starts, ends or changes liveness).
  */
+const STATUS_ENTITIES = new Set(["sessions", "cards", "questions", "settings", "launch_profiles", "workspaces"]);
+
 export function useSessionStatus(fetchStatus: () => Promise<SessionStatus | null>, deps: unknown[]): SessionStatus | null {
   const [status, setStatus] = useState<SessionStatus | null>(null);
   const fetchRef = useRef(fetchStatus);
@@ -20,7 +22,10 @@ export function useSessionStatus(fetchStatus: () => Promise<SessionStatus | null
         .then((s) => alive && setStatus(s))
         .catch(() => {});
     void load();
-    const off = api.onChanged(() => {
+    const off = api.onChanged((e) => {
+      // A session's status changes with its session, its card or an open question; the MCP call
+      // log and chat messages, which most events are about, leave it as it was.
+      if (e?.entities?.length && !e.entities.some((x) => STATUS_ENTITIES.has(x))) return;
       clearTimeout(timer);
       timer = setTimeout(() => void load(), 40);
     });

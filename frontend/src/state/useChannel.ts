@@ -56,6 +56,8 @@ export function useChannel(workspaceId: string, channel: string, cardId: string 
     let timer: ReturnType<typeof setTimeout> | undefined;
     const off = api.onChanged((e) => {
       if (e.entities?.length && !e.entities.some((x) => x === "messages" || x === "questions")) return;
+      // A message in another workspace is not in this channel.
+      if (e.workspace_id && e.workspace_id !== workspaceId) return;
       clearTimeout(timer);
       timer = setTimeout(() => void load(), 30);
     });
@@ -64,7 +66,7 @@ export function useChannel(workspaceId: string, channel: string, cardId: string 
       clearTimeout(timer);
       off();
     };
-  }, [load]);
+  }, [load, workspaceId]);
 
   const guard = useCallback(
     async (fn: () => Promise<unknown>) => {

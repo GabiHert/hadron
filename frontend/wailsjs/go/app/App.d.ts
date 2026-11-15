@@ -7,6 +7,8 @@ export function Invoke(arg1:string,arg2:string):Promise<string>;
 
 export function PtyAttach(arg1:string):Promise<string>;
 
+export function PtyDetach(arg1:string):Promise<void>;
+
 export function PtyResize(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function PtyWrite(arg1:string,arg2:string):Promise<void>;

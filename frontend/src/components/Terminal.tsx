@@ -213,8 +213,8 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
       if (pos < 0) queue.push(c);
       else apply(c);
     });
-    void pty
-      .attach(sessionId)
+    const attached = pty.attach(sessionId);
+    void attached
       .then(({ end, bytes }) => {
         if (dead) return;
         if (bytes.length) term.write(bytes);
@@ -261,6 +261,8 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
       el.removeEventListener("drop", onDrop);
       offDrop();
       off();
+      // Detach after the attach has landed, so the two never reach Go in the wrong order.
+      void attached.catch(() => undefined).then(() => pty.detach(sessionId)).catch(() => undefined);
       offZoom();
       typed.dispose();
       resized.dispose();

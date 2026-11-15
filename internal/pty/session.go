@@ -30,7 +30,11 @@ const (
 	DefaultRows     = 36
 	ScrollbackBytes = 2 << 20
 	WorkingWindow   = 3 * time.Second
-	emuScrollback   = 5000
+	// emuScrollback is how many lines Screen with scrollback returns at most. The live emulator
+	// keeps only liveScrollback of them, about 112 bytes a cell: 5000 lines held for every session
+	// came to some 48 MB each. Screen rebuilds the rest from the byte ring when it is asked.
+	emuScrollback  = 5000
+	liveScrollback = 1
 )
 
 // Input delivery. The kernel hands a PTY write to the child in pieces of about a kilobyte, and the
@@ -129,7 +133,7 @@ func Start(o Options) (*Session, error) {
 		return nil, fmt.Errorf("could not start %s: %w", o.Command, err)
 	}
 	emu := vt.NewEmulator(o.Cols, o.Rows)
-	emu.SetScrollbackSize(emuScrollback)
+	emu.SetScrollbackSize(liveScrollback)
 	s := &Session{
 		opts: o, cmd: cmd, ptmx: ptmx, ring: newRing(ScrollbackBytes), modes: newDecModes(), emu: emu,
 		cols: o.Cols, rows: o.Rows, window: window,
@@ -431,17 +435,52 @@ func (s *Session) Scrollback() (data []byte, end int64) {
 }
 
 // Screen returns the last lines lines of the visible screen as plain text, with trailing blank
-// lines removed. With scrollback it includes the lines that scrolled off first.
+// lines removed. With scrollback it includes the lines that scrolled off first: the live emulator
+// does not keep those, so they are rebuilt by replaying the byte ring into a scratch emulator.
 func (s *Session) Screen(lines int, scrollback bool) string {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	var all []string
-	if scrollback && !s.emu.IsAltScreen() {
-		for _, l := range s.emu.Scrollback().Lines() {
-			all = append(all, strings.TrimRight(l.String(), " "))
-		}
+	if !scrollback || s.emu.IsAltScreen() {
+		text := s.emu.String()
+		s.mu.Unlock()
+		return screenText(nil, text, lines)
 	}
-	for _, l := range strings.Split(s.emu.String(), "\n") {
+	data := s.ring.bytes()
+	if s.ring.wrapped() {
+		data = append(s.modes.preamble(), data...)
+	}
+	cols, rows := s.cols, s.rows
+	s.mu.Unlock()
+
+	emu := vt.NewEmulator(cols, rows)
+	emu.SetScrollbackSize(emuScrollback)
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			if _, err := emu.Read(buf); err != nil {
+				return
+			}
+		}
+	}()
+	_, _ = emu.Write(data)
+	var older []string
+	for _, l := range emu.Scrollback().Lines() {
+		older = append(older, l.String())
+	}
+	text := emu.String()
+	// As in readLoop: close the pipe the drain reads, not the emulator, which would race with it.
+	if pw, ok := emu.InputPipe().(*io.PipeWriter); ok {
+		_ = pw.CloseWithError(io.EOF)
+	}
+	return screenText(older, text, lines)
+}
+
+// screenText joins scrolled-off lines and the screen, trims trailing blanks, and keeps the last lines.
+func screenText(older []string, screen string, lines int) string {
+	all := make([]string, 0, len(older)+DefaultRows)
+	for _, l := range older {
+		all = append(all, strings.TrimRight(l, " "))
+	}
+	for _, l := range strings.Split(screen, "\n") {
 		all = append(all, strings.TrimRight(l, " \r"))
 	}
 	for len(all) > 0 && all[len(all)-1] == "" {
