@@ -1,5 +1,5 @@
-// The PTY bridge: the three methods Wails binds besides Invoke, and the pty:data:<id> event.
-import { PtyAttach, PtyResize, PtyWrite } from "../wailsjs/go/app/App";
+// The PTY bridge: the methods Wails binds besides Invoke, and the pty:data:<id> event.
+import { PtyAttach, PtyDetach, PtyResize, PtyWrite } from "../wailsjs/go/app/App";
 import { EventsOn } from "../wailsjs/runtime/runtime";
 
 /** Output bytes [start, end) of a session, in base64. */
@@ -23,12 +23,19 @@ export function b64FromText(text: string): string {
   return btoa(bin);
 }
 
-/** What a terminal replays when it mounts, and the byte offset the replay stops at. */
+/**
+ * What a terminal replays when it mounts, and the byte offset the replay stops at. From here on the
+ * session's output arrives as events, until the terminal calls detach: a session no terminal shows
+ * sends none.
+ */
 export async function attach(sessionId: string): Promise<{ end: number; bytes: Uint8Array }> {
   const raw = await PtyAttach(sessionId);
   const cut = raw.indexOf(":");
   return { end: Number(raw.slice(0, cut)) || 0, bytes: bytesFromB64(raw.slice(cut + 1)) };
 }
+
+/** Ends an attach: the terminal has gone, so the session's output need not be sent. */
+export const detach = (sessionId: string) => PtyDetach(sessionId);
 
 // Wails runs every bound call on its own goroutine, so two PtyWrite calls in flight at once can reach
 // the PTY in either order: "/model" typed fast could arrive as "/mdoel", and Esc Esc or a dead key's

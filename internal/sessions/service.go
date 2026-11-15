@@ -124,7 +124,9 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 	}
 	prev, prevErr := tx.Sessions.Latest(ws.ID, cardID)
 	var old *pty.Session
+	prevID := ""
 	if prevErr == nil {
+		prevID = prev.ID
 		if live, ok := s.pty.Get(prev.ID); ok {
 			select {
 			case <-live.Done():
@@ -260,7 +262,7 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 		OnLiveness: func(l string) { s.onLiveness(row, cardID, l) },
 		OnExit:     func(code int) { s.onExit(row, cardID, code) },
 	}
-	launch := func() { s.launch(row, cardID, old, opts, first) }
+	launch := func() { s.launch(row, cardID, prevID, old, opts, first) }
 	return row, launch, nil
 }
 
@@ -270,13 +272,21 @@ func (s *Service) data(id string, data []byte, end int64) {
 	}
 }
 
-func (s *Service) launch(row domain.Session, cardID string, old *pty.Session, opts pty.Options, first string) {
+func (s *Service) launch(row domain.Session, cardID, prevID string, old *pty.Session, opts pty.Options, first string) {
 	if old != nil {
 		old.Stop()
 		select {
 		case <-old.Done():
 		case <-time.After(5 * time.Second):
 		}
+	}
+	// The session this one replaces keeps its scrollback and terminal model until it is dropped,
+	// and nothing reads it any more: the card shows its newest session.
+	if prevID != "" && prevID != row.ID {
+		s.pty.Forget(prevID)
+		s.mu.Lock()
+		delete(s.failures, prevID)
+		s.mu.Unlock()
 	}
 	s.cfg.Log.Debug("pty start", "session", row.ID, "kind", row.Kind, "command", opts.Command, "argv", RedactArgs(opts.Args), "cwd", opts.Cwd)
 	ps, err := s.pty.Start(row.ID, opts)

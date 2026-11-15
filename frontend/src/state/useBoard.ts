@@ -65,6 +65,24 @@ export function applyMove(cards: Card[], cardId: string, columnId: string, posit
   return cards.map((c) => renumbered.get(c.id) ?? c);
 }
 
+/** One workspace's lists, as the board holds them. */
+async function loadWorkspace(id: string) {
+  const [columns, cards, questions, chips, profiles] = await Promise.all([
+    api.column_list({ workspace_id: id }),
+    api.card_list({ workspace_id: id }),
+    api.question_list({ workspace_id: id, status: "open" }),
+    api.card_chips({ workspace_id: id }).catch(() => ({})),
+    api.launch_profile_list({ workspace_id: id }).catch(() => [] as LaunchProfile[]),
+  ]);
+  return [id, { columns, cards, questions, chips: chips ?? {}, profiles: profiles ?? [] }] as const;
+}
+
+/** Change entities the board never shows: an event naming only these does not refetch it. */
+const NOT_BOARD = new Set(["mcp_calls", "messages", "dash", "rules", "rule_log", "feedback", "themes", "prompts", "routines", "scripts"]);
+const BOARD_ENTITIES = { has: (x: string) => !NOT_BOARD.has(x) };
+/** Change entities that are not about one workspace's lists: the whole board reloads. */
+const GLOBAL_ENTITIES = new Set(["workspaces", "settings"]);
+
 export function useBoard() {
   const [s, setS] = useState<State>(initial);
   const sRef = useRef(s);
@@ -75,25 +93,25 @@ export function useBoard() {
   const toast = useCallback((text: string) => setS((p) => ({ ...p, toast: { id: ++toastSeq.current, text } })), []);
   const clearToast = useCallback(() => setS((p) => ({ ...p, toast: null })), []);
 
-  const refetch = useCallback(async () => {
+  /**
+   * Loads the board. With only, it reloads just those workspaces' lists, which is what a change
+   * event about one workspace needs; with nothing, or before the first load, it reloads everything.
+   */
+  const refetch = useCallback(async (only?: Set<string>) => {
     try {
+      const cur = sRef.current;
+      if (only && cur.ready && [...only].every((id) => cur.data[id])) {
+        const entries = await Promise.all([...only].map(loadWorkspace));
+        if (!alive.current) return;
+        setS((p) => ({ ...p, data: { ...p.data, ...Object.fromEntries(entries.filter(([id]) => p.data[id])) } }));
+        return;
+      }
       const [workspaces, settings, status] = await Promise.all([
         api.workspace_list(),
         api.settings_get(),
         sRef.current.version ? Promise.resolve(null) : api.app_status(),
       ]);
-      const entries = await Promise.all(
-        workspaces.map(async (w) => {
-          const [columns, cards, questions, chips, profiles] = await Promise.all([
-            api.column_list({ workspace_id: w.id }),
-            api.card_list({ workspace_id: w.id }),
-            api.question_list({ workspace_id: w.id, status: "open" }),
-            api.card_chips({ workspace_id: w.id }).catch(() => ({})),
-            api.launch_profile_list({ workspace_id: w.id }).catch(() => [] as LaunchProfile[]),
-          ]);
-          return [w.id, { columns, cards, questions, chips: chips ?? {}, profiles: profiles ?? [] }] as const;
-        }),
-      );
+      const entries = await Promise.all(workspaces.map((w) => loadWorkspace(w.id)));
       if (!alive.current) return;
       const stored = typeof settings.active_workspace === "string" ? settings.active_workspace : "";
       setS((p) => {
@@ -114,9 +132,21 @@ export function useBoard() {
     alive.current = true;
     void refetch();
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const off = api.onChanged(() => {
+    // What the events of one debounce asked for: some workspaces, or everything (null).
+    let want: Set<string> | null | undefined;
+    const off = api.onChanged((e) => {
+      const entities = e?.entities ?? [];
+      if (entities.length && entities.every((x) => !BOARD_ENTITIES.has(x))) return;
+      const id = e?.workspace_id ?? "";
+      const global = !id || !entities.length || entities.some((x) => GLOBAL_ENTITIES.has(x));
+      if (global) want = null;
+      else if (want !== null) (want ??= new Set()).add(id);
       clearTimeout(timer);
-      timer = setTimeout(() => void refetch(), 30);
+      timer = setTimeout(() => {
+        const only = want ?? undefined;
+        want = undefined;
+        void refetch(only);
+      }, 30);
     });
     return () => {
       alive.current = false;

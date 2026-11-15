@@ -39,7 +39,7 @@ func newTestApp(t *testing.T) *App {
 
 // ptyBridge lists the other methods Wails may bind (spec section 3): the terminal bridge, and the
 // folder picker, which only returns a path for an action to use.
-var ptyBridge = map[string]bool{"PtyAttach": true, "PtyWrite": true, "PtyResize": true, "ChooseFolder": true}
+var ptyBridge = map[string]bool{"PtyAttach": true, "PtyDetach": true, "PtyWrite": true, "PtyResize": true, "ChooseFolder": true}
 
 func TestOnlyInvokeAndThePTYBridgeAreBound(t *testing.T) {
 	var bound []string
@@ -154,14 +154,15 @@ func TestPtyBridgeAttachWriteResize(t *testing.T) {
 func TestPtyFeedBatchesOutputWithOffsets(t *testing.T) {
 	var mu sync.Mutex
 	var got []PtyData
-	f := &ptyFeeds{byID: map[string]*ptyFeed{}, emit: func(event string, data any) {
+	f := newPtyFeeds(func(event string, data any) {
 		mu.Lock()
 		defer mu.Unlock()
 		if event != "pty:data:s1" {
 			t.Errorf("event = %s", event)
 		}
 		got = append(got, data.(PtyData))
-	}}
+	})
+	f.watch("s1")
 	f.add("s1", []byte("abc"), 3)
 	f.add("s1", []byte("de"), 5)
 	time.Sleep(60 * time.Millisecond)
@@ -175,6 +176,41 @@ func TestPtyFeedBatchesOutputWithOffsets(t *testing.T) {
 	d0, _ := base64.StdEncoding.DecodeString(got[0].Data)
 	if got[0].Start != 0 || got[0].End != 5 || string(d0) != "abcde" || got[1].Start != 5 || got[1].End != 6 {
 		t.Fatalf("events = %+v", got)
+	}
+}
+
+// Output of a session no terminal shows is not sent: with 36 sessions that was a stream of base64
+// events into the webview that nothing listened to.
+func TestPtyFeedSendsOnlyWhileATerminalIsAttached(t *testing.T) {
+	var mu sync.Mutex
+	events := 0
+	f := newPtyFeeds(func(string, any) { mu.Lock(); events++; mu.Unlock() })
+	count := func() int { f.flush("s1"); mu.Lock(); defer mu.Unlock(); return events }
+
+	f.add("s1", []byte("unseen"), 6)
+	if n := count(); n != 0 {
+		t.Fatalf("%d events for a session with no terminal, want 0", n)
+	}
+	f.watch("s1")
+	f.watch("s1") // two terminals on one session
+	f.add("s1", []byte("seen"), 10)
+	if n := count(); n != 1 {
+		t.Fatalf("%d events while attached, want 1", n)
+	}
+	f.unwatch("s1")
+	f.add("s1", []byte("still one terminal"), 28)
+	if n := count(); n != 2 {
+		t.Fatalf("%d events with one terminal left, want 2", n)
+	}
+	f.unwatch("s1")
+	f.add("s1", []byte("gone"), 32)
+	if n := count(); n != 2 {
+		t.Fatalf("%d events after the last detach, want still 2", n)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.byID) != 0 || len(f.watched) != 0 {
+		t.Fatalf("a detached session leaves state behind: %d feeds, %d watched", len(f.byID), len(f.watched))
 	}
 }
 

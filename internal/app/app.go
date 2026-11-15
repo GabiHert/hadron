@@ -44,7 +44,9 @@ type App struct {
 	integ  *integrations.Manager
 	log    *dlog.Logger
 	feeds  *ptyFeeds
-	cancel context.CancelFunc
+	// changes merges change events before they reach the webview.
+	changes *changeBatch
+	cancel  context.CancelFunc
 	// sound plays the needs-you sounds when cards move into and out of needs-you columns.
 	sound *sounds.Watcher
 
@@ -57,6 +59,7 @@ type App struct {
 // New builds an App over an open store.
 func New(st *store.Store) *App {
 	a := &App{st: st}
+	a.changes = newChangeBatch(changeWindow, func(ev actions.ChangedEvent) { a.send(actions.EventChanged, ev) })
 	a.log = dlog.New(filepath.Join(run.Home(), "logs"))
 	if raw, err := st.Settings.Get(actions.SettingDebugLogging); err == nil {
 		var on bool
@@ -65,7 +68,7 @@ func New(st *store.Store) *App {
 		}
 	}
 	env := cachedEnv()
-	a.feeds = &ptyFeeds{emit: a.emit, byID: map[string]*ptyFeed{}}
+	a.feeds = newPtyFeeds(a.emit)
 	a.sess = sessions.New(sessions.Config{
 		Store: st, Home: run.Home(), Env: env, Log: a.log,
 		Changed: func(workspaceID string, entities ...string) {
@@ -264,19 +267,28 @@ func (a *App) context() context.Context {
 // emitEvent is Wails' event call; tests replace it, because Wails insists on its own context.
 var emitEvent = wruntime.EventsEmit
 
-// emit sends a Wails event once the window exists.
-func (a *App) emit(event string, data any) {
+// send hands an event to Wails once the window exists.
+func (a *App) send(event string, data any) {
 	if c := a.context(); c != nil {
 		emitEvent(c, event, data)
 	}
-	if ev, ok := data.(actions.ChangedEvent); ok && event == actions.EventChanged {
-		if slices.Contains(ev.Entities, "settings") {
-			a.refreshMenu()
-		}
-		// Any change to cards or columns may move a card into or out of needs-you, in any workspace.
-		if a.sound != nil && (slices.Contains(ev.Entities, "cards") || slices.Contains(ev.Entities, "columns")) {
-			a.sound.Changed()
-		}
+}
+
+// emit sends a Wails event once the window exists. Change events are merged over a short window
+// first; the menu and the sounds still react to each one at once.
+func (a *App) emit(event string, data any) {
+	ev, isChange := data.(actions.ChangedEvent)
+	if !isChange || event != actions.EventChanged {
+		a.send(event, data)
+		return
+	}
+	a.changes.add(ev)
+	if slices.Contains(ev.Entities, "settings") {
+		a.refreshMenu()
+	}
+	// Any change to cards or columns may move a card into or out of needs-you, in any workspace.
+	if a.sound != nil && (slices.Contains(ev.Entities, "cards") || slices.Contains(ev.Entities, "columns")) {
+		a.sound.Changed()
 	}
 }
 
@@ -292,10 +304,19 @@ func (a *App) Invoke(name string, argsJSON string) (string, error) {
 // PtyAttach returns what a terminal replays when it mounts, as "<end>:<base64>". end is the byte
 // offset the replay stops at; pty:data events carry their own start and end, so the terminal drops
 // what the replay already holds and no byte shows twice.
+//
+// From the attach until the matching PtyDetach, the session's output is sent as events. A session
+// no terminal shows sends none: its output waits in the scrollback for the next attach.
 func (a *App) PtyAttach(sessionID string) string {
+	a.feeds.watch(sessionID)
 	a.feeds.flush(sessionID)
 	data, end := a.sess.Attach(sessionID)
 	return strconv.FormatInt(end, 10) + ":" + base64.StdEncoding.EncodeToString(data)
+}
+
+// PtyDetach says a terminal that attached to the session has gone, so its output need not be sent.
+func (a *App) PtyDetach(sessionID string) {
+	a.feeds.unwatch(sessionID)
 }
 
 // PtyWrite sends the user's keystrokes (base64) to a session.
@@ -325,6 +346,33 @@ type ptyFeeds struct {
 	emit func(event string, data any)
 	mu   sync.Mutex
 	byID map[string]*ptyFeed
+	// watched counts the terminals attached to each session. Output of a session nobody watches is
+	// dropped here; the scrollback holds it for the next attach.
+	watched map[string]int
+}
+
+func newPtyFeeds(emit func(event string, data any)) *ptyFeeds {
+	return &ptyFeeds{emit: emit, byID: map[string]*ptyFeed{}, watched: map[string]int{}}
+}
+
+func (f *ptyFeeds) watch(id string) {
+	f.mu.Lock()
+	f.watched[id]++
+	f.mu.Unlock()
+}
+
+func (f *ptyFeeds) unwatch(id string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.watched[id] > 1 {
+		f.watched[id]--
+		return
+	}
+	delete(f.watched, id)
+	if feed := f.byID[id]; feed != nil && feed.timer != nil {
+		feed.timer.Stop()
+	}
+	delete(f.byID, id)
 }
 
 type ptyFeed struct {
@@ -337,6 +385,10 @@ const ptyBatch = 8 * time.Millisecond
 
 func (f *ptyFeeds) add(id string, data []byte, end int64) {
 	f.mu.Lock()
+	if f.watched[id] == 0 {
+		f.mu.Unlock()
+		return
+	}
 	feed := f.byID[id]
 	if feed == nil {
 		feed = &ptyFeed{}
