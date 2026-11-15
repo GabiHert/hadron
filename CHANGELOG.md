@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.31] - 2026-11-15
+
 ### Changed
 - Hadron uses much less memory with many sessions open: a busy session's terminal now holds about 6 MB instead of 50 MB, and a quiet one starts smaller. `session_read_screen` with scrollback still returns the lines that scrolled off.
 - Less work in the background: terminal output is sent to the window only for a terminal you have open, change events are merged into one every 100 ms, and the board, chat and session status reload only for changes that affect them, in the workspace they happened in.
