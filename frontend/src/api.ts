@@ -1219,11 +1219,62 @@ export interface Feedback {
   status: FeedbackStatus;
   note: string;
   github_url: string;
-  issue_url: string;
+  /** the note has a GitHub issue (github_url), so it is not sent again */
+  shared: boolean;
 }
 export const feedback_create = (a: { kind: FeedbackKind; text: string; area?: string; attach_diagnostics?: boolean }) => call<Feedback>("feedback_create", a);
 export const feedback_list = (a: { status?: FeedbackStatus } = {}) => call<Feedback[]>("feedback_list", a);
 export const feedback_update = (a: { id: string; status?: FeedbackStatus; note?: string; github_url?: string }) => call<Feedback>("feedback_update", a);
+
+/** A note as it would be shared on GitHub, for review and editing. */
+export interface FeedbackDraft {
+  title: string;
+  body: string;
+  labels: string[];
+  /** what was replaced: "paths", "user name", "host name" */
+  removed: string[] | null;
+}
+export interface FeedbackSendOut {
+  draft: FeedbackDraft;
+  /** private words found in the title or body; sending is refused while there are any */
+  private_hits: string[] | null;
+  /** token: the issue is created; browser: a filled-in new-issue page opens */
+  via: "token" | "browser";
+  url?: string;
+  note: Feedback;
+}
+export const feedback_send = (a: { id: string; preview?: boolean; title?: string; body?: string; keep_details?: boolean }) => call<FeedbackSendOut>("feedback_send", a);
+
+/** A note some Hadron user shared: an open feedback issue on GitHub. */
+export interface SharedFeedback {
+  number: number;
+  title: string;
+  url: string;
+  kind: FeedbackKind | "";
+  version: string;
+  area: string;
+  text: string;
+  note_id?: string;
+  created_at: string;
+  /** the local note for it: yours, or one you imported */
+  local_id?: string;
+}
+export interface SharedFeedbackList {
+  issues: SharedFeedback[] | null;
+  fetched_at: string;
+  error?: string;
+}
+export const feedback_list_shared = (a: { refresh?: boolean } = {}) => call<SharedFeedbackList>("feedback_list_shared", a);
+export const feedback_import_shared = (a: { number: number }) => call<Feedback>("feedback_import_shared", a);
+
+export interface FeedbackSharing {
+  repo: string;
+  has_token: boolean;
+  private_words: string[] | null;
+}
+export const feedback_sharing_get = () => call<FeedbackSharing>("feedback_sharing_get", {});
+export const feedback_sharing_set = (a: { private_words: string[] }) => call<FeedbackSharing>("feedback_sharing_set", a);
+export const set_feedback_token = (a: { token: string }) => call<FeedbackSharing>("set_feedback_token", a);
 
 // ---- routines ----
 

@@ -469,3 +469,8 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
 .grpwatch{border:1px solid var(--row);border-radius:8px;padding:6px 8px 8px;margin:0;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--fg2)}
 .grpwatch legend{padding:0 4px}
 .grpwatch .chk{flex-direction:row;align-items:center;gap:6px;color:var(--fg)}
+
+/* Feedback: sending a note to GitHub and the private-words warning */
+.fbsend{width:min(640px,calc(100vw - 32px))}
+.fbwarn{margin:8px 0 0;padding:6px 8px;border:1px solid var(--bad);border-radius:6px;color:var(--bad);background:var(--card)}
+.fbsharing summary{cursor:pointer;font-weight:600}

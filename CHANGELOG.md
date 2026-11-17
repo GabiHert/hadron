@@ -7,6 +7,16 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Share feedback with everyone: each note in Settings → Feedback has "Send to GitHub…", which shows the title and body for you to check and edit first, then posts it as a public issue on GabiHert/hadron. Folder paths, your user name and host name are taken out unless you keep them, and diagnostics stay on your Mac.
+- With no token, Send to GitHub opens a filled-in issue in your browser; save a fine-grained token with Issues: write (kept in your keychain) to send directly. A sent note shows "On GitHub" and is not sent twice.
+- Words to keep private: list client, project or people names in Settings → Feedback, and a note that contains one is blocked from sending. The list stays on your Mac.
+- An "All users" tab in Settings → Feedback lists everyone's open feedback with its kind, version and link, refreshed when you open it and every few hours, and imports any of it as a note of your own.
+- MCP tools `feedback_send`, `feedback_list_shared`, `feedback_import_shared`, `feedback_sharing_get`, `feedback_sharing_set` and `set_feedback_token`.
+
+### Changed
+- "Open as GitHub issue" on a feedback note is replaced by "Send to GitHub…", which checks the text first.
+
 ## [0.2.33] - 2026-11-17
 
 ### Added

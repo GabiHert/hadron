@@ -1,7 +1,6 @@
 package actions
 
 import (
-	"net/url"
 	"strings"
 	"testing"
 )
@@ -52,46 +51,13 @@ func TestFeedbackValidation(t *testing.T) {
 	h.fails("feedback_update", m{"id": f.ID, "status": "someday"}, "must be one of")
 }
 
-func TestFeedbackWithDiagnosticsAndTheIssueLink(t *testing.T) {
+func TestFeedbackWithDiagnostics(t *testing.T) {
 	h, l := logHarness(t)
 	l.SetDebug(true)
-	h.workspace("W")
-	for i := 0; i < 300; i++ {
-		l.Info("filler line for the log tail", "n", i, "pad", strings.Repeat("p", 80))
-	}
+	l.Info("a line for the log tail")
 	var f FeedbackView
-	h.do("feedback_create", m{"kind": "bug", "text": "Crash on start & more <b>", "area": "settings:rules", "attach_diagnostics": true}, &f)
-	if string(f.Diagnostics) == "null" || !strings.Contains(string(f.Diagnostics), "recent_log_lines") {
-		t.Fatalf("diagnostics = %s", f.Diagnostics)
-	}
-	u, err := url.Parse(f.IssueURL)
-	if err != nil || u.Host != "github.com" || u.Path != "/GabiHert/hadron/issues/new" {
-		t.Fatalf("issue url = %q (%v)", f.IssueURL, err)
-	}
-	if got := u.Query().Get("title"); got != "[bug] Crash on start & more <b>" {
-		t.Errorf("title = %q", got)
-	}
-	body := u.Query().Get("body")
-	for _, want := range []string{"Crash on start & more <b>", "Area: settings:rules", "Hadron version: test"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("body lacks %q:\n%s", want, body)
-		}
-	}
-	if len(f.IssueURL) > issueURLLimit+200 {
-		t.Errorf("the link is %d bytes, over the limit", len(f.IssueURL))
-	}
-	if !strings.Contains(body, "Diagnostics") {
-		t.Error("what fits of the diagnostics is attached")
-	}
-
-	// A huge text still gives a link that fits.
-	var big FeedbackView
-	h.do("feedback_create", m{"kind": "idea", "text": strings.Repeat("a long wish ", 600), "attach_diagnostics": true}, &big)
-	if len(big.IssueURL) > issueURLLimit+200 {
-		t.Errorf("the link is %d bytes", len(big.IssueURL))
-	}
-	bu, _ := url.Parse(big.IssueURL)
-	if !strings.Contains(bu.Query().Get("body"), "Hadron version: test") && !strings.HasSuffix(bu.Query().Get("body"), "…") {
-		t.Error("a trimmed body ends visibly trimmed")
+	h.do("feedback_create", m{"kind": "bug", "text": "Crash on start", "area": "settings:rules", "attach_diagnostics": true}, &f)
+	if string(f.Diagnostics) == "null" || !strings.Contains(string(f.Diagnostics), "recent_log_lines") || f.Shared {
+		t.Fatalf("created = %+v", f)
 	}
 }

@@ -1110,6 +1110,17 @@
     ]
   },
   {
+    "name": "feedback_import_shared",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "number",
+        "required": true,
+        "type": "number"
+      }
+    ]
+  },
+  {
     "name": "feedback_list",
     "mutates": false,
     "fields": [
@@ -1117,6 +1128,64 @@
         "name": "status",
         "required": false,
         "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "feedback_list_shared",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "refresh",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "feedback_send",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "id",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "preview",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "title",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "body",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "keep_details",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "feedback_sharing_get",
+    "mutates": false,
+    "fields": null
+  },
+  {
+    "name": "feedback_sharing_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "private_words",
+        "required": true,
+        "type": "array"
       }
     ]
   },
@@ -3370,6 +3439,17 @@
     "name": "sessions_running",
     "mutates": false,
     "fields": null
+  },
+  {
+    "name": "set_feedback_token",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "token",
+        "required": false,
+        "type": "string"
+      }
+    ]
   },
   {
     "name": "set_update_token",
