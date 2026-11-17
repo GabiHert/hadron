@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.33] - 2026-11-17
+
 ### Added
 - Card groups on the dashboard: a new block for the cards you are working on. Each card shows its nickname and key, column, stage, whether it is working, idle or waiting, a "needs you" badge, and its last report or chat line, all kept up to date.
 - Click a card in a group to open its chat in the card panel next to the dashboard. You can read, reply and answer its questions without going back to the board.
