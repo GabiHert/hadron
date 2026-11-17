@@ -15,6 +15,10 @@ for its "What's new" window.
 - MCP tools `feedback_send`, `feedback_list_shared`, `feedback_import_shared`, `feedback_sharing_get`, `feedback_sharing_set` and `set_feedback_token`.
 - A built-in widget kit: every widget can use ready classes for tables, stat tiles, badges, bars and meters, checklists, key-value lists, callouts and a two-column compare, and they match your colour theme. `hadron_guide widgets` shows an example of each.
 - `theme_tokens`, an MCP tool that returns the current theme's colours and fonts, for light or dark.
+- macOS notifications: Hadron shows a banner when a card needs you (a question or a gate), when a card reports done or blocked, and when the planner replies while Hadron is in the background. Nothing shows for the card you are already looking at.
+- Clicking a notification brings Hadron to the front and opens that card, or the planner chat.
+- Settings → Notifications: switch each kind on or off, mute a workspace, choose no sound, the macOS sound or Hadron's chimes, and send a test. It shows whether macOS allows Hadron's notifications, with a button to open Notification Settings when it doesn't.
+- MCP: `notify` now posts a real macOS notification and takes `card` (opened on click) and `sound`; rule notify actions and integrations post them too. New tools `notifications_settings_get`, `notifications_settings_set`, `notifications_test` and `notifications_open_system_settings`, and the `notifications` topic in `hadron_guide`.
 
 ### Changed
 - "Open as GitHub issue" on a feedback note is replaced by "Send to GitHub…", which checks the text first.

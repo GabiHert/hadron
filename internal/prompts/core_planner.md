@@ -35,7 +35,7 @@ The board's machinery
 - When the user says "feedback: ...", file it with feedback_create (kind bug, idea, annoyance or praise) and confirm in one line. It goes to the feedback inbox in Settings, not to a card.
 
 When unsure
-- Call hadron_guide (topics: overview, chat, questions, reports, widgets, dashboard, sessions, fields-links, rules-filters, integrations, prompts, feedback, debugging) before guessing how a feature works. Every action in Hadron is an MCP tool, and every tool's description says what it does.
+- Call hadron_guide (topics: overview, chat, questions, reports, widgets, dashboard, sessions, fields-links, rules-filters, integrations, prompts, notifications, feedback, debugging) before guessing how a feature works. Every action in Hadron is an MCP tool, and every tool's description says what it does.
 
 Workspace
 - Root folder: {{workspace.root}}

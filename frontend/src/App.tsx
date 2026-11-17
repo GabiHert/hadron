@@ -112,6 +112,44 @@ export default function App() {
   // A rule's notify action shows as a toast.
   useEffect(() => api.onNotify((e) => actions.toast(e.body ? `${e.title}: ${e.body}` : e.title)), [actions]);
 
+  // Go skips notifications about the card the user is looking at, and planner replies while the
+  // window has the focus, so it needs to know both.
+  const presenceWs = ws?.id ?? "";
+  const presenceCard = ws && !ws.ui.collapsed?.card ? (board.selected?.id ?? "") : "";
+  useEffect(() => {
+    const report = () => {
+      const focused = document.hasFocus() && document.visibilityState !== "hidden";
+      void api.ui_presence({ focused, workspace_id: presenceWs, card_id: presenceCard }).catch(() => {});
+    };
+    report();
+    window.addEventListener("focus", report);
+    window.addEventListener("blur", report);
+    document.addEventListener("visibilitychange", report);
+    return () => {
+      window.removeEventListener("focus", report);
+      window.removeEventListener("blur", report);
+      document.removeEventListener("visibilitychange", report);
+    };
+  }, [presenceWs, presenceCard]);
+
+  // A click on a macOS notification: show its workspace, then the card or the planner chat.
+  const runRef = useRef(run);
+  runRef.current = run;
+  const activeRef = useRef(ws?.id);
+  activeRef.current = ws?.id;
+  useEffect(
+    () =>
+      api.onNotificationOpen((e) => {
+        if (e.workspace_id && e.workspace_id !== activeRef.current) void actions.switchWorkspace(e.workspace_id);
+        // Let the workspace render before opening something in it.
+        setTimeout(() => {
+          if (e.card_id) void runRef.current(`goto:${e.card_id}`);
+          else if (e.planner) void runRef.current("focus.planner");
+        }, 0);
+      }),
+    [actions],
+  );
+
   // Picking a card opens the card overlay, but only on a narrow window, where the panels are
   // overlays. On a wide window "open" would also keep a collapsed card panel from collapsing.
   const selectedId = board.selected?.id;

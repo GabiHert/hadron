@@ -2199,6 +2199,58 @@
     ]
   },
   {
+    "name": "notifications_open_system_settings",
+    "mutates": false,
+    "fields": null
+  },
+  {
+    "name": "notifications_settings_get",
+    "mutates": false,
+    "fields": null
+  },
+  {
+    "name": "notifications_settings_set",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "enabled",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "events",
+        "required": false,
+        "type": "object"
+      },
+      {
+        "name": "muted_workspaces",
+        "required": false,
+        "type": "array"
+      },
+      {
+        "name": "sound",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "notifications_test",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "sound",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "notify",
     "mutates": false,
     "fields": [
@@ -2209,6 +2261,21 @@
       },
       {
         "name": "body",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "sound",
         "required": false,
         "type": "string"
       }
@@ -3651,6 +3718,27 @@
         "name": "collapsed",
         "required": true,
         "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "ui_presence",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "focused",
+        "required": true,
+        "type": "boolean"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card_id",
+        "required": false,
+        "type": "string"
       }
     ]
   },

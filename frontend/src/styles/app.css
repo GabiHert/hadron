@@ -474,3 +474,6 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
 .fbsend{width:min(640px,calc(100vw - 32px))}
 .fbwarn{margin:8px 0 0;padding:6px 8px;border:1px solid var(--bad);border-radius:6px;color:var(--bad);background:var(--card)}
 .fbsharing summary{cursor:pointer;font-weight:600}
+/* Settings → Notifications: what macOS allows */
+.notestatus{flex-direction:row;align-items:center;gap:8px;padding:8px 10px;flex-wrap:wrap}
+.notestatus.warn{border-color:var(--warn);color:var(--warn)}

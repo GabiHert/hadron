@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GabiHert/hadron/internal/feedback"
+	"github.com/GabiHert/hadron/internal/notifications"
 	"reflect"
 	"sort"
 	"strings"
@@ -97,6 +98,8 @@ type Deps struct {
 	// Feedback shares feedback notes on GitHub and reads everyone's. It may be nil, as in most
 	// tests: the sharing actions then fail with a clear error.
 	Feedback *feedback.Service
+	// Notifications posts macOS notifications. It may be nil, as in most tests: nothing is posted.
+	Notifications *notifications.Service
 	// PlaySound plays one of the UI sounds at a volume from 0 to 1. It may be nil, as in tests.
 	PlaySound func(kind string, volume float64) error
 }
