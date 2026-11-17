@@ -16,7 +16,7 @@ import (
 
 // CoreVersion is bumped whenever the core prompts or guide topics change in a way a user should
 // know about. It is shown in Settings → Harness.
-const CoreVersion = 2
+const CoreVersion = 3
 
 // Kinds of prompt.
 const (
@@ -208,3 +208,7 @@ func Unknown(template string) []string {
 	_, unknown := Render(template, nil)
 	return unknown
 }
+
+// WidgetKit lists the widget kit's classes, as a selector each. Every widget frame ships their
+// styles (frontend/src/styles/widgetkit.css) and the widgets guide topic shows each one.
+var WidgetKit = []string{"table.tbl", ".stats", ".stat", ".badge", ".bar", ".meter", "ul.check", "dl.kv", ".callout", ".compare"}

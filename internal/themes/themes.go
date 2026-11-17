@@ -196,3 +196,10 @@ func Complete(t *Theme) {
 		}
 	}
 }
+
+// Fonts are the font stacks of tokens.css, the same in every theme; a test keeps them in step.
+var Fonts = map[string]string{
+	"sans": `"Inter Tight", -apple-system, "Segoe UI", sans-serif`,
+	"head": `"Inter Tight", -apple-system, "Segoe UI", sans-serif`,
+	"mono": `"IBM Plex Mono", ui-monospace, Menlo, monospace`,
+}

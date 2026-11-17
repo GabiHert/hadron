@@ -7,6 +7,17 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- A built-in widget kit: every widget can use ready classes for tables, stat tiles, badges, bars and meters, checklists, key-value lists, callouts and a two-column compare, and they match your colour theme. `hadron_guide widgets` shows an example of each.
+- `theme_tokens`, an MCP tool that returns the current theme's colours and fonts, for light or dark.
+
+### Changed
+- Sessions and the planner are taught to build widgets from the kit and the theme colours only, and to keep them narrow enough for a card's chat.
+
+### Fixed
+- Widgets in chat no longer show a white box with nearly invisible text in a dark theme: the frame now takes the app's colours, background and font, and follows a theme switch live.
+- Wide tables in widgets wrap their cells and scroll sideways instead of being cut off on the right, and a widget's frame is now exactly as tall as its content.
+
 ## [0.2.32] - 2026-11-16
 
 ### Added

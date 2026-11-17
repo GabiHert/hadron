@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/GabiHert/hadron/internal/prompts"
 	"github.com/GabiHert/hadron/internal/themes"
 )
 
@@ -156,7 +158,71 @@ func importTheme(data []byte, name string) (themes.Theme, error) {
 	return themes.FromVSCode(data, name)
 }
 
+// ThemeTokensIn is the input of theme_tokens.
+type ThemeTokensIn struct {
+	Mode string `json:"mode,omitempty" jsonschema:"light or dark: the theme for that mode; default the theme showing now"`
+}
+
+// ThemeTokensOut is the result of theme_tokens.
+type ThemeTokensOut struct {
+	Theme  string            `json:"theme"`
+	Name   string            `json:"name"`
+	Mode   string            `json:"mode"`
+	Tokens map[string]string `json:"tokens"`
+	Fonts  map[string]string `json:"fonts"`
+	Kit    []string          `json:"kit"`
+	Note   string            `json:"note"`
+}
+
+// systemDark says whether macOS shows its dark appearance. Tests replace it.
+var systemDark = func() bool {
+	out, err := exec.Command("/usr/bin/defaults", "read", "-g", "AppleInterfaceStyle").Output()
+	return err == nil && strings.EqualFold(strings.TrimSpace(string(out)), "dark")
+}
+
+const themeTokensNote = "Every widget frame already defines these as CSS variables and follows a theme switch live. Write var(--fg), never the values, and use the widget kit's classes first (hadron_guide widgets)."
+
 func registerThemes(r *Registry) {
+	Register(r, Spec{Name: "theme_tokens", Description: "The current colour theme's tokens and font stacks, as CSS variable names and values (--fg, --card, --acc, --ok and so on), for the light or dark mode. Widgets already get them injected and follow a theme switch, so write var(--fg) rather than these values; the result also lists the widget kit's classes."},
+		func(ctx context.Context, c *Call, in ThemeTokensIn) (ThemeTokensOut, error) {
+			ch := themeChoice(c)
+			id := ch.Theme
+			switch in.Mode {
+			case "light":
+				id = ch.Light
+			case "dark":
+				id = ch.Dark
+			case "":
+				if id == "system" {
+					id = ch.Light
+					if systemDark() {
+						id = ch.Dark
+					}
+				}
+			default:
+				return ThemeTokensOut{}, fmt.Errorf("mode is light or dark, got %q", in.Mode)
+			}
+			if in.Mode != "" && ch.Theme != "system" {
+				// One fixed theme: it answers for its own mode; the other mode uses System mode's pick.
+				if t, err := themeStore(c).Get(ch.Theme); err == nil && t.Mode == in.Mode {
+					id = ch.Theme
+				}
+			}
+			t, err := themeStore(c).Get(id)
+			if err != nil {
+				return ThemeTokensOut{}, err
+			}
+			out := ThemeTokensOut{Theme: t.ID, Name: t.Name, Mode: t.Mode, Tokens: map[string]string{}, Fonts: map[string]string{}, Kit: prompts.WidgetKit, Note: themeTokensNote}
+			for k, v := range t.Tokens {
+				out.Tokens["--"+k] = v
+			}
+			for k, v := range themes.Fonts {
+				out.Fonts["--"+k] = v
+			}
+			return out, nil
+		})
+
+
 	Register(r, Spec{Name: "theme_list", Description: "List the colour themes (built-in and custom) with every token's colour, the token groups, and which theme is in use: theme is an id or system (follow macOS, with light and dark naming the theme for each)."},
 		func(ctx context.Context, c *Call, _ struct{}) (ThemeListOut, error) {
 			list, err := themeStore(c).List()

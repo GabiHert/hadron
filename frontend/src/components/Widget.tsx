@@ -1,9 +1,14 @@
 // Widgets are HTML a planner or a session wrote. They run in an iframe with a null origin:
 //   - `srcDoc` only, never `src`;
-//   - `sandbox` is "" (no scripts) or "allow-scripts", and never has allow-same-origin;
-//   - a CSP meta denies everything but inline styles and data: images (inline scripts only when allowed).
-// Scripts are off by default. The setting `widgets.scripts` (true/false, set with settings_update)
-// allows them for every widget.
+//   - `sandbox` is "allow-scripts" and never has allow-same-origin;
+//   - a CSP meta denies everything but inline styles and data: images. Scripts run only when the
+//     setting `widgets.scripts` (true/false, set with settings_update) allows them; otherwise the CSP
+//     allows one script, Hadron's own, by a nonce made per frame: it reports the content's height.
+//
+// Every frame starts with Hadron's base styles, before the widget's own: the app's colour scheme
+// and theme tokens as real values, an explicit background and text colour, wrapping text and tables,
+// and the widget kit (styles/widgetkit.css), ready classes built on the tokens. The tokens follow a
+// live theme switch.
 //
 // In a chat a widget is part of the conversation: a quiet caption (only when it has a title), the
 // frame, and a "⋯" menu that shows on hover or keyboard focus with Open full screen, Copy HTML and,
@@ -12,6 +17,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, Ref } from "react";
 import { createPortal } from "react-dom";
 import tokensCss from "../styles/tokens.css?raw";
+import kitCss from "../styles/widgetkit.css?raw";
 import { Icon } from "./ui";
 import { THEME_EVENT } from "../theme";
 
@@ -22,9 +28,14 @@ export const WIDGET_DEFAULT_HEIGHT = 220;
 export const WIDGET_GUESS_MAX = 480;
 
 const CSP_BASE = "default-src 'none'; style-src 'unsafe-inline'; img-src data:";
-export const widgetCsp = (scripts: boolean) => (scripts ? `${CSP_BASE}; script-src 'unsafe-inline'` : CSP_BASE);
-export const widgetSandbox = (scripts: boolean) => (scripts ? "allow-scripts" : "");
+/** The frame's CSP: the widget's own scripts when allowed, else only Hadron's script with `nonce`. */
+export const widgetCsp = (scripts: boolean, nonce = "") =>
+  scripts ? `${CSP_BASE}; script-src 'unsafe-inline'` : nonce ? `${CSP_BASE}; script-src 'nonce-${nonce}'` : CSP_BASE;
+/** Scripts are always allowed by the sandbox; the CSP decides which run. */
+export const widgetSandbox = (_scripts: boolean) => "allow-scripts";
 export const clampHeight = (h: number) => Math.min(WIDGET_MAX_HEIGHT, Math.max(WIDGET_MIN_HEIGHT, Math.round(h) || WIDGET_DEFAULT_HEIGHT));
+/** A height the frame measured itself: it may be small, never taller than the cap. */
+export const clampReported = (h: number) => Math.min(WIDGET_MAX_HEIGHT, Math.max(16, Math.ceil(h)));
 
 const SVG_OPEN = /^\s*<svg\b[^>]*>/i;
 
@@ -62,14 +73,54 @@ export function estimateHeight(html: string, width: number): { height: number; e
 // Token names and their light-theme defaults, from the first :root block of tokens.css. The live
 // (theme-aware) value is read from the host document; the default is the fallback when none is set.
 const DEFAULTS = new Map(Array.from((tokensCss.match(/:root\s*\{([^}]*)\}/)?.[1] ?? "").matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/g), (m) => [m[1], m[2].trim()] as const));
-const TOKEN_NAMES = Array.from(DEFAULTS.keys());
+const TOKEN_NAMES = Array.from(DEFAULTS.keys()).filter((n) => n !== "--shadow" && n !== "--scrim");
 
-function themeCss(): string {
-  const cs = typeof document !== "undefined" ? getComputedStyle(document.documentElement) : null;
-  const decls = TOKEN_NAMES.map((n) => [n, cs?.getPropertyValue(n).trim() || DEFAULTS.get(n) || ""] as const)
-    .filter(([, v]) => v !== "" && !/[<>{}]/.test(v))
-    .map(([n, v]) => `${n}:${v};`);
-  return `:root{${decls.join("")}}body{margin:0;font:13px/1.5 system-ui,sans-serif;color:var(--fg);background:transparent}`;
+export interface WidgetTheme {
+  mode: "light" | "dark";
+  /** every token, such as "--fg": "#ece8df", and the font stacks --sans, --head and --mono */
+  tokens: Record<string, string>;
+}
+
+/** The app's theme now: its mode (data-theme, else macOS) and every token's live value. */
+export function widgetTheme(): WidgetTheme {
+  const root = typeof document !== "undefined" ? document.documentElement : null;
+  const set = root?.getAttribute("data-theme");
+  const mode = set === "dark" || set === "light" ? set : typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
+  const cs = root ? getComputedStyle(root) : null;
+  const tokens: Record<string, string> = {};
+  for (const n of TOKEN_NAMES) {
+    const v = cs?.getPropertyValue(n).trim() || DEFAULTS.get(n) || "";
+    if (v !== "" && !/[<>{};]/.test(v)) tokens[n] = v;
+  }
+  return { mode, tokens };
+}
+
+/**
+ * The styles every frame starts with, before the widget's own. Every var() has a system-colour
+ * fallback, and color-scheme matches the app so the frame never paints a white canvas in dark mode.
+ */
+export function widgetBaseCss(theme: WidgetTheme): string {
+  const decls = Object.entries(theme.tokens).map(([n, v]) => `${n}:${v};`).join("");
+  return (
+    `:root{color-scheme:${theme.mode};${decls}}` +
+    "*,*::before,*::after{box-sizing:border-box}" +
+    "html{overflow-x:auto}" +
+    "body{margin:0;padding:8px 10px;display:flow-root;background:var(--card,Canvas);color:var(--fg,CanvasText);font:13px/1.5 var(--sans,-apple-system,system-ui,sans-serif);overflow-wrap:break-word;-webkit-text-size-adjust:100%}" +
+    "img,svg,video,canvas{max-width:100%}img,video{height:auto}" +
+    "a{color:var(--acc,LinkText)}hr{border:0;border-top:1px solid var(--border,GrayText);margin:8px 0}" +
+    "pre{overflow-x:auto;max-width:100%}" +
+    "table{width:100%;max-width:100%;border-collapse:collapse}" +
+    "th,td{padding:4px 6px;text-align:left;vertical-align:top;overflow-wrap:anywhere;color:inherit}" +
+    "th{color:var(--fg2,CanvasText)}"
+  );
+}
+
+/** A random token for the CSP nonce; one per frame. */
+export function makeNonce(): string {
+  const a = new Uint8Array(12);
+  globalThis.crypto?.getRandomValues?.(a);
+  if (a.every((x) => x === 0)) for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 256);
+  return Array.from(a, (x) => x.toString(16).padStart(2, "0")).join("");
 }
 
 /** Re-renders when the theme changes, so a widget's copied tokens follow it. */
@@ -86,16 +137,32 @@ function useThemeVersion() {
   }, []);
 }
 
-const HEIGHT_SCRIPT =
-  "<script>(function(){function p(){parent.postMessage({hadronHeight:document.documentElement.scrollHeight},'*')}" +
-  "addEventListener('load',p);addEventListener('resize',p);if(window.ResizeObserver)new ResizeObserver(p).observe(document.documentElement)})()</script>";
+// Reports the content's height (the body, plus a horizontal scrollbar if one shows) to the host.
+const HEIGHT_JS =
+  "(function(){var d=document,last=-1;function p(){var b=d.body;if(!b)return;" +
+  "var h=Math.ceil(Math.max(b.scrollHeight,b.getBoundingClientRect().height))+Math.max(0,innerHeight-d.documentElement.clientHeight);" +
+  "if(h!==last){last=h;parent.postMessage({hadronHeight:h},'*')}}" +
+  "addEventListener('load',p);addEventListener('resize',p);if(window.ResizeObserver)new ResizeObserver(p).observe(d.body);" +
+  "if(d.fonts&&d.fonts.ready)d.fonts.ready.then(p);p()})()";
 
-/** The full document an iframe shows. `data` becomes <script type="application/json" id="hadron-data">. */
-export function widgetSrcDoc(html: string, opts: { scripts: boolean; data?: unknown }): string {
-  const head = `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${widgetCsp(opts.scripts)}">`;
-  const style = `<style>${themeCss()}</style>`;
-  const json = opts.data === undefined ? "" : `<script type="application/json" id="hadron-data">${JSON.stringify(opts.data).replace(/</g, "\\u003c")}</script>`;
-  return head + style + json + html + (opts.scripts ? HEIGHT_SCRIPT : "");
+const jsonInScript = (v: unknown) => JSON.stringify(v ?? null).replace(/</g, "\\u003c");
+
+/**
+ * The full document an iframe shows. `data` becomes <script type="application/json" id="hadron-data">,
+ * and the theme <script type="application/json" id="hadron-theme"> ({mode, tokens}).
+ */
+export function widgetSrcDoc(html: string, opts: { scripts: boolean; data?: unknown; nonce?: string; theme?: WidgetTheme }): string {
+  const theme = opts.theme ?? widgetTheme();
+  const nonce = opts.nonce ?? "";
+  const head =
+    `<!doctype html><html data-theme="${theme.mode}"><head><meta charset="utf-8">` +
+    `<meta http-equiv="Content-Security-Policy" content="${widgetCsp(opts.scripts, nonce)}">` +
+    `<style id="hadron-base">${widgetBaseCss(theme)}</style><style id="hadron-kit">${kitCss}</style>` +
+    `<script type="application/json" id="hadron-theme">${jsonInScript(theme)}</script>` +
+    (opts.data === undefined ? "" : `<script type="application/json" id="hadron-data">${jsonInScript(opts.data)}</script>`) +
+    "</head><body>";
+  const measure = opts.scripts || nonce ? `<script${nonce ? ` nonce="${nonce}"` : ""}>${HEIGHT_JS}</script>` : "";
+  return head + html + measure;
 }
 
 interface Props {
@@ -232,16 +299,16 @@ export function Widget({ title, html, height, data, scripts, onPin, pinned, vari
   const [width, setWidth] = useState(0);
   const [more, setMore] = useState(false);
   const [full, setFull] = useState(false);
+  const [nonce] = useState(makeNonce);
   useEffect(() => {
-    if (!scripts) return;
     const on = (e: MessageEvent) => {
       if (e.source !== frame.current?.contentWindow) return;
       const h = (e.data as { hadronHeight?: unknown } | null)?.hadronHeight;
-      if (typeof h === "number" && Number.isFinite(h)) setAuto(clampHeight(h));
+      if (typeof h === "number" && Number.isFinite(h)) setAuto(clampReported(h));
     };
     window.addEventListener("message", on);
     return () => window.removeEventListener("message", on);
-  }, [scripts]);
+  }, []);
   // The frame's width, for sizing an SVG from its viewBox.
   useLayoutEffect(() => {
     const el = box.current;
@@ -253,11 +320,11 @@ export function Widget({ title, html, height, data, scripts, onPin, pinned, vari
     return () => ro.disconnect();
   }, []);
   const guess = estimateHeight(html, width || 480);
-  const reported = scripts && auto;
+  const reported = auto !== null;
   const canGrow = !reported && !height && !guess.exact;
-  const h = reported ? clampHeight(auto) : height ? clampHeight(height) : more && canGrow ? clampHeight(Math.max(guess.height * 2, 600)) : guess.height;
+  const h = auto !== null ? auto : height ? clampHeight(height) : more && canGrow ? clampHeight(Math.max(guess.height * 2, 600)) : guess.height;
   useThemeVersion();
-  const srcDoc = widgetSrcDoc(html, { scripts, data });
+  const srcDoc = widgetSrcDoc(html, { scripts, data, nonce });
   const chat = variant === "chat";
   const cls = ["widget", chat ? "w-chat" : "w-block", chat && isDiagram(html) ? "w-wide" : ""].filter(Boolean).join(" ");
   return (

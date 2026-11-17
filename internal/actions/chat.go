@@ -44,7 +44,7 @@ type WidgetPostIn struct {
 	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
 	Channel     string `json:"channel" jsonschema:"planner, or card:<card id, nickname or key>"`
 	Title       string `json:"title" jsonschema:"a short title for the widget"`
-	HTML        string `json:"html" jsonschema:"the widget as HTML; it renders in a sandboxed frame with no network"`
+	HTML        string `json:"html" jsonschema:"the widget as HTML with the widget kit's classes, such as <dl class=\"kv\"><dt>Tests</dt><dd><span class=\"badge ok\">pass</span></dd></dl>; it renders in a sandboxed frame with no network"`
 }
 
 // CardReportIn is the input of card_report.
@@ -165,7 +165,7 @@ func registerChat(r *Registry) {
 			return m, c.Store.Messages.Create(&m)
 		})
 
-	Register(r, Spec{Name: "widget_post", Description: "Post a small HTML widget on a channel to explain something visually: a comparison table, a before/after, an SVG diagram, a timeline, a chart, a plan's steps, a status board. The planner, the user, or a session on its own card may post. It is stored now and rendered in a sandboxed frame later.",
+	Register(r, Spec{Name: "widget_post", Description: "Post a small HTML widget on a channel to explain something visually: a comparison table, a before/after, an SVG diagram, a timeline, a chart, a plan's steps, a status board. The planner, the user, or a session on its own card may post. It renders in a sandboxed frame that already sets the theme's colours, font and background. Build it from the widget kit's classes (table.tbl, .stats/.stat, .badge ok|warn|bad, .bar/.meter, ul.check, dl.kv, .callout, .compare); style anything else only with theme tokens such as var(--fg) and var(--border), never a hard-coded colour or a white background. Keep it narrow (a card's chat is about 400px): stacked rows or 2 to 3 columns, not a wide table. hadron_guide widgets has an example of each class.",
 		Mutates: true, Entities: []string{EntityMessages}},
 		func(ctx context.Context, c *Call, in WidgetPostIn) (domain.Message, error) {
 			ch, err := resolveChannel(c, in.WorkspaceID, in.Channel)

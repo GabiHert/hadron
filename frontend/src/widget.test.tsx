@@ -1,9 +1,12 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ChatLine } from "./components/Chat";
-import { WIDGET_DEFAULT_HEIGHT, WIDGET_GUESS_MAX, Widget, estimateHeight, isDiagram } from "./components/Widget";
+import { act } from "react";
+import { WIDGET_DEFAULT_HEIGHT, WIDGET_GUESS_MAX, Widget, estimateHeight, isDiagram, widgetBaseCss, widgetSrcDoc, widgetTheme } from "./components/Widget";
 import { message } from "./test/fakeApi";
+import { applyTokens, resetThemesForTest } from "./theme";
 import appCss from "./styles/app.css?raw";
+import kitCss from "./styles/widgetkit.css?raw";
 
 describe("a widget in a chat", () => {
   it("shows no pin button until its menu is opened", () => {
@@ -78,7 +81,10 @@ describe("a widget in a chat", () => {
     const dialog = screen.getByRole("dialog", { name: "Flow" });
     expect(dialog).toHaveClass("wfull");
     const f = dialog.querySelector("iframe")!;
-    expect(f.getAttribute("sandbox")).toBe("");
+    expect(f.getAttribute("sandbox")).toBe("allow-scripts");
+    expect(f.getAttribute("sandbox")).not.toContain("allow-same-origin");
+    expect(f.getAttribute("srcdoc")).toMatch(/script-src 'nonce-[0-9a-f]{24}'/);
+    expect(f.getAttribute("srcdoc")).not.toContain("'unsafe-inline'; img-src data:; script-src 'unsafe-inline'");
     expect(f.hasAttribute("src")).toBe(false);
     expect(f.getAttribute("srcdoc")).toContain("<svg viewBox='0 0 10 10'></svg>");
     expect(within(dialog).getByRole("button", { name: "Close" })).toHaveFocus();
@@ -156,5 +162,113 @@ describe("a widget's height without scripts", () => {
     expect(screen.queryByRole("button", { name: /Show (more|less)/ })).toBeNull();
     rerender(<Widget title="T" html="<p>x</p>" height={300} scripts={false} />);
     expect(screen.queryByRole("button", { name: /Show (more|less)/ })).toBeNull();
+  });
+});
+
+describe("the frame's base styles", () => {
+  afterEach(() => resetThemesForTest());
+  const dark = { mode: "dark" as const, tokens: { "--fg": "#ece8df", "--card": "#232220", "--sans": '"Inter Tight", sans-serif' } };
+
+  it("set the app's colour scheme and the theme tokens as real values", () => {
+    const css = widgetBaseCss(dark);
+    expect(css).toContain(":root{color-scheme:dark;--fg:#ece8df;--card:#232220;--sans:\"Inter Tight\", sans-serif;}");
+    expect(widgetBaseCss({ ...dark, mode: "light" })).toContain("color-scheme:light;");
+  });
+
+  it("give the body an explicit background, colour and font from the tokens, with system fallbacks", () => {
+    const css = widgetBaseCss(dark);
+    expect(css).toMatch(/body\{[^}]*background:var\(--card,Canvas\)/);
+    expect(css).toMatch(/body\{[^}]*color:var\(--fg,CanvasText\)/);
+    expect(css).toMatch(/body\{[^}]*font:13px\/1.5 var\(--sans,/);
+  });
+
+  it("use border-box, keep images and SVG inside the frame, and wrap long words", () => {
+    const css = widgetBaseCss(dark);
+    expect(css).toContain("*,*::before,*::after{box-sizing:border-box}");
+    expect(css).toMatch(/img,svg,video,canvas\{max-width:100%\}/);
+    expect(css).toMatch(/body\{[^}]*overflow-wrap:break-word/);
+  });
+
+  it("make tables full width with wrapping cells, and scroll a too-wide one instead of clipping it", () => {
+    const css = widgetBaseCss(dark);
+    expect(css).toMatch(/table\{width:100%;[^}]*border-collapse:collapse\}/);
+    expect(css).toMatch(/th,td\{[^}]*overflow-wrap:anywhere/);
+    expect(css).toContain("html{overflow-x:auto}");
+  });
+
+  it("come before the kit, and both before the widget's own styles, so the widget wins", () => {
+    const doc = widgetSrcDoc("<style>p{color:red}</style><p>x</p>", { scripts: false, nonce: "abc", theme: dark });
+    const base = doc.indexOf('<style id="hadron-base">');
+    const kit = doc.indexOf('<style id="hadron-kit">');
+    const own = doc.indexOf("<style>p{color:red}");
+    expect(base).toBeGreaterThan(doc.indexOf("Content-Security-Policy"));
+    expect(base).toBeLessThan(kit);
+    expect(kit).toBeLessThan(own);
+    expect(doc).toContain('<html data-theme="dark">');
+    expect(doc).toContain('<script type="application/json" id="hadron-theme">{"mode":"dark"');
+  });
+
+  it("let only Hadron's height script run when widget scripts are off", () => {
+    const off = widgetSrcDoc("<p>x</p>", { scripts: false, nonce: "abc", theme: dark });
+    expect(off).toContain("script-src 'nonce-abc'");
+    expect(off).not.toContain("'unsafe-inline'; img-src data:; script-src 'unsafe-inline'");
+    expect(off).toMatch(/<script nonce="abc">[^<]*hadronHeight/);
+    const on = widgetSrcDoc("<p>x</p>", { scripts: true, nonce: "abc", theme: dark });
+    expect(on).toContain("script-src 'unsafe-inline'");
+    expect(on).not.toContain("'nonce-");
+  });
+
+  it("read the live theme: its mode and every token, fonts included", () => {
+    applyTokens("dark", { fg: "#101010", card: "#202020" });
+    const t = widgetTheme();
+    expect(t.mode).toBe("dark");
+    expect(t.tokens["--fg"]).toBe("#101010");
+    expect(t.tokens["--card"]).toBe("#202020");
+    for (const n of ["--bg", "--fg2", "--fg3", "--acc", "--ok", "--warn", "--bad", "--border", "--sans", "--head", "--mono"]) expect(t.tokens[n]).toBeTruthy();
+    expect(t.tokens["--shadow"]).toBeUndefined();
+  });
+
+  it("follow a live theme switch, keeping the frame's nonce", () => {
+    const { container } = render(<Widget title="T" html="<table><tr><td>x</td></tr></table>" scripts={false} />);
+    const doc = () => container.querySelector("iframe")!.getAttribute("srcdoc")!;
+    act(() => applyTokens("light", { fg: "#111111" }));
+    expect(doc()).toContain("color-scheme:light;");
+    const nonce = doc().match(/'nonce-([0-9a-f]+)'/)![1];
+    act(() => applyTokens("dark", { fg: "#eeeeee" }));
+    expect(doc()).toContain("color-scheme:dark;");
+    expect(doc()).toContain("--fg:#eeeeee;");
+    expect(doc()).toContain(`'nonce-${nonce}'`);
+  });
+
+  it("size the frame to the height it reports, even with widget scripts off", () => {
+    const { container } = render(<Widget title="T" html={"<p>a</p>".repeat(3)} scripts={false} />);
+    const frame = container.querySelector("iframe")!;
+    act(() => {
+      window.dispatchEvent(new MessageEvent("message", { data: { hadronHeight: 57 }, source: frame.contentWindow }));
+    });
+    expect(frame.style.height).toBe("57px");
+    expect(screen.queryByRole("button", { name: /Show (more|less)/ })).toBeNull();
+    act(() => {
+      window.dispatchEvent(new MessageEvent("message", { data: { hadronHeight: 9999 } }));
+    });
+    expect(frame.style.height).toBe("57px");
+  });
+});
+
+describe("the widget kit", () => {
+  it("has a class for each kind of widget", () => {
+    for (const c of ["table.tbl", ".stats", ".stat", ".badge", ".badge.ok", ".badge.warn", ".badge.bad", ".meter", ".bar", "ul.check", "dl.kv", ".callout", ".compare"]) {
+      expect(kitCss).toContain(c);
+    }
+  });
+
+  it("uses the theme tokens only, never a hard-coded colour", () => {
+    const body = kitCss.replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(body).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|(?<![-\w])(white|black)(?![-\w])/);
+    expect(body).toContain("var(--fg)");
+  });
+
+  it("ships in every frame", () => {
+    expect(widgetSrcDoc("<p>x</p>", { scripts: false, nonce: "n" })).toContain(kitCss);
   });
 });
