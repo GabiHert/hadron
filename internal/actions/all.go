@@ -26,6 +26,7 @@ func RegisterAll(r *Registry) {
 	registerDiscover(r)
 	registerLinks(r)
 	registerDash(r)
+	registerCardGroups(r)
 	registerHistory(r)
 	registerWorktrees(r)
 	registerAdopt(r)

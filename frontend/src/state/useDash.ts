@@ -3,7 +3,7 @@ import * as api from "../api";
 import type { BlockView } from "../api";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const DASH_ENTITIES = ["dash", "cards", "questions", "mcp_calls", "rules", "links"];
+const DASH_ENTITIES = ["dash", "cards", "questions", "gates", "messages", "mcp_calls", "rules", "links"];
 
 export interface Dash {
   blocks: BlockView[];

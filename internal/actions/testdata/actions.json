@@ -163,6 +163,136 @@
     ]
   },
   {
+    "name": "card_group_add",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "group",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "cards",
+        "required": true,
+        "type": "array"
+      },
+      {
+        "name": "position",
+        "required": false,
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "card_group_create",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "title",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "cards",
+        "required": false,
+        "type": "array"
+      },
+      {
+        "name": "span",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "position",
+        "required": false,
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "card_group_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "card_group_move",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "from",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "to",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "position",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "copy",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "card_group_remove",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "group",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "cards",
+        "required": true,
+        "type": "array"
+      }
+    ]
+  },
+  {
     "name": "card_list",
     "mutates": false,
     "fields": [

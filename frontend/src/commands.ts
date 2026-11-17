@@ -210,7 +210,7 @@ export function zoneCycle(collapsed: { planner?: boolean; card?: boolean } = {},
 
 // ---- UI events: what a handler asks a panel to do with its own state ----
 
-export type UIRequest = { do: "card.edit" } | { do: "card.model" } | { do: "planner.model" } | { do: "planner.adopt" } | { do: "workspace.rename"; id: string } | { do: "workspace.delete"; id: string };
+export type UIRequest = { do: "card.edit" } | { do: "card.chat" } | { do: "card.model" } | { do: "planner.model" } | { do: "planner.adopt" } | { do: "workspace.rename"; id: string } | { do: "workspace.delete"; id: string };
 const UI_EVENT = "hadron:ui";
 export const requestUI = (r: UIRequest) => window.dispatchEvent(new CustomEvent<UIRequest>(UI_EVENT, { detail: r }));
 export function onUIRequest(cb: (r: UIRequest) => void): () => void {

@@ -257,7 +257,49 @@ const findFree = (ref: string) => {
   return f;
 };
 
+// ---- card groups: dashboard blocks of type "group" whose source.cards lists card ids ----
+const groupBlock = (ref: string) => {
+  const b = state.dash.find((x) => x.type === "group" && (x.id === ref || x.title.toLowerCase() === ref.toLowerCase()));
+  if (!b) throw new Error(`no card group "${ref}"`);
+  return b;
+};
+const groupOut = (b: BlockView) => ({ id: b.id, title: b.title, span: b.span, position: b.position, cards: (b.source.cards ?? []).map((id) => ({ id })) });
+const setCards = (b: BlockView, cards: string[]) => {
+  b.source = { ...b.source, cards };
+};
+const place = (list: string[], id: string, pos?: number) => {
+  const rest = list.filter((x) => x !== id);
+  const at = pos === undefined || pos < 0 || pos > rest.length ? rest.length : pos;
+  return [...rest.slice(0, at), id, ...rest.slice(at)];
+};
 const fns = {
+  card_group_list: vi.fn(async (a: { card?: string } = {}) => state.dash.filter((b) => b.type === "group" && (!a.card || (b.source.cards ?? []).includes(a.card))).map(groupOut)),
+  card_group_create: vi.fn(async (a: { title: string; cards?: string[] }) => {
+    const b = dashBlock("g" + (state.dash.length + 1), { type: "group", title: a.title, source: { cards: a.cards ?? [] }, position: state.dash.length, data: { query: "group.cards", shape: "rows", groups: [], rows: [] } });
+    state.dash.push(b);
+    return groupOut(b);
+  }),
+  card_group_add: vi.fn(async (a: { group: string; cards: string[]; position?: number }) => {
+    const b = groupBlock(a.group);
+    let list = b.source.cards ?? [];
+    for (const c of a.cards) list = place(list, c, a.position);
+    setCards(b, list);
+    return groupOut(b);
+  }),
+  card_group_remove: vi.fn(async (a: { group: string; cards: string[] }) => {
+    const b = groupBlock(a.group);
+    setCards(b, (b.source.cards ?? []).filter((x) => !a.cards.includes(x)));
+    return groupOut(b);
+  }),
+  card_group_move: vi.fn(async (a: { card: string; from?: string; to: string; position?: number; copy?: boolean }) => {
+    const to = groupBlock(a.to);
+    setCards(to, place(to.source.cards ?? [], a.card, a.position));
+    if (a.from && a.from !== a.to && !a.copy) {
+      const from = groupBlock(a.from);
+      setCards(from, (from.source.cards ?? []).filter((x) => x !== a.card));
+    }
+    return [groupOut(to)];
+  }),
   free_session_list: vi.fn(async () => ({ sessions: clone(state.free), default_cwd: "/Users/you/code" })),
   free_session_start: vi.fn(async (a: { kind?: "shell" | "claude"; cwd?: string; name?: string; workspace_id?: string }) => {
     const f = freeRow(`f${++freeSeq}`, { kind: a.kind ?? "shell", cwd: a.cwd ?? "/Users/you/code", name: a.name ?? "", workspace_id: a.workspace_id ?? "", program: a.kind === "claude" ? "claude" : "zsh" });
@@ -682,9 +724,10 @@ const fns = {
     state.dash.push(b);
     return clone(b);
   }),
-  dash_block_update: vi.fn(async (a: { block_id: string; span?: 1 | 2 }) => {
+  dash_block_update: vi.fn(async (a: { block_id: string; span?: 1 | 2; title?: string }) => {
     const b = state.dash.find((x) => x.id === a.block_id)!;
     if (a.span) b.span = a.span;
+    if (a.title) b.title = a.title;
     return clone(b);
   }),
   dash_block_move: vi.fn(async (a: { block_id: string; position: number }) => {

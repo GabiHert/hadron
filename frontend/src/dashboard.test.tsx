@@ -110,6 +110,7 @@ describe("dashboard", () => {
   it("adds a bars block by assignee", async () => {
     const user = await openDashboard();
     await user.click(screen.getByRole("button", { name: "Add block" }));
+    await user.selectOptions(screen.getByLabelText("Block type"), "bars");
     await screen.findByRole("option", { name: "Assignee" });
     await user.selectOptions(screen.getByLabelText("Count by"), "card.assignee");
     await user.click(screen.getByRole("button", { name: "Add" }));

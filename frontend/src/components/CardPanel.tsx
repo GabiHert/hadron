@@ -15,6 +15,7 @@ import { ModelOptions, useModels } from "./ModelsTab";
 import { effectiveModel } from "../state/useBoard";
 import { cardFolder, tildePath } from "../lib";
 import { CardTags } from "./TagColors";
+import { WatchInGroup } from "./CardGroup";
 
 export type CardTab = "conv" | "links" | "ctx";
 
@@ -50,8 +51,14 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
           whenReady(() => document.getElementById("card-nick"), (el) => (el as HTMLInputElement).focus());
         }
         if (r.do === "card.model") whenReady(() => document.getElementById("card-model"), (el) => el.focus());
+        // A card opened from a dashboard group: show its conversation and put the focus in the composer.
+        if (r.do === "card.chat") {
+          setView("chat");
+          setTab("conv");
+          whenReady(() => document.querySelector<HTMLElement>('[data-zone="card"] [id^="card-msg-"]'), (el) => el.focus());
+        }
       }),
-    [],
+    [setView, setTab],
   );
   useEffect(() => {
     setMenu(false);
@@ -115,6 +122,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
                     setMenu(false);
                   }}
                 >Save</button>
+                <WatchInGroup board={board} card={c} />
                 <button className="btn sm" title={withChord("Archive card", "card.archive")} onClick={() => { void actions.archiveCard(c.id); setMenu(false); }}>Archive card</button>
                 <button className="btn sm danger" onClick={() => { if (window.confirm(`Delete ${c.nick}? Its sessions, questions and links go with it. This cannot be undone.`)) void actions.deleteCard(c.id); setMenu(false); }}>Delete card</button>
               </div>

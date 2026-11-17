@@ -25,7 +25,7 @@ const (
 )
 
 // Types lists every block type.
-var Types = []string{TypeStats, TypeBars, TypeTable, TypeHeatmap, TypeProse, TypePlanner, TypeActivity, TypeCustom}
+var Types = []string{TypeStats, TypeBars, TypeTable, TypeHeatmap, TypeProse, TypePlanner, TypeActivity, TypeCustom, TypeGroup}
 
 // Limits.
 const (
@@ -79,6 +79,8 @@ type Source struct {
 	Layout string `json:"layout,omitempty"`
 	Weeks  int    `json:"weeks,omitempty"`
 	Unit   string `json:"unit,omitempty"`
+	// Cards are a group block's card ids, in the order the group shows them.
+	Cards []string `json:"cards,omitempty"`
 }
 
 // Calendar layout limits.
@@ -137,7 +139,7 @@ func ParseSource(raw json.RawMessage) (Source, error) {
 
 // Spec is a block as a caller submits it (dash_set, dash_block_add).
 type Spec struct {
-	Type     string  `json:"type" jsonschema:"stats, bars, table, heatmap, prose, planner, activity or custom"`
+	Type     string  `json:"type" jsonschema:"stats, bars, table, heatmap, prose, planner, activity, custom or group"`
 	Title    string  `json:"title" jsonschema:"the block's heading"`
 	Span     int     `json:"span,omitempty" jsonschema:"1 for half width, 2 for full width; default 1"`
 	Source   *Source `json:"source,omitempty" jsonschema:"stats, bars, heatmap, table and activity blocks need a query here; custom may have one"`
@@ -249,6 +251,13 @@ func ValidateOne(b *Spec, knownQuery func(name string) (QuerySpec, bool)) []stri
 			}
 		}
 	}
+	if b.Type == TypeGroup {
+		if src != nil {
+			errs = append(errs, checkGroup(src.Cards)...)
+		}
+	} else if src != nil && len(src.Cards) > 0 {
+		bad("only group blocks take cards")
+	}
 	if b.Type == TypeTable && src != nil {
 		if len(src.Columns) > MaxTableCols {
 			bad("at most %d columns", MaxTableCols)
@@ -316,7 +325,7 @@ func (s Spec) Domain(workspaceID string) (domain.Block, error) {
 // SpecOf is the inverse of Spec.Domain.
 func SpecOf(b domain.Block) Spec {
 	s := Spec{Type: b.Type, Title: b.Title, Span: b.Span, HTML: b.HTML, Text: b.Text, Schedule: b.Schedule}
-	if src, err := ParseSource(b.Source); err == nil && (src.Query != "" || src.Height != 0 || len(src.Columns) > 0 || src.From != "" || len(src.Args) > 0 || src.Layout != "" || src.Weeks != 0 || src.Unit != "") {
+	if src, err := ParseSource(b.Source); err == nil && (src.Query != "" || src.Height != 0 || len(src.Columns) > 0 || src.From != "" || len(src.Args) > 0 || src.Layout != "" || src.Weeks != 0 || src.Unit != "" || len(src.Cards) > 0) {
 		s.Source = &src
 	}
 	return s

@@ -2,7 +2,9 @@
 
 A dashboard is a list of blocks per workspace. Read it with `dash_get` (each block comes with its data resolved). Change it with `dash_block_add`, `dash_block_update`, `dash_block_move`, `dash_block_remove`, or replace it with `dash_set`.
 
-Block types: `stats`, `bars`, `heatmap` (groups queries), `table` (groups or rows), `activity` (rows), `prose` (text), `planner` (text you write), `custom` (HTML widget).
+Block types: `stats`, `bars`, `heatmap` (groups queries), `table` (groups or rows), `activity` (rows), `prose` (text), `planner` (text you write), `custom` (HTML widget), `group` (a card group, below).
+
+**Card groups.** A `group` block watches cards the user is working on: each row shows the card's nickname and key, its column and stage, its liveness, whether it needs the user, and its last report or chat line, and clicking it opens the card's chat in place. Manage them with `card_group_create {title, cards?}`, `card_group_add {group, cards, position?}`, `card_group_remove {group, cards}`, `card_group_move {card, from, to, position?, copy?}` (from equal to to reorders) and `card_group_list {card?}`. Name a group by its block id or its title; name cards by id, nickname or key. Rename a group with `dash_block_update {block_id, title}`, resize it with `span`, delete it with `dash_block_remove`. Groups change membership only, never a card's column. Archiving or deleting a card takes it out of every group. Make or change groups when the user asks, not on your own.
 
 **Widgets from a chat.** A chat widget reaches the dashboard only when the user decides: they pick "Add to dashboard" in the widget's "⋯" menu, or ask the planner, who then calls `widget_pin {message_id}` (sessions cannot). Do not pin a chat widget on your own, and do not post widgets in chat to fill the dashboard: they are there to explain. To build a dashboard block on purpose, use `dash_block_add` with type `custom`.
 
