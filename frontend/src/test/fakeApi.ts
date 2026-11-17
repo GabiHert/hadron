@@ -2,7 +2,7 @@
 // like the backend enough for the UI to react (rename, move, delete...), so tests can assert both
 // the calls made and what the user then sees.
 import { vi } from "vitest";
-import type { FreeSession, ChipColors, Routine, ModelOption, Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
+import type { FreeSession, ChipColors, Routine, ModelOption, Feedback, NotificationEvent, NotificationOpen, NotificationSettings, NotificationsOut, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
 
 export interface Fixture {
   workspaces: Workspace[];
@@ -123,6 +123,12 @@ const defaultDash = (): BlockView[] => [
   dashBlock("b3", { position: 2, type: "planner", title: "Planner's summary", span: 2 }),
 ];
 
+export const defaultNotifications = (): NotificationsOut => ({
+  settings: { enabled: true, events: { needs_you: true, done: true, blocked: true, planner_reply: true, message: true }, muted_workspaces: [], sound: "off" },
+  status: { permission: "allowed", alert_style: "banner" },
+  events: ["needs_you", "done", "blocked", "planner_reply", "message"],
+});
+
 export const state: {
   dash: BlockView[];
   fx: Fixture;
@@ -167,7 +173,8 @@ export const state: {
   files: FileHit[];
   /** the Sessions space's free sessions */
   free: FreeSession[];
-} = { free: [], dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], routines: [], chipColors: { palette: [], rules: [], plain: [] }, ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
+  notifications: NotificationsOut;
+} = { notifications: defaultNotifications(), free: [], dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], routines: [], chipColors: { palette: [], rules: [], plain: [] }, ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
   mcp: { running: true, url: "http://127.0.0.1:47820/mcp", port: 47820, token: "tok-0123456789abcdef", tool_count: 61, connect_command: "" },
   mcpCalls: [],
   messages: [],
@@ -230,6 +237,7 @@ export const reset = (fx: Fixture = defaultFixture()) => {
   state.sessions = { planner: running("sess-planner", { liveness: "working" }) };
   state.fx = fx;
   state.free = [];
+  state.notifications = defaultNotifications();
   freeSeq = 0;
   for (const f of Object.values(fns)) f.mockClear();
 };
@@ -796,6 +804,22 @@ const fns = {
   onChanged: vi.fn(() => () => {}),
   onEvent: vi.fn(() => () => {}),
   onNotify: vi.fn(() => () => {}),
+  onNotificationOpen: vi.fn((cb: (e: NotificationOpen) => void) => {
+    notificationOpen.add(cb);
+    return () => void notificationOpen.delete(cb);
+  }),
+  notifications_settings_get: vi.fn(async (): Promise<NotificationsOut> => clone(state.notifications)),
+  notifications_settings_set: vi.fn(async (a: { enabled?: boolean; events?: Partial<Record<NotificationEvent, boolean>>; muted_workspaces?: string[]; sound?: NotificationSettings["sound"] }): Promise<NotificationsOut> => {
+    const st = state.notifications.settings;
+    if (a.enabled !== undefined) st.enabled = a.enabled;
+    if (a.events) Object.assign(st.events, a.events);
+    if (a.muted_workspaces) st.muted_workspaces = [...a.muted_workspaces];
+    if (a.sound) st.sound = a.sound;
+    return clone(state.notifications);
+  }),
+  notifications_test: vi.fn(async () => ({ title: "Hadron", body: "Notifications work.", sent: true })),
+  notifications_open_system_settings: vi.fn(async () => ({})),
+  ui_presence: vi.fn(async () => ({})),
   get_update_status: vi.fn(async () => clone(state.update)),
   check_for_update: vi.fn(async () => clone(state.update)),
   start_update: vi.fn(async () => ({})),
@@ -803,4 +827,8 @@ const fns = {
 };
 
 export const apiMock = fns;
+
+/** Listeners of notification clicks; fireNotificationOpen plays one. */
+const notificationOpen = new Set<(e: NotificationOpen) => void>();
+export const fireNotificationOpen = (e: NotificationOpen) => notificationOpen.forEach((cb) => cb(e));
 export const mocks = fns;

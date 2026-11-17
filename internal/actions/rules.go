@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GabiHert/hadron/internal/notifications"
 	"strconv"
 	"strings"
 	"sync"
@@ -89,12 +90,6 @@ type RuleLogEntry struct {
 	Before json.RawMessage `json:"before"`
 	After  json.RawMessage `json:"after"`
 	Reason string          `json:"reason,omitempty"`
-}
-
-// NotifyIn is the input of notify.
-type NotifyIn struct {
-	Title string `json:"title" jsonschema:"the notification title"`
-	Body  string `json:"body,omitempty" jsonschema:"the notification text"`
 }
 
 func registerRules(r *Registry) {
@@ -278,17 +273,6 @@ func registerRules(r *Registry) {
 			}
 			return out, nil
 		})
-
-	Register(r, Spec{Name: "notify", Description: "Show a notification in the app: a toast for the user."},
-		func(ctx context.Context, c *Call, in NotifyIn) (NotifyIn, error) {
-			if strings.TrimSpace(in.Title) == "" {
-				return in, errors.New("title is required")
-			}
-			if c.Deps.Emit != nil {
-				c.Deps.Emit(EventNotify, NotifyEvent{WorkspaceID: c.Actor.WorkspaceID, Title: in.Title, Body: in.Body})
-			}
-			return in, nil
-		})
 }
 
 func toRaw(v any) json.RawMessage {
@@ -441,6 +425,7 @@ func dispatchEffects(deps Deps, st *store.Store, after func(func()), effects []b
 				if deps.Emit != nil {
 					deps.Emit(EventNotify, NotifyEvent{WorkspaceID: e.WorkspaceID, CardID: e.CardID, Title: e.Title, Body: e.Text})
 				}
+				sendNotice(deps, notifications.Request{Event: notifications.Message, WorkspaceID: e.WorkspaceID, CardID: e.CardID, Title: firstNonBlank(e.Title, "Hadron"), Body: e.Text})
 			})
 		case board.ActTellPlanner:
 			card, err := st.Cards.Get(e.CardID)

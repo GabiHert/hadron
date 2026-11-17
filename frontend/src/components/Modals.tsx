@@ -6,6 +6,7 @@ import { PromptsTab } from "./PromptsTab";
 import { RulesTab } from "./RulesTab";
 import { RoutinesTab } from "./RoutinesTab";
 import { SoundsTab } from "./SoundsTab";
+import { NotificationsTab } from "./NotificationsTab";
 import { TagsTab } from "./TagColors";
 import { UpdatesCard } from "./UpdatesCard";
 import { DiagnosticsTab } from "./DiagnosticsTab";
@@ -319,6 +320,7 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "general", label: "General", render: (b) => <GeneralTab toast={b.actions.toast} /> },
   { id: "appearance", label: "Appearance", render: (b) => <AppearanceTab board={b} /> },
   { id: "sounds", label: "Sounds", render: (b) => <SoundsTab board={b} /> },
+  { id: "notifications", label: "Notifications", render: (b) => <NotificationsTab board={b} /> },
   { id: "keyboard", label: "Keyboard", render: (b) => <KeyboardTab toast={b.actions.toast} /> },
   { id: "prompts", label: "Harness", render: (b) => <PromptsTab board={b} /> },
   { id: "columns", label: "Columns", render: (b) => <ColumnsTab board={b} /> },

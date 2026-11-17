@@ -752,7 +752,49 @@ export const rule_reorder = (a: { workspace_id?: string; rule_ids: string[] }) =
 export const rule_delete = (a: { rule_id: string }) => call<Rule>("rule_delete", a);
 export const rule_dry_run = (a: { workspace_id?: string; rule_id?: string } = {}) => call<DryRunItem[]>("rule_dry_run", a);
 export const rule_log = (a: { workspace_id?: string; limit?: number } = {}) => call<RuleLogEntry[]>("rule_log", a);
-export const notify = (a: { title: string; body?: string }) => call<{ title: string; body: string }>("notify", a);
+export type NoticeSound = "none" | "macos" | "needs_you" | "back_to_work";
+export const notify = (a: { title: string; body?: string; card?: string; workspace_id?: string; sound?: NoticeSound }) =>
+  call<{ title: string; body: string; sent: boolean; reason?: string }>("notify", a);
+
+// ---- macOS notifications ----
+
+export type NotificationEvent = "needs_you" | "done" | "blocked" | "planner_reply" | "message";
+export interface NotificationSettings {
+  enabled: boolean;
+  events: Record<NotificationEvent, boolean>;
+  muted_workspaces: string[] | null;
+  /** off: silent; macos: the macOS sound; hadron: Hadron's chimes */
+  sound: "off" | "macos" | "hadron";
+}
+export interface NotificationStatus {
+  /** unavailable: not running as Hadron.app */
+  permission: "allowed" | "denied" | "not_determined" | "unavailable";
+  /** none: allowed, but banners and alerts are off */
+  alert_style?: "none" | "banner" | "alert";
+}
+export interface NotificationsOut {
+  settings: NotificationSettings;
+  status: NotificationStatus;
+  events: NotificationEvent[];
+}
+export const notifications_settings_get = () => call<NotificationsOut>("notifications_settings_get", {});
+export const notifications_settings_set = (a: { enabled?: boolean; events?: Partial<Record<NotificationEvent, boolean>>; muted_workspaces?: string[]; sound?: NotificationSettings["sound"] }) =>
+  call<NotificationsOut>("notifications_settings_set", a);
+export const notifications_test = (a: { card?: string; sound?: NoticeSound } = {}) =>
+  call<{ title: string; body: string; sent: boolean; reason?: string }>("notifications_test", a);
+export const notifications_open_system_settings = () => call<Record<string, never>>("notifications_open_system_settings", {});
+/** Tells Go whether the window has the focus and which card it shows, so it does not notify about it. */
+export const ui_presence = (a: { focused: boolean; workspace_id?: string; card_id?: string }) => call<Record<string, never>>("ui_presence", a);
+
+/** A click on a notification: the workspace, and the card or planner chat to open. */
+export interface NotificationOpen {
+  workspace_id: string;
+  card_id?: string;
+  planner?: boolean;
+}
+export function onNotificationOpen(cb: (e: NotificationOpen) => void): () => void {
+  return EventsOn("notification:open", (e: NotificationOpen) => cb(e));
+}
 
 export interface NotifyEvent {
   workspace_id: string;

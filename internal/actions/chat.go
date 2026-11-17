@@ -162,7 +162,14 @@ func registerChat(r *Registry) {
 				return domain.Message{}, err
 			}
 			m := domain.Message{WorkspaceID: ch.workspaceID, Channel: ch.name, Author: "planner", Kind: "text", Text: text, Delivered: true}
-			return m, c.Store.Messages.Create(&m)
+			if err := c.Store.Messages.Create(&m); err != nil {
+				return m, err
+			}
+			if c.Actor.Kind == KindPlanner {
+				deps, ws, card := c.Deps, ch.workspaceID, ch.card
+				c.AfterCommit(func() { notifyPlannerReply(deps, ws, card, text) })
+			}
+			return m, nil
 		})
 
 	Register(r, Spec{Name: "widget_post", Description: "Post a small HTML widget on a channel to explain something visually: a comparison table, a before/after, an SVG diagram, a timeline, a chart, a plan's steps, a status board. The planner, the user, or a session on its own card may post. It is stored now and rendered in a sandboxed frame later.",
@@ -222,6 +229,10 @@ func registerChat(r *Registry) {
 			msg, err := postAndRoute(c, ch, domain.Message{Author: author, Kind: "report", ReportKind: in.Kind, Text: text}, chat.ReportNotice(card, in.Kind, text))
 			if err != nil {
 				return msg, err
+			}
+			if (in.Kind == "done" || in.Kind == "blocked") && c.Actor.Kind != KindYou {
+				deps, card, kind := c.Deps, card, in.Kind
+				c.AfterCommit(func() { notifyReport(deps, card, kind, text) })
 			}
 			return msg, runEvent(c, board.Event{Trigger: board.OnReport, CardID: card.ID, ReportKind: in.Kind})
 		})

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/GabiHert/hadron/internal/notifications"
 	"log"
 	"path/filepath"
 	"slices"
@@ -49,6 +50,9 @@ type App struct {
 	cancel  context.CancelFunc
 	// sound plays the needs-you sounds when cards move into and out of needs-you columns.
 	sound *sounds.Watcher
+	// notes posts macOS notifications; needs notices cards arriving in Needs you for it.
+	notes *notifications.Service
+	needs *notifications.Watcher
 
 	mu  sync.Mutex
 	ctx context.Context
@@ -103,10 +107,24 @@ func New(st *store.Store) *App {
 	a.integ.Changed = func(workspaceID string, entities ...string) {
 		a.emit(actions.EventChanged, actions.ChangedEvent{WorkspaceID: workspaceID, Entities: entities})
 	}
+	player := &sounds.Player{Dir: filepath.Join(run.Home(), "sounds")}
+	a.notes = &notifications.Service{
+		Post:     notifications.PostNative,
+		Settings: func() notifications.Settings { return actions.NotificationSettings(st) },
+		Status:   notifications.NativeStatus,
+		Open:     notifications.OpenSystemSettings,
+		PlaySound: func(kind string) {
+			if err := player.Play(kind, actions.SoundPrefs(st).Volume); err != nil {
+				a.log.Warn("sound", "error", err.Error())
+			}
+		},
+	}
 	a.integ.Notify = func(workspaceID, title, body string) {
 		a.emit(actions.EventNotify, actions.NotifyEvent{WorkspaceID: workspaceID, Title: title, Body: body})
+		if _, err := a.notes.Send(notifications.Request{Event: notifications.Message, WorkspaceID: workspaceID, Title: title, Body: body}); err != nil {
+			a.log.Warn("notification", "error", err.Error())
+		}
 	}
-	player := &sounds.Player{Dir: filepath.Join(run.Home(), "sounds")}
 	a.sound = &sounds.Watcher{
 		Snapshot: func() (map[string]sounds.CardState, error) { return actions.SoundSnapshot(st) },
 		Prefs:    func() sounds.Prefs { return actions.SoundPrefs(st) },
@@ -118,13 +136,18 @@ func New(st *store.Store) *App {
 		Debounce: soundDebounce,
 		Quiet:    soundQuiet,
 	}
-	a.reg = actions.NewRegistry(actions.Deps{PlaySound: player.Play, Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
+	a.reg = actions.NewRegistry(actions.Deps{Notifications: a.notes, PlaySound: player.Play, Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
 	a.integ.FieldChanged = a.reg.FieldChanged
 	a.integ.Events = a.reg.RunEvents
 	if err := a.integ.Sync(); err != nil {
 		log.Printf("integrations: %v", err)
 	}
 	actions.RegisterAll(a.reg)
+	a.needs = &notifications.Watcher{
+		Snapshot: func() (map[string]bool, error) { return actions.NeedsYouSnapshot(st) },
+		Entered:  func(cardID string) { actions.NotifyNeedsYou(a.reg.Deps(), cardID) },
+		Debounce: soundDebounce,
+	}
 	a.mcp = mcpserver.New(mcpserver.Options{Registry: a.reg, Store: st, Home: run.Home(), Version: run.Version, Log: a.log})
 	return a
 }
@@ -137,6 +160,40 @@ func (a *App) showWindow() {
 	}
 	wruntime.WindowUnminimise(c)
 	wruntime.Show(c)
+}
+
+// setupNotifications installs Wails' notification delegate, which shows banners while Hadron is
+// in front and reports clicks, and asks macOS for permission (it asks the user only once). Without
+// an app bundle (go run, tests) none of it is available, and notifications are skipped.
+func (a *App) setupNotifications(ctx context.Context) {
+	// Wails' runtime exits the process when the context has no frontend, as in tests.
+	if ctx == nil || ctx.Value("frontend") == nil {
+		return
+	}
+	if err := wruntime.InitializeNotifications(ctx); err != nil {
+		a.log.Info("notifications unavailable", "error", err.Error())
+		return
+	}
+	go func() {
+		ok, err := wruntime.RequestNotificationAuthorization(ctx)
+		a.log.Info("notifications", "allowed", ok, "error", errString(err))
+	}()
+	wruntime.OnNotificationResponse(ctx, func(r wruntime.NotificationResult) {
+		if r.Error != nil {
+			return
+		}
+		info := r.Response.UserInfo
+		str := func(k string) string { v, _ := info[k].(string); return v }
+		a.showWindow()
+		a.send(actions.EventNotificationOpen, actions.NotificationOpen{WorkspaceID: str("workspace"), CardID: str("card"), Planner: str("planner") != ""})
+	})
+}
+
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 // loginEnv reads the login shell's environment. Tests replace it.
@@ -164,6 +221,10 @@ func (a *App) startup(ctx context.Context) {
 	if err := a.sound.Seed(); err != nil {
 		a.log.Warn("sound", "error", err.Error())
 	}
+	if err := a.needs.Seed(); err != nil {
+		a.log.Warn("notification", "error", err.Error())
+	}
+	a.setupNotifications(ctx)
 	// The MCP server must be listening before any planner starts, so the config files it writes
 	// name the port the server really got.
 	if err := a.mcp.Start(); err != nil {
@@ -292,6 +353,9 @@ func (a *App) emit(event string, data any) {
 	// Any change to cards or columns may move a card into or out of needs-you, in any workspace.
 	if a.sound != nil && (slices.Contains(ev.Entities, "cards") || slices.Contains(ev.Entities, "columns")) {
 		a.sound.Changed()
+	}
+	if a.needs != nil && (slices.Contains(ev.Entities, "cards") || slices.Contains(ev.Entities, "columns")) {
+		a.needs.Changed()
 	}
 }
 

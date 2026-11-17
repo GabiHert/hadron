@@ -7,6 +7,12 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- macOS notifications: Hadron shows a banner when a card needs you (a question or a gate), when a card reports done or blocked, and when the planner replies while Hadron is in the background. Nothing shows for the card you are already looking at.
+- Clicking a notification brings Hadron to the front and opens that card, or the planner chat.
+- Settings → Notifications: switch each kind on or off, mute a workspace, choose no sound, the macOS sound or Hadron's chimes, and send a test. It shows whether macOS allows Hadron's notifications, with a button to open Notification Settings when it doesn't.
+- MCP: `notify` now posts a real macOS notification and takes `card` (opened on click) and `sound`; rule notify actions and integrations post them too. New tools `notifications_settings_get`, `notifications_settings_set`, `notifications_test` and `notifications_open_system_settings`, and the `notifications` topic in `hadron_guide`.
+
 ## [0.2.33] - 2026-11-17
 
 ### Added

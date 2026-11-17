@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GabiHert/hadron/internal/notifications"
 	"reflect"
 	"sort"
 	"strings"
@@ -93,6 +94,8 @@ type Deps struct {
 	Log *dlog.Logger
 	// Changelog is the CHANGELOG.md text. Empty means the one embedded in the app.
 	Changelog string
+	// Notifications posts macOS notifications. It may be nil, as in most tests: nothing is posted.
+	Notifications *notifications.Service
 	// PlaySound plays one of the UI sounds at a volume from 0 to 1. It may be nil, as in tests.
 	PlaySound func(kind string, volume float64) error
 }
