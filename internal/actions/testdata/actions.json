@@ -3591,6 +3591,17 @@
     ]
   },
   {
+    "name": "theme_tokens",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "mode",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "ui_fullscreen",
     "mutates": true,
     "fields": [

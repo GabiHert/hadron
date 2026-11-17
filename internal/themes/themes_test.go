@@ -221,3 +221,15 @@ func TestStore(t *testing.T) {
 		t.Errorf("unknown token: %v", err)
 	}
 }
+
+func TestFontsMatchTokensCSS(t *testing.T) {
+	raw, err := os.ReadFile("../../frontend/src/styles/tokens.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, stack := range Fonts {
+		if want := "--" + name + ": " + stack + ";"; !strings.Contains(string(raw), want) {
+			t.Errorf("tokens.css lacks %q", want)
+		}
+	}
+}

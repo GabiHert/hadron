@@ -1,6 +1,7 @@
 package prompts
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -65,16 +66,16 @@ func TestWidgetGuideTeachesAndKeepsPinningSeparate(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"## A flow diagram (inline SVG, with arrows)", "<marker", "marker-end=",
-		"## Before and after", "## A timeline", "## A plan's steps, with their states",
-		"## A status table", "## A bar chart", "## A sparkline",
+		"## Diagrams in SVG", "<marker", "marker-end=", "A sparkline",
+		"## The kit, one example per class", "### Table:", "### Stat tiles:", "### Badge (pill):", "### Bars and meters:",
+		"### Checklist:", "### Key-value list:", "### Callout:", "### Two-column compare:",
 		"Widgets in chat are for explaining, not for the dashboard.", "only when the user asks", "Sessions never pin.",
 	} {
 		if !strings.Contains(w, want) {
 			t.Errorf("widgets topic lacks %q", want)
 		}
 	}
-	if strings.Count(w, "```html") != 7 || strings.Count(w, "```")%2 != 0 {
+	if strings.Count(w, "```html") != 10 || strings.Count(w, "```")%2 != 0 {
 		t.Errorf("widgets topic has %d html examples and unbalanced fences", strings.Count(w, "```html"))
 	}
 	for topic, want := range map[string]string{
@@ -146,5 +147,38 @@ func TestRenderFillsKnownAndKeepsUnknownVariables(t *testing.T) {
 	}
 	if len(unknown) != 1 || unknown[0] != "nope" {
 		t.Fatalf("unknown = %v; want [nope] (card.key is known, just not provided)", unknown)
+	}
+}
+
+func TestWidgetGuideDocumentsTheKit(t *testing.T) {
+	w, _ := Guide("widgets")
+	raw, err := os.ReadFile("../../frontend/src/styles/widgetkit.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sel := range WidgetKit {
+		if !strings.Contains(string(raw), sel) {
+			t.Errorf("widgetkit.css has no %s", sel)
+		}
+		if !strings.Contains(w, "`"+sel+"`") {
+			t.Errorf("widgets topic does not name %s", sel)
+		}
+		class := sel[strings.Index(sel, ".")+1:]
+		if !strings.Contains(w, `class="`+class) {
+			t.Errorf("widgets topic has no example with class %q", class)
+		}
+	}
+	for _, want := range []string{"Use the kit.", "Tokens only.", "Never hard-code a colour", "never set a background on `html` or `body`", "about 400px wide", "theme_tokens"} {
+		if !strings.Contains(w, want) {
+			t.Errorf("widgets topic lacks %q", want)
+		}
+	}
+	for _, kind := range []string{KindPlanner, KindSession} {
+		text := Core(kind)
+		for _, want := range []string{"widget kit", `class="kv"`, `class="check"`, "Never hard-code a colour", "never set a white or any other background", "about 400px wide", "theme_tokens"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("core %s prompt lacks %q", kind, want)
+			}
+		}
 	}
 }

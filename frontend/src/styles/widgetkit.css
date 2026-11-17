@@ -1,0 +1,78 @@
+/* The widget kit: ready classes every widget frame ships, built only on the theme tokens.
+   A session writes plain markup with these classes and the widget fits every theme.
+   hadron_guide "widgets" documents each class with an example; a Go test keeps the two in step. */
+
+/* Text */
+h1,h2,h3,h4{font-family:var(--head);color:var(--fg);margin:0 0 6px;line-height:1.25}
+h1{font-size:17px}h2{font-size:15px}h3{font-size:14px}h4{font-size:13px}
+p{margin:0 0 6px}
+code,kbd,pre,.mono{font-family:var(--mono);font-size:12px}
+code{background:var(--muted);border:1px solid var(--row);border-radius:4px;padding:0 3px}
+pre{background:var(--muted);border:1px solid var(--row);border-radius:6px;padding:6px 8px;overflow-x:auto;white-space:pre}
+.muted{color:var(--fg3)}
+.small{font-size:11.5px}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}.acc{color:var(--acc)}
+.stack>*+*{margin-top:8px}
+.scroll{overflow-x:auto;max-width:100%}
+
+/* Table: <table class="tbl"> with th headers; td.num right-aligns numbers */
+table.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{color:var(--fg3);font-weight:500;font-size:11.5px;text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)}
+.tbl td{padding:5px 6px;border-top:1px solid var(--row);vertical-align:top}
+.tbl tr:first-child td{border-top:0}
+.tbl .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Stat tiles: <div class="stats"><div class="stat"><b>42</b><span>label</span></div></div> */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px}
+.stat{background:var(--muted);border:1px solid var(--row);border-radius:8px;padding:7px 9px;min-width:0}
+.stat>b{display:block;font-size:18px;font-weight:600;line-height:1.2;color:var(--fg);font-variant-numeric:tabular-nums}
+.stat>span{display:block;font-size:11.5px;color:var(--fg3)}
+.stat.ok>b{color:var(--ok)}.stat.warn>b{color:var(--warn)}.stat.bad>b{color:var(--bad)}.stat.acc>b{color:var(--acc)}
+
+/* Badge (pill): <span class="badge ok">done</span>; ok, warn, bad, acc, or plain */
+.badge{display:inline-block;font-size:11px;line-height:1.5;font-weight:500;padding:0 7px;border-radius:999px;background:var(--muted);color:var(--fg2);border:1px solid var(--row);white-space:nowrap;vertical-align:1px}
+.badge.ok{background:var(--okb);color:var(--ok);border-color:transparent}
+.badge.warn{background:var(--warnb);color:var(--warn);border-color:transparent}
+.badge.bad{background:var(--badb);color:var(--bad);border-color:transparent}
+.badge.acc{background:var(--sel);color:var(--acc);border-color:transparent}
+
+/* Meter: <div class="meter ok"><i style="width:70%"></i></div>
+   Bar row: <div class="bar"><span>Done</span><div class="meter ok"><i style="width:70%"></i></div><b>7</b></div> */
+.meter{height:8px;border-radius:4px;background:var(--row);overflow:hidden}
+.meter>i{display:block;height:100%;border-radius:4px;background:var(--acc)}
+.meter.ok>i{background:var(--ok)}.meter.warn>i{background:var(--warn)}.meter.bad>i{background:var(--bad)}
+.bar{display:grid;grid-template-columns:minmax(0,34%) 1fr auto;gap:8px;align-items:center;margin:4px 0;font-size:12.5px}
+.bar>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2)}
+.bar>b{font-weight:600;font-variant-numeric:tabular-nums}
+
+/* Checklist: <ul class="check"><li class="done">…</li><li class="now">…</li><li class="warn">…</li><li class="fail">…</li><li>…</li></ul> */
+ul.check{list-style:none;margin:0;padding:0}
+.check>li{position:relative;padding:3px 0 3px 22px}
+.check>li::before{content:"\25CB";position:absolute;left:2px;top:3px;color:var(--fg3)}
+.check>li.done::before{content:"\2713";color:var(--ok)}
+.check>li.now{font-weight:600}.check>li.now::before{content:"\25CF";color:var(--acc)}
+.check>li.warn::before{content:"!";color:var(--warn);font-weight:700;left:5px}
+.check>li.fail::before{content:"\2715";color:var(--bad)}
+.check>li:not(.done):not(.now):not(.warn):not(.fail){color:var(--fg3)}
+
+/* Key-value list: <dl class="kv"><dt>Branch</dt><dd>fix/x</dd></dl> */
+dl.kv{display:grid;grid-template-columns:minmax(0,max-content) 1fr;gap:4px 12px;margin:0}
+.kv>dt{color:var(--fg3);font-size:12px}
+.kv>dd{margin:0;min-width:0}
+
+/* Callout: <div class="callout warn"><b>Heads up</b> text</div>; ok, warn, bad, or plain (accent) */
+.callout{border-left:3px solid var(--acc);background:var(--muted);border-radius:0 6px 6px 0;padding:7px 10px;color:var(--fg)}
+.callout.ok{border-color:var(--ok);background:var(--okb)}
+.callout.warn{border-color:var(--warn);background:var(--warnb)}
+.callout.bad{border-color:var(--bad);background:var(--badb)}
+.callout>b:first-child{margin-right:4px}
+
+/* Two-column compare: <div class="compare"><section><h4>Before</h4>…</section><section class="ok"><h4>After</h4>…</section></div>
+   The columns stack when the widget is narrow. */
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.compare>section{border:1px solid var(--border);border-radius:8px;padding:7px 9px;min-width:0;color:var(--fg)}
+.compare>section>h4{font-size:11.5px;font-weight:600;color:var(--fg3);text-transform:uppercase;letter-spacing:.04em}
+.compare>section.ok{border-color:var(--ok)}.compare>section.ok>h4{color:var(--ok)}
+.compare>section.bad{border-color:var(--bad)}.compare>section.bad>h4{color:var(--bad)}
+.compare>section.warn{border-color:var(--warn)}.compare>section.warn>h4{color:var(--warn)}
+.compare>section>ul{margin:0;padding-left:16px}

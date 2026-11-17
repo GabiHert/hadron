@@ -1345,6 +1345,16 @@ export const chip_color_auto_set = (a: { workspace_id?: string; path: string; au
 
 export const theme_list = () => call<import("./theme").ThemeList>("theme_list");
 export const theme_set = (a: { theme?: string; light?: string; dark?: string }) => call<import("./theme").ThemeChoice>("theme_set", a);
+export interface ThemeTokens {
+  theme: string;
+  name: string;
+  mode: "light" | "dark";
+  tokens: Record<string, string>;
+  fonts: Record<string, string>;
+  kit: string[];
+  note: string;
+}
+export const theme_tokens = (a: { mode?: "light" | "dark" } = {}) => call<ThemeTokens>("theme_tokens", a);
 export const theme_save = (a: { theme: { id?: string; name: string; mode: "light" | "dark"; tokens: Record<string, string> } }) => call<import("./theme").ThemeDef>("theme_save", a);
 export const theme_import = (a: { path?: string; json?: string; name?: string }) => call<import("./theme").ThemeDef>("theme_import", a);
 export const theme_export = (a: { id: string; path?: string }) => call<{ path: string; json: string }>("theme_export", a);

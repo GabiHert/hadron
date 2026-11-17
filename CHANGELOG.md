@@ -13,9 +13,16 @@ for its "What's new" window.
 - Words to keep private: list client, project or people names in Settings → Feedback, and a note that contains one is blocked from sending. The list stays on your Mac.
 - An "All users" tab in Settings → Feedback lists everyone's open feedback with its kind, version and link, refreshed when you open it and every few hours, and imports any of it as a note of your own.
 - MCP tools `feedback_send`, `feedback_list_shared`, `feedback_import_shared`, `feedback_sharing_get`, `feedback_sharing_set` and `set_feedback_token`.
+- A built-in widget kit: every widget can use ready classes for tables, stat tiles, badges, bars and meters, checklists, key-value lists, callouts and a two-column compare, and they match your colour theme. `hadron_guide widgets` shows an example of each.
+- `theme_tokens`, an MCP tool that returns the current theme's colours and fonts, for light or dark.
 
 ### Changed
 - "Open as GitHub issue" on a feedback note is replaced by "Send to GitHub…", which checks the text first.
+- Sessions and the planner are taught to build widgets from the kit and the theme colours only, and to keep them narrow enough for a card's chat.
+
+### Fixed
+- Widgets in chat no longer show a white box with nearly invisible text in a dark theme: the frame now takes the app's colours, background and font, and follows a theme switch live.
+- Wide tables in widgets wrap their cells and scroll sideways instead of being cut off on the right, and a widget's frame is now exactly as tall as its content.
 
 ## [0.2.33] - 2026-11-17
 

@@ -106,3 +106,49 @@ func TestThemeSaveImportExportDelete(t *testing.T) {
 	h.fails("theme_delete", m{"id": "deep-space"}, "built-in")
 	h.fails("theme_delete", m{"id": "acme-night"}, "no such theme")
 }
+
+func TestThemeTokensFollowTheThemeInUse(t *testing.T) {
+	h := newHarness(t)
+	dark := false
+	old := systemDark
+	systemDark = func() bool { return dark }
+	t.Cleanup(func() { systemDark = old })
+
+	var out ThemeTokensOut
+	h.do("theme_tokens", m{}, &out)
+	if out.Theme != "classic-light" || out.Mode != "light" || out.Tokens["--fg"] != "#1d2330" || out.Tokens["--card"] != "#ffffff" {
+		t.Fatalf("system, macOS light: %s %s fg=%s card=%s", out.Theme, out.Mode, out.Tokens["--fg"], out.Tokens["--card"])
+	}
+	for _, k := range []string{"--bg", "--fg2", "--fg3", "--acc", "--ok", "--warn", "--bad", "--border"} {
+		if out.Tokens[k] == "" {
+			t.Errorf("no %s", k)
+		}
+	}
+	if !strings.Contains(out.Fonts["--sans"], "Inter Tight") || !strings.Contains(out.Fonts["--mono"], "Plex Mono") || out.Fonts["--head"] == "" {
+		t.Errorf("fonts = %v", out.Fonts)
+	}
+	if len(out.Kit) == 0 || !strings.Contains(out.Note, "var(--fg)") {
+		t.Errorf("kit %v, note %q", out.Kit, out.Note)
+	}
+
+	dark = true
+	h.do("theme_tokens", m{}, &out)
+	if out.Theme != "classic-dark" || out.Mode != "dark" || out.Tokens["--fg"] != "#ece8df" {
+		t.Fatalf("system, macOS dark: %s %s fg=%s", out.Theme, out.Mode, out.Tokens["--fg"])
+	}
+
+	h.do("theme_set", m{"theme": "nucleus"}, nil)
+	h.do("theme_tokens", m{}, &out)
+	if out.Theme != "nucleus" || out.Mode != "light" {
+		t.Fatalf("fixed theme: %s %s", out.Theme, out.Mode)
+	}
+	h.do("theme_tokens", m{"mode": "dark"}, &out)
+	if out.Theme != "classic-dark" {
+		t.Fatalf("dark of a fixed light theme = %s", out.Theme)
+	}
+	h.do("theme_tokens", m{"mode": "light"}, &out)
+	if out.Theme != "nucleus" {
+		t.Fatalf("light of a fixed light theme = %s", out.Theme)
+	}
+	h.fails("theme_tokens", m{"mode": "sepia"}, "light or dark")
+}

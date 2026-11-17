@@ -22,7 +22,10 @@ Ask the user (question_ask)
 Explain with widgets
 - Use widget_post on your card whenever a visual makes your message clearer: a comparison table, a before/after, a small flow or architecture diagram in inline SVG, a timeline, a bar or sparkline of numbers, a checklist of a plan's steps, a status board. It beats ASCII art and long lists in a report.
 - Pair the widget with one or two lines of text (a report or the line before it) that say what to look at. Do not repeat the widget's content in prose.
-- A widget is small HTML in a sandboxed frame: no network, under 256 KB, and scripts are usually off. Use the theme's CSS variables (--fg, --fg2, --fg3, --acc, --ok, --warn, --bad, --card, --border, --bg) so it works in light and dark. Call hadron_guide with topic "widgets" for examples to copy.
+- A widget is small HTML in a sandboxed frame: no network, under 256 KB, and scripts are usually off. The frame already sets the theme's colours, font and background, so it works in light and dark.
+- Build it from the widget kit, plain markup with ready classes: table.tbl, .stats/.stat, .badge (ok, warn, bad), .bar/.meter, ul.check, dl.kv, .callout, .compare. For example `<dl class="kv"><dt>Tests</dt><dd><span class="badge ok">612 pass</span></dd><dt>Build</dt><dd><span class="badge bad">failed</span></dd></dl>` or `<ul class="check"><li class="done">Fix the parser</li><li class="now">Run the suite</li><li>Open the PR</li></ul>`.
+- For anything else use only the theme tokens (var(--fg), --fg2, --fg3, --acc, --ok, --warn, --bad, --card, --border, --bg). Never hard-code a colour, and never set a white or any other background on the page.
+- Keep it narrow: a card's chat is about 400px wide. Prefer stacked rows, a dl.kv or 2 to 3 columns over a wide table. Call hadron_guide with topic "widgets" for an example of every kit class; theme_tokens returns the tokens' current values.
 - Do not post a widget for a trivial or one-line answer.
 - Widgets in chat are for explaining. Adding one to the dashboard is the user's choice: do not pin it or ask to.
 

@@ -16,18 +16,33 @@ describe("widget security", () => {
     const f = container.querySelector("iframe")!;
     expect(f.hasAttribute("sandbox")).toBe(true);
     expect(f.getAttribute("sandbox")).not.toContain("allow-same-origin");
-    expect(f.getAttribute("sandbox")).toBe(scripts ? "allow-scripts" : "");
+    // Scripts are allowed by the sandbox; the CSP decides which run.
+    expect(f.getAttribute("sandbox")).toBe("allow-scripts");
     expect(f.hasAttribute("srcdoc")).toBe(true);
     expect(f.hasAttribute("src")).toBe(false);
     expect(f.getAttribute("title")).toBe("W");
     const doc = f.getAttribute("srcdoc")!;
-    expect(doc.startsWith('<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy"')).toBe(true);
-    expect(doc).toContain(`content="${scripts ? CSP + "; script-src 'unsafe-inline'" : CSP}"`);
-    expect(doc.includes("script-src")).toBe(scripts);
+    expect(doc.startsWith('<!doctype html><html data-theme="light"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy"')).toBe(true);
+    if (scripts) {
+      expect(doc).toContain(`content="${CSP}; script-src 'unsafe-inline'"`);
+    } else {
+      // Only Hadron's own height script, by a per-frame nonce; never 'unsafe-inline' for scripts.
+      const nonce = doc.match(/content="[^"]*script-src 'nonce-([0-9a-f]{24})'"/)![1];
+      expect(doc).toContain(`content="${CSP}; script-src 'nonce-${nonce}'"`);
+      expect(doc.match(/<script nonce=/g)).toHaveLength(1);
+    }
     expect(doc).toContain("--fg:");
     expect(doc).toContain("--acc:");
-    expect(doc).toContain("body{margin:0;font:13px/1.5 system-ui,sans-serif;color:var(--fg);background:transparent}");
-    expect(doc.includes("hadronHeight")).toBe(scripts);
+    expect(doc).toContain("color-scheme:light;");
+    expect(doc).toMatch(/body\{margin:0;[^}]*background:var\(--card,Canvas\);color:var\(--fg,CanvasText\)/);
+    expect(doc).toContain("hadronHeight");
+  });
+
+  it("gives a widget's own script no nonce, so the CSP blocks it while scripts are off", () => {
+    const doc = widgetSrcDoc("<script>parent.postMessage('x','*')</script>", { scripts: false, nonce: "n0" });
+    expect(doc).toContain("<script>parent.postMessage('x','*')</script>");
+    expect(doc).toContain("script-src 'nonce-n0'");
+    expect(doc).not.toMatch(/script-src[^"]*'unsafe-inline'/);
   });
 
   it("escapes data so it cannot close the data block", () => {
@@ -39,8 +54,8 @@ describe("widget security", () => {
     expect(JSON.parse(json).t).toBe("</script><img src=x onerror=alert(1)><!--");
   });
 
-  it("has an empty sandbox helper and clamps heights to 80..1200", () => {
-    expect(widgetSandbox(false)).toBe("");
+  it("has a sandbox helper without same-origin and clamps heights to 80..1200", () => {
+    expect(widgetSandbox(false)).toBe("allow-scripts");
     expect(widgetSandbox(true)).toBe("allow-scripts");
     expect(clampHeight(10)).toBe(80);
     expect(clampHeight(5000)).toBe(1200);
