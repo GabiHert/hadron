@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.34] - 2026-11-17
+
 ### Added
 - Share feedback with everyone: each note in Settings → Feedback has "Send to GitHub…", which shows the title and body for you to check and edit first, then posts it as a public issue on GabiHert/hadron. Folder paths, your user name and host name are taken out unless you keep them, and diagnostics stay on your Mac.
 - With no token, Send to GitHub opens a filled-in issue in your browser; save a fine-grained token with Issues: write (kept in your keychain) to send directly. A sent note shows "On GitHub" and is not sent twice.
