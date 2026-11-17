@@ -1,4 +1,8 @@
 import { FitAddon } from "@xterm/addon-fit";
+import { SearchAddon } from "@xterm/addon-search";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
+import { WebLinksAddon } from "@xterm/addon-web-links";
+import { BrowserOpenURL } from "../../wailsjs/runtime/runtime";
 import { Terminal as XTerm } from "@xterm/xterm";
 import type { ITheme } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
@@ -31,9 +35,9 @@ export type KeyRoute =
  * reserved ⌘ chords of the keyboard registry: zones, panels, workspaces, zoom, and ⌘Esc to leave.
  * Shift+Enter sends ESC CR, which Claude Code reads as a new line, as Option+Enter does.
  */
-export function routeKey(e: Pick<KeyboardEvent, "type" | "key"> & Partial<KeyboardEvent>): KeyRoute {
+export function routeKey(e: Pick<KeyboardEvent, "type" | "key"> & Partial<KeyboardEvent>, shell = false): KeyRoute {
   if (e.type !== "keydown") return "terminal";
-  if (e.key === "Enter" && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing) return { send: "\x1b\r" };
+  if (!shell && e.key === "Enter" && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing) return { send: "\x1b\r" };
   if (e.metaKey && !e.ctrlKey && /^[a-z]$/i.test(e.key)) return "app";
   if (e.metaKey && escapesTerminal(e)) return "app";
   return "terminal";
@@ -67,12 +71,30 @@ export function termTheme(): ITheme {
   };
 }
 
+/** What a Sessions pane asks of its terminal. */
+export interface TermHandle {
+  /** ⌘K: clears the screen and the scrollback, keeping the prompt line */
+  clear(): void;
+  /** finds text in the scrollback, forwards or backwards; false when there is no match */
+  find(text: string, back?: boolean): boolean;
+  /** removes the find highlights */
+  endFind(): void;
+  focus(): void;
+}
+
 interface Props {
   /** The session to show. Changing it mounts a fresh terminal. */
   sessionId: string;
   label: string;
   /** Shift+Esc in the terminal (plain Esc belongs to the program running in it). */
   onShiftEscape?: () => void;
+  /**
+   * A Sessions-space terminal: links open in the browser, ⌘F finds, Unicode 11 widths, the title
+   * the program sets is reported. shell also leaves Shift+Enter alone (a shell is not Claude Code).
+   */
+  free?: { shell: boolean; onTitle?: (title: string) => void; onHandle?: (h: TermHandle | null) => void; onFocus?: () => void };
+  /** show the Attach and Option-as-Meta bar (default true) */
+  toolbar?: boolean;
 }
 
 /**
@@ -80,7 +102,9 @@ interface Props {
  * scrollback (PtyAttach), and writes events that arrive during the attach after it, trimmed to the
  * bytes the replay does not already hold. Typing goes to PtyWrite and size changes to PtyResize.
  */
-export function Terminal({ sessionId, label, onShiftEscape }: Props) {
+export function Terminal({ sessionId, label, onShiftEscape, free, toolbar = true }: Props) {
+  const freeRef = useRef(free);
+  freeRef.current = free;
   const host = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const shiftEsc = useRef(onShiftEscape);
@@ -133,7 +157,7 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
       lineHeight: 1.3,
       cursorBlink: true,
       scrollback: 5000,
-      allowProposedApi: false,
+      allowProposedApi: !!freeRef.current, // the Unicode 11 widths are a proposed API
       macOptionIsMeta: optionMetaRef.current,
       // Option+click moves the cursor in Claude Code's prompt, as in Terminal and iTerm.
       altClickMovesCursor: true,
@@ -150,6 +174,34 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(el);
+    let search: SearchAddon | null = null;
+    if (freeRef.current) {
+      term.loadAddon(new WebLinksAddon((_e, uri) => BrowserOpenURL(uri)));
+      try {
+        term.loadAddon(new Unicode11Addon());
+        term.unicode.activeVersion = "11";
+      } catch {
+        /* a terminal without the proposed API keeps the default widths */
+      }
+      search = new SearchAddon();
+      term.loadAddon(search);
+    }
+    const titled = term.onTitleChange?.((t) => freeRef.current?.onTitle?.(t));
+    const opts = { decorations: { matchOverviewRuler: "#e6b65c", activeMatchColorOverviewRuler: "#f0877d", matchBackground: "#e6b65c55", activeMatchBackground: "#f0877d88" } };
+    freeRef.current?.onHandle?.({
+      clear: () => {
+        term.clear();
+        term.focus();
+      },
+      find: (text, back) => (search ? (back ? search.findPrevious(text, opts) : search.findNext(text, opts)) : false),
+      endFind: () => {
+        search?.clearDecorations();
+        term.focus();
+      },
+      focus: () => term.focus(),
+    });
+    const onFocusIn = () => freeRef.current?.onFocus?.();
+    el.addEventListener("focusin", onFocusIn);
     const refit = () => {
       if (dead) return;
       try {
@@ -165,7 +217,7 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
         shiftEsc.current();
         return false;
       }
-      const route = routeKey(e);
+      const route = routeKey(e, !!freeRef.current?.shell);
       if (route === "terminal") return true;
       if (route !== "app") {
         e.preventDefault();
@@ -256,6 +308,9 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
     return () => {
       dead = true;
       termRef.current = null;
+      titled?.dispose();
+      el.removeEventListener("focusin", onFocusIn);
+      freeRef.current?.onHandle?.(null);
       el.removeEventListener("paste", onPaste, true);
       el.removeEventListener("dragover", onDragOver);
       el.removeEventListener("drop", onDrop);
@@ -277,7 +332,7 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
 
   return (
     <>
-      <div className="ttools" role="toolbar" aria-label={`${label} terminal tools`}>
+      {toolbar ? <div className="ttools" role="toolbar" aria-label={`${label} terminal tools`}>
         <button className="tbtn" type="button" onClick={() => picker.current?.click()} title="Attach images or PDFs: their paths are typed into the session. You can also paste (Cmd+V) or drop them on the terminal.">
           <Icon name="clip" size={13} />Attach
         </button>
@@ -310,7 +365,7 @@ export function Terminal({ sessionId, label, onShiftEscape }: Props) {
           Option as Meta
         </label>
         <span className="tnote" role="status">{note}</span>
-      </div>
+      </div> : null}
       <div className="xterm-host" ref={host} role="group" aria-label={`${label} terminal`} />
     </>
   );

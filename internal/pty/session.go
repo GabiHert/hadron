@@ -295,6 +295,24 @@ func (s *Session) SetWaiting(waiting bool) {
 // PID is the child's process id.
 func (s *Session) PID() int { return s.cmd.Process.Pid }
 
+// Foreground returns the name and current folder of the program in the foreground of the
+// session's terminal: the shell itself, or what it runs (vim, htop). Empty when it is gone.
+func (s *Session) Foreground() (name, cwd string) {
+	if s.isEnded() {
+		return "", ""
+	}
+	name, pid := foreground(s.PID())
+	return name, ProcessCwd(pid)
+}
+
+// Cwd returns the current folder of the session's own process (the shell), or "".
+func (s *Session) Cwd() string {
+	if s.isEnded() {
+		return ""
+	}
+	return ProcessCwd(s.PID())
+}
+
 // Done is closed when the process has exited and its output is fully read.
 func (s *Session) Done() <-chan struct{} { return s.done }
 

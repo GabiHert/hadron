@@ -214,3 +214,27 @@ describe("fuzzy search", () => {
     expect(fuzzyScore("Settings", "xyz")).toBe(-1);
   });
 });
+
+describe("the Sessions space's keys", () => {
+  const ctx = (over: Partial<import("./keys").KeyCtx> = {}) => ({ zone: null, input: false, terminal: false, modal: false, mainView: "board" as const, ...over });
+  it("take ⌘K, ⌘F, ⌘D and ⌘W in a Sessions terminal, and leave them to the app everywhere else", async () => {
+    const { candidates, shadowed } = await import("./keys");
+    const inSessions = ctx({ zone: "sessions", terminal: true });
+    expect(candidates("Mod+K", inSessions)[0].id).toBe("sessions.clear");
+    expect(candidates("Mod+F", inSessions)[0].id).toBe("sessions.find");
+    expect(candidates("Mod+D", inSessions)[0].id).toBe("sessions.splitRight");
+    expect(candidates("Mod+W", inSessions)[0].id).toBe("sessions.close");
+    const cardTerminal = ctx({ zone: "card", terminal: true });
+    expect(candidates("Mod+K", cardTerminal).map((d) => d.id)).toEqual(["palette.toggle"]);
+    expect(candidates("Mod+D", cardTerminal).map((d) => d.id)).toEqual(["view.dashboard"]);
+    // The native menu sends ⌘K as the palette: in a Sessions terminal it clears instead.
+    expect(shadowed("palette.toggle", inSessions)).toBe("sessions.clear");
+    expect(shadowed("palette.toggle", cardTerminal)).toBe("palette.toggle");
+    expect(shadowed("workspace.1", inSessions)).toBe("workspace.1");
+  });
+  it("open a terminal from anywhere", async () => {
+    const { candidates } = await import("./keys");
+    expect(candidates("Mod+T", ctx({ zone: "card", terminal: true })).map((d) => d.id)).toEqual(["sessions.new"]);
+    expect(candidates("Alt+Mod+T", ctx({ zone: "board" })).map((d) => d.id)).toEqual(["sessions.newClaude"]);
+  });
+});

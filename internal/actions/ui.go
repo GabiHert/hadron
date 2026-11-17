@@ -26,7 +26,7 @@ type UIFullscreenIn struct {
 // UIMainViewIn is the input of ui_main_view.
 type UIMainViewIn struct {
 	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
-	View        string `json:"view" jsonschema:"board or dashboard"`
+	View        string `json:"view" jsonschema:"board, dashboard or sessions (the Sessions space of free terminals, the same in every workspace)"`
 }
 
 // SettingsGetIn is the input of settings_get.
@@ -78,10 +78,10 @@ func registerUI(r *Registry) {
 			})
 		})
 
-	Register(r, Spec{Name: "ui_main_view", Description: "Switch a workspace's main area between the board and the dashboard.", Mutates: true, Entities: []string{"workspaces"}},
+	Register(r, Spec{Name: "ui_main_view", Description: "Switch a workspace's main area between the board, the dashboard and the Sessions space (free terminals, global to every workspace).", Mutates: true, Entities: []string{"workspaces"}},
 		func(ctx context.Context, c *Call, in UIMainViewIn) (domain.Workspace, error) {
-			if in.View != "board" && in.View != "dashboard" {
-				return domain.Workspace{}, fmt.Errorf("view %q must be board or dashboard", in.View)
+			if in.View != "board" && in.View != "dashboard" && in.View != "sessions" {
+				return domain.Workspace{}, fmt.Errorf("view %q must be board, dashboard or sessions", in.View)
 			}
 			return setUI(c, in.WorkspaceID, func(ui map[string]any) { ui["main_view"] = in.View })
 		})

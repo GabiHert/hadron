@@ -37,6 +37,8 @@ export class FakeXTerm {
   pasted: string[] = [];
   /** Like xterm's paste: the text goes out through onData (no bracketed-paste mode in the fake). */
   paste(d: string) { this.pasted.push(d); this.dataHandlers.forEach((h) => h(d)); }
+  cleared = 0;
+  clear() { this.cleared++; }
   dispose() { this.disposed = true; }
   /** What the user typed or the app wrote, as text. */
   text() { return this.written.map((w) => (typeof w === "string" ? w : new TextDecoder().decode(w))).join(""); }

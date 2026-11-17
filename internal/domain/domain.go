@@ -110,6 +110,30 @@ type Session struct {
 	Restore bool `json:"restore"`
 }
 
+// Free session kinds.
+const (
+	FreeShell  = "shell"
+	FreeClaude = "claude"
+)
+
+// FreeSession is a terminal of the Sessions space: a shell or a claude that belongs to no card.
+// It is global; WorkspaceID is only a tag ("" for none).
+type FreeSession struct {
+	Meta
+	Name            string     `json:"name"`
+	Kind            string     `json:"kind"`
+	Command         string     `json:"command"`
+	Cwd             string     `json:"cwd"`
+	WorkspaceID     string     `json:"workspace_id"`
+	PID             int        `json:"pid"`
+	Status          string     `json:"status"`
+	ExitCode        int        `json:"exit_code"`
+	ClaudeSessionID string     `json:"claude_session_id"`
+	StartedAt       time.Time  `json:"started_at"`
+	EndedAt         *time.Time `json:"ended_at"`
+	Restore         bool       `json:"restore"`
+}
+
 // MessageCommand is the kind of a slash command the user sent from a chat straight to a session's
 // terminal (chat_command). The planner never hears it.
 const MessageCommand = "command"

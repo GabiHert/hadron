@@ -2,7 +2,7 @@
 // like the backend enough for the UI to react (rename, move, delete...), so tests can assert both
 // the calls made and what the user then sees.
 import { vi } from "vitest";
-import type { ChipColors, Routine, ModelOption, Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
+import type { FreeSession, ChipColors, Routine, ModelOption, Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
 
 export interface Fixture {
   workspaces: Workspace[];
@@ -165,7 +165,9 @@ export const state: {
   commands: SlashCommand[];
   /** the folder files_search searches, filtered by a plain substring */
   files: FileHit[];
-} = { dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], routines: [], chipColors: { palette: [], rules: [], plain: [] }, ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
+  /** the Sessions space's free sessions */
+  free: FreeSession[];
+} = { free: [], dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], routines: [], chipColors: { palette: [], rules: [], plain: [] }, ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
   mcp: { running: true, url: "http://127.0.0.1:47820/mcp", port: 47820, token: "tok-0123456789abcdef", tool_count: 61, connect_command: "" },
   mcpCalls: [],
   messages: [],
@@ -227,6 +229,8 @@ export const reset = (fx: Fixture = defaultFixture()) => {
   state.running = { sessions: [], restore_on_launch: true };
   state.sessions = { planner: running("sess-planner", { liveness: "working" }) };
   state.fx = fx;
+  state.free = [];
+  freeSeq = 0;
   for (const f of Object.values(fns)) f.mockClear();
 };
 
@@ -242,7 +246,47 @@ const policyInfo = (id: string) => {
   } as never;
 };
 
+let freeSeq = 0;
+export const freeRow = (id: string, over: Partial<FreeSession> = {}): FreeSession => ({
+  id, created_at: ts, updated_at: ts, name: "", kind: "shell", command: "/bin/zsh", cwd: "/Users/you/code", workspace_id: "", pid: 100, status: "running", exit_code: 0,
+  claude_session_id: "", started_at: ts, ended_at: null, restore: true, running: true, liveness: "idle", program: "zsh", ...over,
+});
+const findFree = (ref: string) => {
+  const f = state.free.find((x) => x.id === ref || x.name === ref);
+  if (!f) throw new Error(`no free session is called "${ref}"`);
+  return f;
+};
+
 const fns = {
+  free_session_list: vi.fn(async () => ({ sessions: clone(state.free), default_cwd: "/Users/you/code" })),
+  free_session_start: vi.fn(async (a: { kind?: "shell" | "claude"; cwd?: string; name?: string; workspace_id?: string }) => {
+    const f = freeRow(`f${++freeSeq}`, { kind: a.kind ?? "shell", cwd: a.cwd ?? "/Users/you/code", name: a.name ?? "", workspace_id: a.workspace_id ?? "", program: a.kind === "claude" ? "claude" : "zsh" });
+    state.free.push(f);
+    return clone(f);
+  }),
+  free_session_send: vi.fn(async (a: { session: string }) => clone(findFree(a.session))),
+  free_session_read_screen: vi.fn(async () => ({ running: true, liveness: "idle", screen: "" })),
+  free_session_stop: vi.fn(async (a: { session: string; close?: boolean }) => {
+    const f = findFree(a.session);
+    if (a.close) state.free = state.free.filter((x) => x !== f);
+    else Object.assign(f, { running: false, status: "exited", liveness: "ended" });
+    return { id: f.id, stopped: true, closed: !!a.close };
+  }),
+  free_session_restart: vi.fn(async (a: { session: string }) => clone(Object.assign(findFree(a.session), { running: true, status: "running", liveness: "idle" }))),
+  free_session_update: vi.fn(async (a: { session: string; name?: string; workspace_id?: string }) => {
+    const f = findFree(a.session);
+    if (a.name !== undefined) f.name = a.name;
+    if (a.workspace_id !== undefined) f.workspace_id = a.workspace_id;
+    return clone(f);
+  }),
+  free_session_to_card: vi.fn(async (a: { session: string; nick: string; workspace_id?: string }) => {
+    const f = findFree(a.session);
+    state.free = state.free.filter((x) => x !== f);
+    const w = a.workspace_id ?? "w1";
+    const c = card(`c-${f.id}`, w, state.fx.columns[w][0].id, a.nick, 99);
+    (state.fx.cards[w] ??= []).push(c);
+    return { card: clone(c), status: running(f.id), warning: "" };
+  }),
   app_status: vi.fn(async () => ({ version: state.fx.version, home: "/tmp", actions: 25, schema_version: 1 })),
   settings_get: vi.fn(async () => clone(state.fx.settings)),
   sound_preview: vi.fn(async (a: { sound: string; volume?: number }) => ({ played: a.sound, volume: a.volume ?? 0.6 })),
@@ -384,7 +428,7 @@ const fns = {
     else delete w.ui.full;
     return clone(w);
   }),
-  ui_main_view: vi.fn(async (a: { workspace_id?: string; view: "board" | "dashboard" }) => {
+  ui_main_view: vi.fn(async (a: { workspace_id?: string; view: "board" | "dashboard" | "sessions" }) => {
     const w = state.fx.workspaces.find((x) => x.id === (a.workspace_id ?? "w1"))!;
     w.ui = { ...w.ui, main_view: a.view };
     return clone(w);

@@ -7,6 +7,13 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- A Sessions space, next to Board and Dashboard: terminals of your own that belong to no card. ⌘T opens your login shell from anywhere in Hadron (also the new Sessions menu), ⌥⌘T opens claude, and ⇧⌘N picks a folder, a name and an optional workspace tag.
+- Sessions work like a terminal app: tabs and splits (⌘D right, ⇧⌘D down, ⌘W close, ⌥⌘1–9 and ⌘{ ⌘} for tabs, ⌥⌘ arrows between panes), ⌘K to clear, ⌘F to find in the scrollback, clickable links, and a tab title that follows the program running in it. Rename with a double-click and drag tabs to reorder.
+- Sessions keep running in every workspace and view, and come back after Hadron restarts: a shell in the folder it was last in, claude resuming its conversation.
+- "Make a card" turns a session into a card on a board without stopping it.
+- MCP tools for sessions: `free_session_start`, `free_session_list`, `free_session_send`, `free_session_read_screen`, `free_session_stop`, `free_session_restart`, `free_session_update` and `free_session_to_card`, and the `sessions` topic in `hadron_guide`.
+
 ## [0.2.31] - 2026-11-15
 
 ### Changed

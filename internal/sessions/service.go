@@ -66,6 +66,8 @@ type Config struct {
 	Window time.Duration
 	// Log is Hadron's own log. It may be nil.
 	Log *dlog.Logger
+	// Shell overrides the login shell free sessions run. Tests set it.
+	Shell string
 }
 
 // Service owns the live sessions.
@@ -74,8 +76,9 @@ type Service struct {
 	pty *pty.Manager
 
 	mu       sync.Mutex
-	failures map[string]string // session id -> why it never started
-	ready    map[string]bool   // session id -> Claude's input box has been seen
+	failures map[string]string    // session id -> why it never started
+	ready    map[string]bool      // session id -> Claude's input box has been seen
+	free     map[string]*freeInfo // free session id -> what is known of its process
 	// closing is set when Hadron is quitting: sessions that end after that are meant to come back.
 	closing atomic.Bool
 }
@@ -88,7 +91,7 @@ func New(cfg Config) *Service {
 	if cfg.ReadyTimeout <= 0 {
 		cfg.ReadyTimeout = DefaultReadyTimeout
 	}
-	return &Service{cfg: cfg, pty: pty.NewManager(cfg.Env), failures: map[string]string{}, ready: map[string]bool{}}
+	return &Service{cfg: cfg, pty: pty.NewManager(cfg.Env), failures: map[string]string{}, ready: map[string]bool{}, free: map[string]*freeInfo{}}
 }
 
 // Request says what to start.
@@ -483,6 +486,7 @@ func (s *Service) Running(st *store.Store, workspaceID string) []func() {
 // StopAll hangs up every running session. Call it when the app quits.
 func (s *Service) StopAll() {
 	s.closing.Store(true)
+	s.keepFreeFolders()
 	s.pty.StopAll()
 }
 
