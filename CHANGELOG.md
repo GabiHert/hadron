@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.32] - 2026-11-16
+
 ### Added
 - A Sessions space, next to Board and Dashboard: terminals of your own that belong to no card. ⌘T opens your login shell from anywhere in Hadron (also the new Sessions menu), ⌥⌘T opens claude, and ⇧⌘N picks a folder, a name and an optional workspace tag.
 - Sessions work like a terminal app: tabs and splits (⌘D right, ⇧⌘D down, ⌘W close, ⌥⌘1–9 and ⌘{ ⌘} for tabs, ⌥⌘ arrows between panes), ⌘K to clear, ⌘F to find in the scrollback, clickable links, and a tab title that follows the program running in it. Rename with a double-click and drag tabs to reorder.
