@@ -48,11 +48,11 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
 /* Checklist: <ul class="check"><li class="done">…</li><li class="now">…</li><li class="warn">…</li><li class="fail">…</li><li>…</li></ul> */
 ul.check{list-style:none;margin:0;padding:0}
 .check>li{position:relative;padding:3px 0 3px 22px}
-.check>li::before{content:"○";position:absolute;left:2px;top:3px;color:var(--fg3)}
-.check>li.done::before{content:"✓";color:var(--ok)}
-.check>li.now{font-weight:600}.check>li.now::before{content:"●";color:var(--acc)}
+.check>li::before{content:"\25CB";position:absolute;left:2px;top:3px;color:var(--fg3)}
+.check>li.done::before{content:"\2713";color:var(--ok)}
+.check>li.now{font-weight:600}.check>li.now::before{content:"\25CF";color:var(--acc)}
 .check>li.warn::before{content:"!";color:var(--warn);font-weight:700;left:5px}
-.check>li.fail::before{content:"✕";color:var(--bad)}
+.check>li.fail::before{content:"\2715";color:var(--bad)}
 .check>li:not(.done):not(.now):not(.warn):not(.fail){color:var(--fg3)}
 
 /* Key-value list: <dl class="kv"><dt>Branch</dt><dd>fix/x</dd></dl> */
