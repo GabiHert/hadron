@@ -20,6 +20,25 @@ interface Props {
   onNewWorkspace?: () => void;
 }
 
+/** The Board | Dashboard | Sessions switch at the top of the main area. */
+export function ViewSeg({ board }: { board: BoardState }) {
+  const view = board.ws?.ui.main_view ?? "board";
+  const set = (v: "board" | "dashboard" | "sessions") => void board.actions.setMainView(v);
+  return (
+    <div className="seg mview" role="tablist" aria-label="Main view">
+      <button className={view === "board" ? "on" : ""} role="tab" aria-selected={view === "board"} title={withChord("Board", "view.dashboard")} onClick={() => set("board")}>
+        <Icon name="board" size={13} />Board
+      </button>
+      <button className={view === "dashboard" ? "on" : ""} role="tab" aria-selected={view === "dashboard"} title={withChord("Dashboard", "view.dashboard")} onClick={() => set("dashboard")}>
+        <Icon name="dash" size={13} />Dashboard
+      </button>
+      <button className={view === "sessions" ? "on" : ""} role="tab" aria-selected={view === "sessions"} title={withChord("Sessions: your own terminals, in every workspace", "view.sessions")} onClick={() => set("sessions")}>
+        <Icon name="term" size={13} />Sessions
+      </button>
+    </div>
+  );
+}
+
 export function Board({ board, onNewSession, onNewWorkspace }: Props) {
   const { ws, columns, cards, selected, actions } = board;
   const filters = useFilters(board);
@@ -52,16 +71,7 @@ export function Board({ board, onNewSession, onNewWorkspace }: Props) {
   const dash = ws.ui.main_view === "dashboard";
   const match = (c: Card) => filters.visible(c);
 
-  const viewSeg = (
-    <div className="seg mview" role="tablist" aria-label="Main view">
-      <button className={!dash ? "on" : ""} role="tab" aria-selected={!dash} title={withChord("Board", "view.dashboard")} onClick={() => void actions.setMainView("board")}>
-        <Icon name="board" size={13} />Board
-      </button>
-      <button className={dash ? "on" : ""} role="tab" aria-selected={dash} title={withChord("Dashboard", "view.dashboard")} onClick={() => void actions.setMainView("dashboard")}>
-        <Icon name="dash" size={13} />Dashboard
-      </button>
-    </div>
-  );
+  const viewSeg = <ViewSeg board={board} />;
   const newBtn = (
     <button className="btn" onClick={onNewSession} title={withChord("New session", "card.new")}>
       <Icon name="plus" size={13} />New session

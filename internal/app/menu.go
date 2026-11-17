@@ -61,9 +61,14 @@ var menuCommands = []menuCmd{
 	{ID: "card.edit", Title: "Edit Card", Menu: "Card", Sep: true},
 	{ID: "card.model", Title: "Change Model", Menu: "Card"},
 	{ID: "card.archive", Title: "Archive Card…", Menu: "Card"},
+
+	{ID: "sessions.new", Title: "New Terminal", Menu: "Sessions", Chord: "Mod+T"},
+	{ID: "sessions.newClaude", Title: "New Claude Session", Menu: "Sessions", Chord: "Alt+Mod+T"},
+	{ID: "sessions.newIn", Title: "New Session in a Folder…", Menu: "Sessions", Chord: "Shift+Mod+N"},
+	{ID: "view.sessions", Title: "Show Sessions", Menu: "Sessions", Chord: "Shift+Mod+S", Sep: true},
 }
 
-// buildMenu is the standard Mac menu (the app menu, Edit and Window), View, Go and Card with the
+// buildMenu is the standard Mac menu (the app menu, Edit and Window), View, Go, Card and Sessions with the
 // keyboard registry's commands, and Help, whose "What's New in Hadron" opens the changelog window.
 // bindings are the user's rebindings (the keys.bindings setting), so the accelerators match.
 func buildMenu(a *App) *menu.Menu {
@@ -81,7 +86,7 @@ func buildMenu(a *App) *menu.Menu {
 	m.Append(menu.AppMenu())
 	m.Append(menu.EditMenu())
 	subs := map[string]*menu.Menu{}
-	for _, name := range []string{"View", "Go", "Card"} {
+	for _, name := range []string{"View", "Go", "Card", "Sessions"} {
 		subs[name] = m.AddSubmenu(name)
 	}
 	for _, c := range menuCommands {

@@ -87,6 +87,9 @@ func reconcile(st *store.Store, ops sessions.ProcOps, logf func(string, ...any))
 	if _, err := st.Sessions.MarkRunningExited(); err != nil {
 		log.Printf("sessions: %v", err)
 	}
+	if err := st.FreeSessions.MarkRunningExited(store.ProcessAlive); err != nil {
+		log.Printf("free sessions: %v", err)
+	}
 	if err := board.BackfillLaunchProfiles(st); err != nil {
 		log.Printf("launch profiles: %v", err)
 	}

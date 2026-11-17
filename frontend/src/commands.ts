@@ -10,6 +10,9 @@ import * as api from "./api";
 import { byId } from "./keys";
 import type { Zone } from "./keys";
 import type { Board } from "./state/useBoard";
+import { sessionsCtl, startFree } from "./state/freeSessions";
+import type { SessionsCtl } from "./state/freeSessions";
+import type { FreeKind, MainView } from "./api";
 
 // ---- zoom ----
 
@@ -182,6 +185,7 @@ export function focusZone(z: Zone, selectedId: string | null = null): void {
       }
       if (z === "dashboard" && focusEl(zone.querySelector<HTMLElement>("[data-block]"))) return;
       if (z === "workspaces" && focusEl(zone.querySelector<HTMLElement>('[aria-selected="true"]'))) return;
+      if (z === "sessions" && focusEl(zone.querySelector<HTMLElement>(".spane.on .xterm textarea"))) return;
       focusEl(zone);
     },
   );
@@ -195,7 +199,8 @@ export function panelOf(zone: Zone | null, last: "planner" | "card" | null, hasC
 }
 
 /** The zones ⌘] and ⌘[ cycle through, left to right, without the collapsed panels. */
-export function zoneCycle(collapsed: { planner?: boolean; card?: boolean } = {}, mainView: "board" | "dashboard" = "board", hasCard = true): Zone[] {
+export function zoneCycle(collapsed: { planner?: boolean; card?: boolean } = {}, mainView: MainView = "board", hasCard = true): Zone[] {
+  if (mainView === "sessions") return ["workspaces", "sessions"]; // the space hides the planner and the card panel
   const z: Zone[] = [];
   if (!collapsed.planner) z.push("planner");
   z.push(mainView === "dashboard" ? "dashboard" : "board");
@@ -216,7 +221,7 @@ export function onUIRequest(cb: (r: UIRequest) => void): () => void {
 
 // ---- the handlers ----
 
-export type ModalName = "newws" | "newsession" | "settings" | "palette" | "feedback" | "whatsnew" | "keys";
+export type ModalName = "newws" | "newsession" | "newfree" | "settings" | "palette" | "feedback" | "whatsnew" | "keys";
 
 /** What the handlers can reach. App builds it on every render. */
 export interface Env {
@@ -240,6 +245,35 @@ export interface Env {
 }
 
 type Handler = (env: Env, arg?: string) => boolean | void;
+
+// ---- the Sessions space ----
+
+/** The view ⇧⌘S goes back to from the Sessions space. */
+let beforeSessions: MainView = "board";
+
+/** Shows the Sessions space (it is the same in every workspace). */
+export function showSessions(env: Env) {
+  const ws = env.board.ws;
+  if (ws && ws.ui.main_view !== "sessions") {
+    beforeSessions = ws.ui.main_view ?? "board";
+    void env.board.actions.setMainView("sessions");
+  }
+}
+
+/** ⌘T and ⌥⌘T from anywhere: a new terminal or claude, shown in the Sessions space. */
+const newFree = (kind: FreeKind): Handler => (env) => {
+  showSessions(env);
+  void startFree({ kind }).catch((e) => env.board.actions.toast(e instanceof Error ? e.message : String(e)));
+  return true;
+};
+
+/** A command the mounted Sessions space runs; nothing (the key goes on) when it is not shown. */
+const inSessions = (f: (c: SessionsCtl, arg?: string) => void): Handler => (_env, arg) => {
+  const c = sessionsCtl.current;
+  if (!c) return false;
+  f(c, arg);
+  return true;
+};
 
 /** True when the focus is on a board control that is not a card (a rail, a column's name): Enter and Space press it. */
 function onBoardButton() {
@@ -369,7 +403,7 @@ function focusPanel(env: Env, panel: "planner" | "card") {
 function cycle(env: Env, d: 1 | -1) {
   const ws = env.board.ws;
   if (!ws) return false;
-  const zones = zoneCycle(ws.ui.collapsed ?? {}, ws.ui.main_view === "dashboard" ? "dashboard" : "board", !!env.board.selected);
+  const zones = zoneCycle(ws.ui.collapsed ?? {}, ws.ui.main_view ?? "board", !!env.board.selected);
   if (ws.ui.full) {
     void env.board.actions.setFullscreen("");
   }
@@ -753,6 +787,42 @@ const HANDLERS: Record<string, Handler> = {
 };
 
 /** The ids that have a handler; keys.test checks every registry command has one. */
+Object.assign(HANDLERS, {
+  "sessions.new": newFree("shell"),
+  "sessions.newClaude": newFree("claude"),
+  "sessions.newIn": (env: Env) => env.setModal("newfree"),
+  "view.sessions": (env: Env) => {
+    const ws = env.board.ws;
+    if (!ws) return false;
+    if (ws.ui.main_view === "sessions") {
+      const back = beforeSessions === "sessions" ? "board" : beforeSessions;
+      void env.board.actions.setMainView(back);
+      focusZone(back === "dashboard" ? "dashboard" : "board", env.board.selected?.id);
+      return true;
+    }
+    showSessions(env);
+    focusZone("sessions");
+    return true;
+  },
+  "sessions.splitRight": inSessions((c) => c.split("row")),
+  "sessions.splitDown": inSessions((c) => c.split("col")),
+  "sessions.close": inSessions((c) => c.close()),
+  "sessions.nextTab": inSessions((c) => c.stepTab(1)),
+  "sessions.prevTab": inSessions((c) => c.stepTab(-1)),
+  ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => [`sessions.tab.${n}`, inSessions((c) => c.tab(n))])),
+  "sessions.focusLeft": inSessions((c) => c.focus("left")),
+  "sessions.focusRight": inSessions((c) => c.focus("right")),
+  "sessions.focusUp": inSessions((c) => c.focus("up")),
+  "sessions.focusDown": inSessions((c) => c.focus("down")),
+  "sessions.moveTabLeft": inSessions((c) => c.moveTab(-1)),
+  "sessions.moveTabRight": inSessions((c) => c.moveTab(1)),
+  "sessions.rename": inSessions((c) => c.rename()),
+  "sessions.clear": inSessions((c) => c.clear()),
+  "sessions.find": inSessions((c) => c.find()),
+  "sessions.restart": inSessions((c) => c.restart()),
+  "sessions.toCard": inSessions((c) => c.toCard()),
+} satisfies Record<string, Handler>);
+
 export const HANDLED = new Set(Object.keys(HANDLERS));
 
 /**

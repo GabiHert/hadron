@@ -1106,6 +1106,169 @@
     ]
   },
   {
+    "name": "free_session_list",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "free_session_read_screen",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "session",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "lines",
+        "required": false,
+        "type": "number"
+      },
+      {
+        "name": "scrollback",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "free_session_restart",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "session",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "free_session_send",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "session",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "text",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "enter",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "name": "keys",
+        "required": false,
+        "type": "array"
+      }
+    ]
+  },
+  {
+    "name": "free_session_start",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "kind",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "cwd",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "free_session_stop",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "session",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "close",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "free_session_to_card",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "session",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "nick",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "key",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "column_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "free_session_update",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "session",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "workspace_id",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "gate_clear",
     "mutates": true,
     "fields": [

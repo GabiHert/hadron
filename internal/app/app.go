@@ -205,6 +205,9 @@ func (a *App) ruleTimer(ctx context.Context) {
 // updated (the planners first), one second apart, then lets the planner autostart cover a
 // workspace that had none.
 func (a *App) restoreSessions(ctx context.Context) {
+	if n := a.sess.RestoreFree(ctx); n > 0 {
+		a.log.Info("restored free sessions", "count", n)
+	}
 	n := a.sess.RestoreAll(ctx, restoreStagger)
 	if n > 0 {
 		a.log.Info("restored sessions", "count", n)

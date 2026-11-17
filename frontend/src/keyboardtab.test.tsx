@@ -20,7 +20,7 @@ test("Settings has a Keyboard section listing every shortcut, by scope", async (
   const nav = screen.getByRole("navigation", { name: "Settings sections" });
   await user.click(within(nav).getByRole("button", { name: "Keyboard" }));
   expect(await screen.findByRole("heading", { name: "Keyboard" })).toBeInTheDocument();
-  for (const label of ["Everywhere", "Board", "Planner and card panels", "Dashboard", "Terminal"]) expect(screen.getByRole("region", { name: `${label} shortcuts` })).toBeInTheDocument();
+  for (const label of ["Everywhere", "Board", "Planner and card panels", "Dashboard", "Terminal", "Sessions space"]) expect(screen.getByRole("region", { name: `${label} shortcuts` })).toBeInTheDocument();
   for (const d of DEFAULTS) expect(row(d.id), d.id).toBeTruthy();
   expect(within(row("view.dashboard")).getByText("⌘D")).toBeInTheDocument();
 });

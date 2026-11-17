@@ -78,7 +78,7 @@ async function loadWorkspace(id: string) {
 }
 
 /** Change entities the board never shows: an event naming only these does not refetch it. */
-const NOT_BOARD = new Set(["mcp_calls", "messages", "dash", "rules", "rule_log", "feedback", "themes", "prompts", "routines", "scripts"]);
+const NOT_BOARD = new Set(["free_sessions", "mcp_calls", "messages", "dash", "rules", "rule_log", "feedback", "themes", "prompts", "routines", "scripts"]);
 const BOARD_ENTITIES = { has: (x: string) => !NOT_BOARD.has(x) };
 /** Change entities that are not about one workspace's lists: the whole board reloads. */
 const GLOBAL_ENTITIES = new Set(["workspaces", "settings"]);
@@ -236,7 +236,7 @@ export function useBoard() {
       setCollapsed: (panel: "planner" | "card", collapsed: boolean) =>
         run(() => api.ui_panel_collapse({ workspace_id: sRef.current.activeId, panel, collapsed })),
       setFullscreen: (panel: "planner" | "card" | "") => run(() => api.ui_fullscreen({ workspace_id: sRef.current.activeId, panel })),
-      setMainView: (view: "board" | "dashboard") => run(() => api.ui_main_view({ workspace_id: sRef.current.activeId, view })),
+      setMainView: (view: api.MainView) => run(() => api.ui_main_view({ workspace_id: sRef.current.activeId, view })),
       renameColumn: (id: string, name: string) => run(() => api.column_update({ column_id: id, name })),
       updateColumn: (id: string, patch: { role?: Role; wip?: number; fold?: boolean; name?: string }) =>
         run(() => api.column_update({ column_id: id, ...patch })),

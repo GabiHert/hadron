@@ -625,7 +625,7 @@ func TestUIActionsPersistInTheWorkspace(t *testing.T) {
 	if _, still := got.UI["full"]; still {
 		t.Fatal("empty panel should leave full screen")
 	}
-	h.fails("ui_main_view", m{"workspace_id": w.ID, "view": "map"}, "must be board or dashboard")
+	h.fails("ui_main_view", m{"workspace_id": w.ID, "view": "map"}, "must be board, dashboard or sessions")
 	h.fails("ui_panel_collapse", m{"workspace_id": w.ID, "panel": "left", "collapsed": true}, "must be planner or card")
 	var back domain.Workspace
 	h.do("workspace_get", m{"workspace_id": w.ID}, &back)

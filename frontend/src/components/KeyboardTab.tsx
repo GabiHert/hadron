@@ -12,6 +12,7 @@ export const SCOPE_LABEL: [Scope, string, string][] = [
   ["dashboard", "Dashboard", "When the dashboard has the focus."],
   ["workspaces", "Workspace bar", "When a workspace tab has the focus (⇧⌘W)."],
   ["terminal", "Terminal", "Leave a terminal without the key reaching Claude Code."],
+  ["sessions", "Sessions space", "In the Sessions space's terminals. They take ⌘K, ⌘F, ⌘D and ⌘W from the commands above, as a terminal app does."],
 ];
 
 /** The rows of the list, by scope, filtered by a search on the title, the id and the chords. */

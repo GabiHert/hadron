@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import * as api from "../api";
 import { runCommand } from "../commands";
 import type { Env } from "../commands";
-import { Dispatcher, byId, contextOf } from "../keys";
+import { Dispatcher, byId, contextOf, shadowed } from "../keys";
 import type { Overrides } from "../keys";
 
 type Source = "page" | "menu";
@@ -43,7 +43,7 @@ export function useKeyboard(env: Env, overrides: Overrides, extra?: (id: string,
   useEffect(() => {
     const d = new Dispatcher(
       () => oRef.current,
-      (t) => contextOf(t, modalOpen(), envRef.current.board.ws?.ui.main_view === "dashboard" ? "dashboard" : "board"),
+      (t) => contextOf(t, modalOpen(), envRef.current.board.ws?.ui.main_view ?? "board"),
       (id, arg) => runRef.current(id, arg),
     );
     const onKey = (e: KeyboardEvent) => {
@@ -65,7 +65,9 @@ export function useKeyboard(env: Env, overrides: Overrides, extra?: (id: string,
         const def = byId.get(id);
         if (!def) return;
         if (modalOpen() && !def.dialog) return;
-        runRef.current(id, undefined, "menu");
+        // ⌘K from the menu is the palette, but in a Sessions terminal ⌘K clears it.
+        const ctx = contextOf(document.activeElement, false, envRef.current.board.ws?.ui.main_view ?? "board");
+        runRef.current(shadowed(id, ctx, oRef.current), undefined, "menu");
       }),
     [],
   );

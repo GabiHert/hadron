@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Board } from "./components/Board";
+import { Board, ViewSeg } from "./components/Board";
+import { SessionsSpace } from "./components/SessionsSpace";
+import { NewFreeSession } from "./components/NewFreeSession";
 import { CardPanel } from "./components/CardPanel";
 import type { CardTab } from "./components/CardPanel";
 import { FeedbackModal } from "./components/FeedbackModal";
@@ -58,7 +60,7 @@ export default function App() {
   useEffect(() => startThemes(), []);
   const openFeedback = () => {
     const nick = board.selected?.nick;
-    setFeedbackArea(modal === "settings" ? `settings:${settingsTabNow.current}` : ws?.ui.main_view === "dashboard" ? "dashboard" : "board" + (nick ? `:card:${nick}` : ""));
+    setFeedbackArea(modal === "settings" ? `settings:${settingsTabNow.current}` : ws?.ui.main_view === "dashboard" ? "dashboard" : ws?.ui.main_view === "sessions" ? "sessions" : "board" + (nick ? `:card:${nick}` : ""));
     setModal("feedback");
   };
 
@@ -96,7 +98,7 @@ export default function App() {
     if (!id.startsWith("goto:")) return undefined;
     const cid = id.slice(5);
     actions.open(cid);
-    if (ws?.ui.main_view === "dashboard") void actions.setMainView("board");
+    if (ws?.ui.main_view !== "board") void actions.setMainView("board");
     whenReady(() => cardEl(cid), (el) => focusEl(el));
     return true;
   });
@@ -143,12 +145,20 @@ export default function App() {
         onTogglePlanner={() => setMobile(mobile === "planner" ? null : "planner")}
       />
       <div className="shell">
-        <PlannerPanel board={board} view={plannerView} setView={setPlannerView} mobileOpen={mobile === "planner"} closeMobile={() => setMobile(null)} />
-        <Board board={board} onNewSession={() => setModal("newsession")} onNewWorkspace={() => setModal("newws")} />
-        <CardPanel board={board} view={cardView} setView={setCardView} tab={tab} setTab={setTab} mobileOpen={mobile === "card"} closeMobile={() => setMobile(null)} />
+        {ws?.ui.main_view === "sessions" ? (
+          // The Sessions space is a terminal app: it takes the whole width, and is the same in every workspace.
+          <SessionsSpace board={board} viewSeg={<ViewSeg board={board} />} onNewIn={() => setModal("newfree")} confirm={env.confirm} />
+        ) : (
+          <>
+            <PlannerPanel board={board} view={plannerView} setView={setPlannerView} mobileOpen={mobile === "planner"} closeMobile={() => setMobile(null)} />
+            <Board board={board} onNewSession={() => setModal("newsession")} onNewWorkspace={() => setModal("newws")} />
+            <CardPanel board={board} view={cardView} setView={setCardView} tab={tab} setTab={setTab} mobileOpen={mobile === "card"} closeMobile={() => setMobile(null)} />
+          </>
+        )}
       </div>
       {modal === "newws" ? <NewWorkspace board={board} onClose={() => setModal(null)} /> : null}
       {modal === "newsession" ? <NewSession board={board} columnId={newIn} onClose={() => { setModal(null); setNewIn(undefined); }} /> : null}
+      {modal === "newfree" ? <NewFreeSession board={board} onClose={() => setModal(null)} onStarted={() => { if (ws && ws.ui.main_view !== "sessions") void actions.setMainView("sessions"); }} /> : null}
       {modal === "settings" ? <Settings board={board} initialTab={settingsTab} onTab={trackTab} onWhatsNew={() => setModal("whatsnew")} onClose={() => setModal(null)} /> : null}
       {modal === "palette" ? <Palette items={paletteItems(board, overrides, (id) => void run(id), openSettings)} onClose={() => setModal(null)} /> : null}
       {modal === "keys" ? <CheatSheet overrides={overrides} onClose={() => setModal(null)} onSettings={() => openSettings("keyboard")} /> : null}

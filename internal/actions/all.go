@@ -29,6 +29,7 @@ func RegisterAll(r *Registry) {
 	registerHistory(r)
 	registerWorktrees(r)
 	registerAdopt(r)
+	registerFree(r)
 	registerPlanImport(r)
 	registerDiagnostics(r)
 	registerFeedback(r)

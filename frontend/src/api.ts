@@ -27,7 +27,7 @@ export interface Workspace {
   ui: {
     collapsed?: { planner?: boolean; card?: boolean };
     full?: "planner" | "card";
-    main_view?: "board" | "dashboard";
+    main_view?: MainView;
     [k: string]: unknown;
   };
 }
@@ -78,6 +78,9 @@ export interface ColumnDeleteOut {
   moved_to: Column;
   card_count: number;
 }
+
+/** The workspace's main area: the board, the dashboard, or the Sessions space (the same in every workspace). */
+export type MainView = "board" | "dashboard" | "sessions";
 
 export interface ChangedEvent {
   workspace_id: string;
@@ -356,7 +359,7 @@ export const planner_set_model = (a: { workspace_id?: string; model: string }) =
 export const ui_panel_collapse = (a: { workspace_id?: string; panel: "planner" | "card"; collapsed: boolean }) =>
   call<Workspace>("ui_panel_collapse", a);
 export const ui_fullscreen = (a: { workspace_id?: string; panel?: "planner" | "card" | "" }) => call<Workspace>("ui_fullscreen", a);
-export const ui_main_view = (a: { workspace_id?: string; view: "board" | "dashboard" }) => call<Workspace>("ui_main_view", a);
+export const ui_main_view = (a: { workspace_id?: string; view: MainView }) => call<Workspace>("ui_main_view", a);
 
 // ---- chat ----
 export type ReportKind = "progress" | "question" | "blocked" | "done";
@@ -1063,6 +1066,46 @@ export interface AdoptResult {
   status: Partial<SessionStatus>;
   warning: string;
 }
+// ---- free sessions: the Sessions space's terminals, global with an optional workspace tag ----
+
+export type FreeKind = "shell" | "claude";
+export interface FreeSession {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  kind: FreeKind;
+  command: string;
+  /** a running shell's current folder */
+  cwd: string;
+  workspace_id: string;
+  pid: number;
+  status: "running" | "exited";
+  exit_code: number;
+  claude_session_id: string;
+  started_at: string;
+  ended_at: string | null;
+  restore: boolean;
+  running: boolean;
+  liveness: string;
+  /** what runs in the foreground: the shell, vim, htop, claude */
+  program: string;
+  error?: string;
+}
+export interface FreeList {
+  sessions: FreeSession[];
+  default_cwd: string;
+}
+export const free_session_start = (a: { kind?: FreeKind; cwd?: string; name?: string; workspace_id?: string } = {}) => call<FreeSession>("free_session_start", a);
+export const free_session_list = (a: { workspace_id?: string } = {}) => call<FreeList>("free_session_list", a);
+export const free_session_send = (a: { session: string; text?: string; enter?: boolean; keys?: string[] }) => call<FreeSession>("free_session_send", a);
+export const free_session_read_screen = (a: { session: string; lines?: number; scrollback?: boolean }) => call<ScreenOut>("free_session_read_screen", a);
+export const free_session_stop = (a: { session: string; close?: boolean }) => call<{ id: string; stopped: boolean; closed: boolean }>("free_session_stop", a);
+export const free_session_restart = (a: { session: string }) => call<FreeSession>("free_session_restart", a);
+export const free_session_update = (a: { session: string; name?: string; workspace_id?: string }) => call<FreeSession>("free_session_update", a);
+export const free_session_to_card = (a: { session: string; nick: string; workspace_id?: string; key?: string; column_id?: string }) =>
+  call<{ card: Card; status: SessionStatus; warning?: string }>("free_session_to_card", a);
+
 export const session_adoptable_list = (a: { workspace_id?: string; cwd?: string; all?: boolean } = {}) => call<Adoptable[]>("session_adoptable_list", a);
 export const session_adopt = (a: { workspace_id?: string; claude_session_id: string; nick: string; key?: string; column_id?: string; start?: boolean; handoff?: boolean; launch_profile?: string; cwd?: string }) =>
   call<AdoptResult>("session_adopt", a);

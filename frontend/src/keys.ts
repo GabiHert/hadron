@@ -10,10 +10,12 @@
 // Each command is one line of DEFAULTS. internal/app/menu_test.go reads this file to check that the
 // native menus carry the same default chords, so keep every entry on a single line.
 
-export type Scope = "global" | "board" | "panel" | "dashboard" | "workspaces" | "terminal" | "dialog";
-export type Zone = "workspaces" | "planner" | "board" | "card" | "dashboard";
-export type Group = "General" | "Zones and panels" | "Workspaces" | "Board" | "Card" | "Conversation" | "Questions" | "Dashboard" | "Terminal";
-export const GROUPS: Group[] = ["General", "Zones and panels", "Workspaces", "Board", "Card", "Conversation", "Questions", "Dashboard", "Terminal"];
+import type { MainView } from "./api";
+
+export type Scope = "global" | "board" | "panel" | "dashboard" | "workspaces" | "terminal" | "dialog" | "sessions";
+export type Zone = "workspaces" | "planner" | "board" | "card" | "dashboard" | "sessions";
+export type Group = "General" | "Zones and panels" | "Workspaces" | "Board" | "Card" | "Conversation" | "Questions" | "Dashboard" | "Terminal" | "Sessions";
+export const GROUPS: Group[] = ["General", "Zones and panels", "Workspaces", "Board", "Card", "Conversation", "Questions", "Dashboard", "Terminal", "Sessions"];
 
 export interface CommandDef {
   id: string;
@@ -33,12 +35,13 @@ export interface CommandDef {
   /** the key waits for one more key, which is passed to the handler */
   prefix?: boolean;
   /** the native menu the command also appears in */
-  menu?: "View" | "Go" | "Card";
+  menu?: "View" | "Go" | "Card" | "Sessions";
   /** a destructive command asks before it runs */
   confirm?: boolean;
 }
 
 const ws = (n: number): CommandDef => ({ id: `workspace.${n}`, title: `Switch to workspace ${n}`, group: "Zones and panels", scope: "global", keys: [`Mod+${n}`], terminal: true, family: "Switch to workspace 1–9", menu: "Go" });
+const tab = (n: number): CommandDef => ({ id: `sessions.tab.${n}`, title: `Go to tab ${n}`, group: "Sessions", scope: "sessions", keys: [`Alt+Mod+${n}`], terminal: true, family: "Go to tab 1–9" });
 const pick = (n: number): CommandDef => ({ id: `question.pick.${n}`, title: `Pick option ${n} of the open question`, group: "Questions", scope: "panel", keys: [String(n)], family: "Pick an option of the open question" });
 
 export const DEFAULTS: CommandDef[] = [
@@ -120,9 +123,45 @@ export const DEFAULTS: CommandDef[] = [
   { id: "dash.moveDown", title: "Move the block later", group: "Dashboard", scope: "dashboard", keys: ["Alt+ArrowDown", "Shift+J"] },
   { id: "dash.add", title: "Add a block", group: "Dashboard", scope: "dashboard", keys: ["N"] },
   { id: "dash.remove", title: "Remove the block", group: "Dashboard", scope: "dashboard", keys: ["Backspace", "Delete"], confirm: true },
+  { id: "sessions.new", title: "New terminal", group: "Sessions", scope: "global", keys: ["Mod+T"], terminal: true, menu: "Sessions" },
+  { id: "sessions.newClaude", title: "New claude session", group: "Sessions", scope: "global", keys: ["Alt+Mod+T"], terminal: true, menu: "Sessions" },
+  { id: "sessions.newIn", title: "New session in a folder…", group: "Sessions", scope: "global", keys: ["Shift+Mod+N"], terminal: true, menu: "Sessions" },
+  { id: "view.sessions", title: "Switch to Sessions and back", group: "Sessions", scope: "global", keys: ["Shift+Mod+S"], terminal: true, menu: "Sessions" },
+  { id: "sessions.splitRight", title: "Split the pane right", group: "Sessions", scope: "sessions", keys: ["Mod+D"], terminal: true },
+  { id: "sessions.splitDown", title: "Split the pane down", group: "Sessions", scope: "sessions", keys: ["Shift+Mod+D"], terminal: true },
+  { id: "sessions.close", title: "Close the pane", group: "Sessions", scope: "sessions", keys: ["Mod+W"], terminal: true },
+  { id: "sessions.nextTab", title: "Next tab", group: "Sessions", scope: "sessions", keys: ["Mod+}"], terminal: true },
+  { id: "sessions.prevTab", title: "Previous tab", group: "Sessions", scope: "sessions", keys: ["Mod+{"], terminal: true },
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(tab),
+  { id: "sessions.focusLeft", title: "Pane on the left", group: "Sessions", scope: "sessions", keys: ["Alt+Mod+ArrowLeft"], terminal: true, family: "Move between panes" },
+  { id: "sessions.focusRight", title: "Pane on the right", group: "Sessions", scope: "sessions", keys: ["Alt+Mod+ArrowRight"], terminal: true, family: "Move between panes" },
+  { id: "sessions.focusUp", title: "Pane above", group: "Sessions", scope: "sessions", keys: ["Alt+Mod+ArrowUp"], terminal: true, family: "Move between panes" },
+  { id: "sessions.focusDown", title: "Pane below", group: "Sessions", scope: "sessions", keys: ["Alt+Mod+ArrowDown"], terminal: true, family: "Move between panes" },
+  { id: "sessions.moveTabLeft", title: "Move the tab left", group: "Sessions", scope: "sessions", keys: ["Shift+Mod+ArrowLeft"], terminal: true },
+  { id: "sessions.moveTabRight", title: "Move the tab right", group: "Sessions", scope: "sessions", keys: ["Shift+Mod+ArrowRight"], terminal: true },
+  { id: "sessions.rename", title: "Rename the session", group: "Sessions", scope: "sessions", keys: ["Shift+Mod+R"], terminal: true },
+  { id: "sessions.clear", title: "Clear the terminal", group: "Sessions", scope: "sessions", keys: ["Mod+K"], terminal: true },
+  { id: "sessions.find", title: "Find in the scrollback", group: "Sessions", scope: "sessions", keys: ["Mod+F"], terminal: true },
+  { id: "sessions.restart", title: "Start the ended session again", group: "Sessions", scope: "sessions", keys: [] },
+  { id: "sessions.toCard", title: "Make a card of the session", group: "Sessions", scope: "sessions", keys: [] },
 ];
 
 export const byId = new Map(DEFAULTS.map((d) => [d.id, d]));
+
+/**
+ * The Sessions command that shadows a command where the focus is now: a native menu sends ⌘K as
+ * the palette even while a Sessions terminal has the focus, where ⌘K clears it. Returns that
+ * command's id, or the id itself.
+ */
+export function shadowed(id: string, ctx: KeyCtx, overrides: Overrides = active): string {
+  const def = byId.get(id);
+  if (!def || def.scope === "sessions") return id;
+  for (const chord of keysOf(def, overrides)) {
+    const hit = DEFAULTS.find((d) => d.scope === "sessions" && keysOf(d, overrides).includes(chord) && allowed(d, chord, ctx));
+    if (hit) return hit.id;
+  }
+  return id;
+}
 
 /** The user's rebindings: command id → chords. A missing id keeps its defaults; [] unbinds it. */
 export type Overrides = Record<string, string[]>;
@@ -294,7 +333,7 @@ export interface KeyCtx {
   terminal: boolean;
   /** a dialog is open */
   modal: boolean;
-  mainView: "board" | "dashboard";
+  mainView: MainView;
 }
 
 /** True when the element takes typed text, so single keys are its own. */
@@ -309,7 +348,7 @@ export function isTextInput(el: Element | null): boolean {
 }
 
 /** The context of a key event, from where it happened. */
-export function contextOf(target: EventTarget | null, modal: boolean, mainView: "board" | "dashboard"): KeyCtx {
+export function contextOf(target: EventTarget | null, modal: boolean, mainView: MainView): KeyCtx {
   const el = target instanceof Element ? target : null;
   const zone = (el?.closest("[data-zone]")?.getAttribute("data-zone") as Zone | null) ?? null;
   return { zone, input: isTextInput(el), terminal: !!el?.closest(".xterm, .xterm-host"), modal, mainView };
@@ -318,7 +357,7 @@ export function contextOf(target: EventTarget | null, modal: boolean, mainView: 
 /** Whether a command may fire for this chord in this context. */
 export function allowed(def: CommandDef, chord: string, ctx: KeyCtx): boolean {
   if (ctx.modal) return !!def.dialog;
-  if (ctx.terminal) return !!def.terminal && modsOf(chord).includes("Mod");
+  if (ctx.terminal) return !!def.terminal && modsOf(chord).includes("Mod") && (def.scope !== "sessions" || ctx.zone === "sessions");
   if (ctx.input && !(def.input ?? hasCommandMod(chord))) return false;
   switch (def.scope) {
     case "global":
@@ -332,12 +371,14 @@ export function allowed(def: CommandDef, chord: string, ctx: KeyCtx): boolean {
       return ctx.zone === "planner" || ctx.zone === "card";
     case "workspaces":
       return ctx.zone === "workspaces";
+    case "sessions":
+      return ctx.zone === "sessions" || (ctx.zone === null && ctx.mainView === "sessions");
     case "dialog":
       return false;
   }
 }
 
-const SPECIFIC: Scope[] = ["board", "dashboard", "panel", "workspaces", "terminal", "dialog"];
+const SPECIFIC: Scope[] = ["sessions", "board", "dashboard", "panel", "workspaces", "terminal", "dialog"];
 
 /** The commands a chord could run in this context, the most specific scope first. */
 export function candidates(chord: string, ctx: KeyCtx, overrides: Overrides = {}): CommandDef[] {
@@ -393,14 +434,19 @@ export class Dispatcher {
 
 /** Chords macOS or the Edit menu own; Hadron never takes them. */
 export const RESERVED: Record<string, string> = {
-  "Mod+Q": "Quit Hadron", "Mod+W": "Close the window", "Mod+H": "Hide Hadron", "Alt+Mod+H": "Hide others", "Mod+M": "Minimize",
+  "Mod+Q": "Quit Hadron", "Mod+H": "Hide Hadron", "Alt+Mod+H": "Hide others", "Mod+M": "Minimize",
   "Mod+C": "Copy", "Mod+V": "Paste", "Mod+X": "Cut", "Mod+A": "Select all", "Mod+Z": "Undo", "Shift+Mod+Z": "Redo", "Ctrl+Mod+F": "Full screen window",
   "Alt+Shift+Mod+V": "Paste and match style", "Mod+Tab": "Switch apps", "Mod+Space": "Spotlight", "Mod+`": "Cycle windows",
 };
 
-/** Two scopes can see the same key press. */
+/**
+ * Two scopes can see the same key press. The Sessions space is a terminal app, so while it has the
+ * focus its own chords (⌘K clear, ⌘F find, ⌘D split, ⌘W close) shadow the global ones of the same
+ * keys; anywhere else the global ones run. So a Sessions chord never conflicts with a global one.
+ */
 export function scopesOverlap(a: Scope, b: Scope): boolean {
   if (a === b) return true;
+  if (a === "sessions" || b === "sessions") return false;
   if (a === "dialog" || b === "dialog") return false;
   return a === "global" || b === "global" || a === "terminal" || b === "terminal";
 }
