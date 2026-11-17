@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/GabiHert/hadron/internal/feedback"
 	"log"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -118,7 +120,15 @@ func New(st *store.Store) *App {
 		Debounce: soundDebounce,
 		Quiet:    soundQuiet,
 	}
-	a.reg = actions.NewRegistry(actions.Deps{PlaySound: player.Play, Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
+	fb := &feedback.Service{Tokens: update.Keychain{Service: "Hadron feedback"}, CachePath: filepath.Join(run.Home(), "feedback-shared.json"),
+		Open: func(u string) error {
+			if c := a.context(); c != nil {
+				wruntime.BrowserOpenURL(c, u)
+				return nil
+			}
+			return exec.Command("/usr/bin/open", u).Run()
+		}}
+	a.reg = actions.NewRegistry(actions.Deps{Feedback: fb, PlaySound: player.Play, Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
 	a.integ.FieldChanged = a.reg.FieldChanged
 	a.integ.Events = a.reg.RunEvents
 	if err := a.integ.Sync(); err != nil {

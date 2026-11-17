@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GabiHert/hadron/internal/feedback"
 	"reflect"
 	"sort"
 	"strings"
@@ -93,6 +94,9 @@ type Deps struct {
 	Log *dlog.Logger
 	// Changelog is the CHANGELOG.md text. Empty means the one embedded in the app.
 	Changelog string
+	// Feedback shares feedback notes on GitHub and reads everyone's. It may be nil, as in most
+	// tests: the sharing actions then fail with a clear error.
+	Feedback *feedback.Service
 	// PlaySound plays one of the UI sounds at a volume from 0 to 1. It may be nil, as in tests.
 	PlaySound func(kind string, volume float64) error
 }

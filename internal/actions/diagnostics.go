@@ -78,7 +78,7 @@ func safeSettings(c *Call) map[string]any {
 		return out
 	}
 	for k, v := range all {
-		if sensitiveSetting.MatchString(k) || strings.HasPrefix(k, "integration_config:") || strings.HasPrefix(k, "script_approved_perms:") || strings.HasPrefix(k, "custom_fields:") {
+		if sensitiveSetting.MatchString(k) || strings.HasPrefix(k, "integration_config:") || strings.HasPrefix(k, "script_approved_perms:") || strings.HasPrefix(k, "custom_fields:") || strings.HasPrefix(k, "feedback.") {
 			continue
 		}
 		var val any

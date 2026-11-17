@@ -2,7 +2,7 @@
 // like the backend enough for the UI to react (rename, move, delete...), so tests can assert both
 // the calls made and what the user then sees.
 import { vi } from "vitest";
-import type { FreeSession, ChipColors, Routine, ModelOption, Feedback, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
+import type { FreeSession, ChipColors, Routine, ModelOption, Feedback, FeedbackSharing, SharedFeedbackList, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
 
 export interface Fixture {
   workspaces: Workspace[];
@@ -718,7 +718,16 @@ const fns = {
   diagnostics_get: vi.fn(async () => ({ version: state.fx.version, macos: "15.0", arch: "arm64", home: "/tmp", log_dir: "/tmp/hadron/logs", debug_logging: false, actions: 25, settings: {}, recent_log_lines: [] as string[] })),
   debug_logging_set: vi.fn(async (a: { enabled: boolean }) => ({ enabled: a.enabled, log_dir: "/tmp/hadron/logs" })),
   feedback_list: vi.fn(async (_a: { status?: string } = {}): Promise<Feedback[]> => []),
-  feedback_create: vi.fn(async (a: { kind: string; text: string; area?: string; attach_diagnostics?: boolean }) => ({ id: "f1", created_at: ts, kind: a.kind, text: a.text, area: a.area ?? "", version: "v0.0.1-test", diagnostics: null, status: "new", note: "", github_url: "", issue_url: "" }) as Feedback),
+  feedback_create: vi.fn(async (a: { kind: string; text: string; area?: string; attach_diagnostics?: boolean }) => ({ id: "f1", created_at: ts, kind: a.kind, text: a.text, area: a.area ?? "", version: "v0.0.1-test", diagnostics: null, status: "new", note: "", github_url: "", shared: false }) as Feedback),
+  feedback_send: vi.fn(async (a: { id: string; preview?: boolean; title?: string; body?: string; keep_details?: boolean }) => ({
+    draft: { title: a.title ?? "[bug] A note", body: a.body ?? (a.keep_details ? "At /Users/jdoe/x\n\n---\nKind: bug" : "At <path>\n\n---\nKind: bug"), labels: ["feedback", "bug"], removed: a.keep_details ? [] : ["paths"] },
+    private_hits: [], via: "browser" as const, note: { id: a.id } as Feedback,
+  })),
+  feedback_list_shared: vi.fn(async (_a: { refresh?: boolean } = {}): Promise<SharedFeedbackList> => ({ issues: [], fetched_at: ts })),
+  feedback_import_shared: vi.fn(async (a: { number: number }) => ({ id: "imp" + a.number }) as Feedback),
+  feedback_sharing_get: vi.fn(async (): Promise<FeedbackSharing> => ({ repo: "GabiHert/hadron", has_token: false, private_words: [] })),
+  feedback_sharing_set: vi.fn(async (a: { private_words: string[] }) => ({ repo: "GabiHert/hadron", has_token: false, private_words: a.private_words.map((w) => w.trim()).filter(Boolean) })),
+  set_feedback_token: vi.fn(async (a: { token: string }) => ({ repo: "GabiHert/hadron", has_token: !!a.token, private_words: [] as string[] })),
   feedback_update: vi.fn(async (a: { id: string }) => ({ id: a.id }) as Feedback),
   changelog_get: vi.fn(async (a: { version?: string } = {}) => {
     const releases = [
