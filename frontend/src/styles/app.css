@@ -445,3 +445,27 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
 .sterm{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}
 .sended{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:8px;padding:8px 12px;background:color-mix(in srgb,var(--termbar) 92%,transparent);border-top:1px solid #2c2a27;color:var(--tfg);font-size:12px}
 @media (max-width:640px){.sph .sdir{display:none}.stab{max-width:160px}}
+
+/* Card groups on the dashboard */
+.grp{display:flex;flex-direction:column;min-height:40px;border-radius:8px;transition:background .12s}
+.grp.over{background:color-mix(in srgb,var(--acc) 8%,transparent);outline:1px dashed var(--acc);outline-offset:2px}
+.grpl{display:flex;flex-direction:column;gap:6px}
+.grpempty{padding:10px 4px}
+.grpr{display:flex;align-items:flex-start;gap:4px;border:1px solid var(--border);border-radius:8px;background:var(--card);transition:border-color .12s,box-shadow .12s}
+.grpr:hover{border-color:var(--fg3)}
+.grpr.sel{border-color:var(--acc)}
+.grpr.ask{border-color:color-mix(in srgb,var(--bad) 40%,var(--border))}
+.grpr.over{box-shadow:0 -2px 0 0 var(--acc)}
+.grpr.dragging{opacity:.4}
+.grpr>div{padding:5px 5px 0 0}
+.grpc{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding:7px 10px;background:none;border:0;color:inherit;text-align:left;cursor:pointer;font:inherit;border-radius:8px}
+.grpc:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.grpc .l1,.grpc .l2{display:flex;gap:6px;align-items:center;min-width:0}
+.grpc .nick{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grpc .key{font:11.5px var(--mono);color:var(--fg3);white-space:nowrap}
+.grpc .last{flex:1;min-width:0;color:var(--fg2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grppick{top:32px;width:280px}
+.grppickl{display:flex;flex-direction:column;gap:3px;max-height:260px;overflow-y:auto}
+.grpwatch{border:1px solid var(--row);border-radius:8px;padding:6px 8px 8px;margin:0;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--fg2)}
+.grpwatch legend{padding:0 4px}
+.grpwatch .chk{flex-direction:row;align-items:center;gap:6px;color:var(--fg)}

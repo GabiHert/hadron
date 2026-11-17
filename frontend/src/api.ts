@@ -937,7 +937,7 @@ export const remote_session_stop = (a: { integration: string; id: string }) => c
 export const card_chips = (a: WS = {}) => call<Record<string, { path: string; label: string; value: unknown }[]>>("card_chips", a);
 
 // ---- dashboard ----
-export type BlockType = "stats" | "bars" | "table" | "heatmap" | "prose" | "planner" | "activity" | "custom";
+export type BlockType = "stats" | "bars" | "table" | "heatmap" | "prose" | "planner" | "activity" | "custom" | "group";
 export interface BlockSource {
   query?: string;
   args?: Record<string, unknown>;
@@ -951,6 +951,8 @@ export interface BlockSource {
   weeks?: number;
   /** heatmap: what is counted ("deploys"), for tooltips and the total line */
   unit?: string;
+  /** group: the card ids it watches, in order */
+  cards?: string[];
   [k: string]: unknown;
 }
 export interface Block {
@@ -1012,6 +1014,40 @@ export const dash_block_remove = (a: { block_id: string }) => call<Block>("dash_
 export const dash_block_refresh = (a: { block_id: string }) => call<BlockView>("dash_block_refresh", a);
 export const dash_query_run = (a: { workspace_id?: string; query: string; args?: Record<string, unknown> }) => call<DashResult>("dash_query_run", a);
 export const widget_pin = (a: { message_id: string; title?: string }) => call<Block>("widget_pin", a);
+
+// ---- card groups (dashboard blocks of type "group") ----
+/** One card of a group, as the server resolves it. Live fields also come from the board. */
+export interface GroupCardRow {
+  id: string;
+  nick: string;
+  key: string;
+  title: string;
+  column: string;
+  column_id: string;
+  stage: string;
+  liveness: Liveness;
+  needs_you: boolean;
+  question: string;
+  /** the card channel's last line */
+  last: string;
+  last_kind: string;
+  last_author: string;
+  last_at: string;
+}
+export interface CardGroup {
+  id: string;
+  title: string;
+  span: 1 | 2;
+  position: number;
+  cards: GroupCardRow[];
+}
+export const card_group_list = (a: { workspace_id?: string; card?: string } = {}) => call<CardGroup[]>("card_group_list", a);
+export const card_group_create = (a: { workspace_id?: string; title: string; cards?: string[]; span?: 1 | 2; position?: number }) =>
+  call<CardGroup>("card_group_create", a);
+export const card_group_add = (a: { workspace_id?: string; group: string; cards: string[]; position?: number }) => call<CardGroup>("card_group_add", a);
+export const card_group_remove = (a: { workspace_id?: string; group: string; cards: string[] }) => call<CardGroup>("card_group_remove", a);
+export const card_group_move = (a: { workspace_id?: string; card: string; from?: string; to: string; position?: number; copy?: boolean }) =>
+  call<CardGroup[]>("card_group_move", a);
 
 // ---- config history (revert) ----
 

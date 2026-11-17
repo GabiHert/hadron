@@ -7,6 +7,15 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Card groups on the dashboard: a new block for the cards you are working on. Each card shows its nickname and key, column, stage, whether it is working, idle or waiting, a "needs you" badge, and its last report or chat line, all kept up to date.
+- Click a card in a group to open its chat in the card panel next to the dashboard. You can read, reply and answer its questions without going back to the board.
+- Drag a card from one group to another to move it, hold ⌥ to copy it, or drop it on a row to reorder. Groups never move a card's board column.
+- Add cards with the group's "Add cards" picker, or from a card's menu with "Watch in group…", which can also start a new group. Rename any dashboard block with its pencil button or a double-click on its title.
+- On the keyboard, a group's rows take ↩ to open, ↑ ↓ to step, ⌥↑ ⌥↓ to reorder, ⌫ to remove and m for the move and copy menu.
+- Archiving or deleting a card takes it out of every group.
+- MCP tools for the planner: `card_group_create`, `card_group_list`, `card_group_add`, `card_group_remove` and `card_group_move`, described in the `dashboard` topic of `hadron_guide`.
+
 ## [0.2.32] - 2026-11-16
 
 ### Added

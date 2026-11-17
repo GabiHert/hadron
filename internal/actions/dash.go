@@ -45,7 +45,7 @@ type DashSetIn struct {
 // DashBlockAddIn is the input of dash_block_add.
 type DashBlockAddIn struct {
 	WorkspaceID string       `json:"workspace_id,omitempty" jsonschema:"the workspace; defaults to the active one"`
-	Type        string       `json:"type" jsonschema:"stats, bars, table, heatmap, prose, planner, activity or custom"`
+	Type        string       `json:"type" jsonschema:"stats, bars, table, heatmap, prose, planner, activity, custom or group (a card group; card_group_create is simpler)"`
 	Title       string       `json:"title" jsonschema:"the block's heading"`
 	Span        int          `json:"span,omitempty" jsonschema:"1 for half width, 2 for full width; default 1"`
 	Source      *dash.Source `json:"source,omitempty" jsonschema:"the named query, its args and options. dash_get lists the queries"`
@@ -105,6 +105,15 @@ func resolveBlock(ctx context.Context, env dash.Env, b domain.Block) BlockView {
 		v.Error = err.Error()
 		return v
 	}
+	if b.Type == dash.TypeGroup {
+		rows, err := dash.GroupRows(env, src.Cards)
+		if err != nil {
+			v.Error = err.Error()
+			return v
+		}
+		v.Data = &dash.Result{Query: dash.QueryGroup, Shape: dash.ShapeRows, Groups: []dash.Group{}, Rows: rows}
+		return v
+	}
 	if src.Query == "" {
 		return v
 	}
@@ -151,7 +160,7 @@ func checkSpec(env dash.Env, specs ...dash.Spec) error {
 }
 
 func registerDash(r *Registry) {
-	Register(r, Spec{Name: "dash_get", Description: "Read the workspace's dashboard: each block with its data already resolved by its named query, and the queries available. Block types: stats, bars, table, heatmap, prose, planner, activity, custom."},
+	Register(r, Spec{Name: "dash_get", Description: "Read the workspace's dashboard: each block with its data already resolved by its named query, and the queries available. Block types: stats, bars, table, heatmap, prose, planner, activity, custom, group (a card group: its data is one row per card it watches)."},
 		func(ctx context.Context, c *Call, in DashGetIn) (DashGetOut, error) {
 			w, err := c.Workspace(in.WorkspaceID)
 			if err != nil {

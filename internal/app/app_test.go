@@ -22,10 +22,15 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/menu"
 )
 
+var testGlobals sync.Once
+
 func newTestApp(t *testing.T) *App {
 	t.Helper()
-	loginEnv = os.Environ                                        // never read the developer's login shell in a test
-	emitEvent = func(context.Context, string, ...interface{}) {} // Wails accepts only its own context
+	// Set the globals once: a later test's write would race with an earlier app's pending change flush.
+	testGlobals.Do(func() {
+		loginEnv = os.Environ                                        // never read the developer's login shell in a test
+		emitEvent = func(context.Context, string, ...interface{}) {} // Wails accepts only its own context
+	})
 	home := t.TempDir()
 	t.Setenv("HADRON_HOME", home)
 	st, err := store.Open(filepath.Join(home, "hadron.db"))

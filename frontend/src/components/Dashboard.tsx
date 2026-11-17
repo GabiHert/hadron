@@ -6,14 +6,17 @@ import { hm, short } from "../lib";
 import type { Board as BoardState } from "../state/useBoard";
 import { useDash, useWidgetScripts } from "../state/useDash";
 import { Icon } from "./ui";
+import { focusEl, whenReady } from "../commands";
 import { Widget } from "./Widget";
 import { Markdown } from "./Markdown";
+import { GroupBody } from "./CardGroup";
 
 const str = (v: unknown) => (v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
 
-const TYPE_LABEL: Partial<Record<BlockType, string>> = { custom: "html" };
+const TYPE_LABEL: Partial<Record<BlockType, string>> = { custom: "html", group: "cards" };
 
 const NEW_TYPES: { value: BlockType; label: string; title: string }[] = [
+  { value: "group", label: "Card group: cards you keep an eye on", title: "In flight" },
   { value: "bars", label: "Bars: count cards by a field", title: "Cards by" },
   { value: "stats", label: "Tiles: cards per column", title: "Cards by column" },
   { value: "table", label: "Table: waiting on you", title: "Waiting on you" },
@@ -29,7 +32,9 @@ export function Dashboard({ board }: { board: BoardState }) {
   const dash = useDash(wsId, actions.toast);
   const scripts = useWidgetScripts();
   const [adding, setAdding] = useState(false);
-  const [type, setType] = useState<BlockType>("bars");
+  const [type, setType] = useState<BlockType>("group");
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [picking, setPicking] = useState<string | null>(null);
   const [by, setBy] = useState("card.assignee");
   const [title, setTitle] = useState("");
   const [fields, setFields] = useState<FieldEntry[]>([]);
@@ -55,6 +60,13 @@ export function Dashboard({ board }: { board: BoardState }) {
 
   const add = async () => {
     const t = title.trim() || defTitle;
+    if (type === "group") {
+      const g = await mutate(() => api.card_group_create({ workspace_id: wsId, title: t }));
+      if (g) setPicking(g.id);
+      setAdding(false);
+      setTitle("");
+      return;
+    }
     let spec: api.BlockSpec;
     switch (type) {
       case "bars": spec = { type, title: t, source: { query: "cards.count", args: { by } } }; break;
@@ -71,6 +83,13 @@ export function Dashboard({ board }: { board: BoardState }) {
   };
 
   const blocks = dash.blocks;
+  const groups = blocks.filter((b) => b.type === "group").map((b) => ({ id: b.id, title: b.title }));
+  const rename = (b: BlockView, v: string) => {
+    setRenaming(null);
+    const t = v.trim();
+    if (t && t !== b.title) void mutate(() => api.dash_block_update({ block_id: b.id, title: t }));
+    whenReady(() => document.querySelector<HTMLElement>(`[data-block="${b.id}"]`), (el) => focusEl(el));
+  };
   return (
     <div className="dash">
       <div className="inline" style={{ gridColumn: "1 / -1" }}>
@@ -112,8 +131,18 @@ export function Dashboard({ board }: { board: BoardState }) {
       {blocks.map((b, i) => (
         <section key={b.id} className={"blk" + (b.span === 2 ? " s2" : "")} aria-label={b.title} data-block={b.id} tabIndex={0}>
           <div className="blkh">
-            <h3>{b.title}</h3>
+            {renaming === b.id ? (
+              <input className="in" autoFocus defaultValue={b.title} aria-label={`New name for ${b.title}`} style={{ flex: 1, minWidth: 0, height: 26 }}
+                onBlur={(e) => rename(b, e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") rename(b, e.currentTarget.value);
+                  if (e.key === "Escape") { e.preventDefault(); setRenaming(null); }
+                }} />
+            ) : <h3 onDoubleClick={() => setRenaming(b.id)}>{b.title}</h3>}
             <span className="pill">{TYPE_LABEL[b.type] ?? b.type}</span>
+            <button className="ibtn" style={{ width: 24, height: 24 }} type="button" aria-label={`Rename ${b.title}`} title="Rename"
+              onClick={() => setRenaming(b.id)}><Icon name="edit" size={12} /></button>
             <button className="ibtn" style={{ width: 24, height: 24, fontSize: 12 }} type="button" aria-label={b.span === 2 ? "Half width" : "Full width"} title={b.span === 2 ? "Half width" : "Full width"}
               onClick={() => void mutate(() => api.dash_block_update({ block_id: b.id, span: b.span === 2 ? 1 : 2 }))}>{b.span === 2 ? "½" : "↔"}</button>
             <button className="ibtn" style={{ width: 24, height: 24 }} type="button" aria-label="Move earlier" disabled={i === 0}
@@ -124,10 +153,12 @@ export function Dashboard({ board }: { board: BoardState }) {
               onClick={() => void mutate(() => api.dash_block_remove({ block_id: b.id }))}><Icon name="close" size={13} /></button>
           </div>
           <div className="blkb">
-            <BlockStatus b={b} board={board} scripts={scripts} onRewrite={async () => {
+            {b.type === "group" ? (
+              <GroupBody b={b} board={board} groups={groups} mutate={mutate} startPicking={picking === b.id} />
+            ) : <BlockStatus b={b} board={board} scripts={scripts} onRewrite={async () => {
               const out = await mutate(() => api.dash_block_refresh({ block_id: b.id }));
               if (out) actions.toast("Asked the planner to write it");
-            }} />
+            }} />}
           </div>
         </section>
       ))}

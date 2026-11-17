@@ -272,7 +272,7 @@ func registerCards(r *Registry) {
 			return c.Store.Cards.Get(moved.ID)
 		})
 
-	Register(r, Spec{Name: "card_archive", Description: "Archive a card so it leaves the board, or restore it with archived: false.",
+	Register(r, Spec{Name: "card_archive", Description: "Archive a card so it leaves the board (and every card group on the dashboard), or restore it with archived: false.",
 		Mutates: true, Entities: []string{"cards"}},
 		func(ctx context.Context, c *Call, in CardArchiveIn) (domain.Card, error) {
 			card, err := getCard(c, in.CardID)
@@ -280,6 +280,11 @@ func registerCards(r *Registry) {
 				return card, err
 			}
 			card.Archived = in.Archived == nil || *in.Archived
+			if card.Archived {
+				if err := pruneGroups(c, card.WorkspaceID, card.ID); err != nil {
+					return card, err
+				}
+			}
 			return card, c.Store.Cards.Update(&card)
 		})
 
@@ -300,6 +305,9 @@ func registerCards(r *Registry) {
 				if st, serr := os.Stat(path); serr == nil && st.IsDir() {
 					out.Worktree = &WorktreeKept{Path: path, Branch: "hadron/" + name, Note: "The card's worktree is still on disk so no work is lost. worktree_remove with card=" + card.Nick + " deletes it once it is clean."}
 				}
+			}
+			if err := pruneGroups(c, card.WorkspaceID, card.ID); err != nil {
+				return out, err
 			}
 			return out, c.Store.Cards.Delete(card.ID)
 		})
