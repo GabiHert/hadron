@@ -1,4 +1,5 @@
 import * as api from "../api";
+import { useGlassOverlay } from "../state/useGlassOverlay";
 import type { Board } from "../state/useBoard";
 import { useSessionStatus } from "../state/useSessionStatus";
 import { useChannel } from "../state/useChannel";
@@ -29,6 +30,8 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
   const [adoptOpen, setAdoptOpen] = useState(false);
   const { info: modelInfo, reload: reloadModels } = useModels(wsId, actions.toast);
   const status = useSessionStatus(() => (wsId ? api.planner_get({ workspace_id: wsId }) : Promise.resolve(null)), [wsId]);
+  const panel = useRef<HTMLElement>(null);
+  useGlassOverlay(panel, view === "chat", wsId);
   const menuBtn = useRef<HTMLButtonElement>(null);
   useEffect(
     () =>
@@ -54,8 +57,8 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
       </nav>
     );
   return (
-    <aside className={"ppanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label="Planner" data-zone="planner" tabIndex={-1}>
-      <div className="phead">
+    <aside ref={panel} className={"ppanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label="Planner" data-zone="planner" data-overlay={view === "chat" ? "" : undefined} tabIndex={-1}>
+      <div className="phead ghead">
         <span className={`dot ${dot}${dot === "working" ? " pulse" : ""}`} title={`Planner ${dot}`} />
         <h2>Planner{isFull ? ` · ${ws.name}` : ""}</h2>
         <div className="seg" role="tablist" aria-label="Planner view">

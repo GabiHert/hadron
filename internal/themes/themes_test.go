@@ -233,3 +233,74 @@ func TestFontsMatchTokensCSS(t *testing.T) {
 		}
 	}
 }
+
+// Text must stay readable on the glass: the pane flattened over the chat's backdrop (the theme's
+// bg tinted with up to 14% accent), and each bubble flattened over the pane.
+func TestGlassIsReadableInEveryBuiltin(t *testing.T) {
+	for _, th := range Builtins {
+		col := func(k string) rgba {
+			c, err := parseHex(th.Tokens[k])
+			if err != nil {
+				t.Fatalf("%s: %s: %v", th.ID, k, err)
+			}
+			return c
+		}
+		for _, k := range GlassTokens {
+			if c := col(k); k != "glass-border" && (c.a < 0.4 || c.a > 0.98) {
+				t.Errorf("%s: %s has alpha %.2f; glass needs to be translucent but not see-through", th.ID, k, c.a)
+			}
+		}
+		backdrop := mix(col("bg"), col("acc"), 0.14)
+		pane := col("glass").over(backdrop)
+		bubble := col("bubble").over(pane)
+		me := col("bubble-me").over(pane)
+		g := col("glass")
+		head := g.alpha(g.a * 0.7).over(pane)
+		field := col("bubble").over(head)
+		chip := col("bubble-me").over(head)
+		checks := []struct {
+			fg, on string
+			bg     rgba
+			min    float64
+		}{
+			{"fg", "bubble", bubble, 7}, {"fg2", "bubble", bubble, 4.5}, {"fg", "bubble-me", me, 4.5},
+			{"acc", "bubble-me", me, 3}, {"fg3", "glass", pane, 4}, {"fg", "glass", pane, 7}, {"fg2", "glass", pane, 4.5},
+			// The header and composer float over the chat: glass at 70% over the pane.
+			{"fg", "glass head", head, 7}, {"fg2", "glass head", head, 4.5}, {"fg3", "glass head", head, 4},
+			// Controls on the header: a bubble field, and the raised chip of the switches.
+			{"fg", "a field", field, 7}, {"fg2", "a field", field, 4.5}, {"fg", "the raised chip", chip, 4.5},
+			// The selected switch shows its icon (not its label) in the accent: 3:1 for a graphic.
+			{"acc", "the raised chip", chip, 3},
+		}
+		for _, c := range checks {
+			if r := contrast(col(c.fg), c.bg); r < c.min {
+				t.Errorf("%s: %s on %s has contrast %.2f, want at least %.1f", th.ID, c.fg, c.on, r, c.min)
+			}
+		}
+	}
+}
+
+func TestGlassTokensKeepAlphaAndAreDerived(t *testing.T) {
+	th := Theme{Name: "Mine", Mode: "light", Tokens: map[string]string{"bg": "#fafafa", "fg": "#111111", "acc": "#0055cc", "bubble": "#ffffffcc", "glass": "#FFFFFF80"}}
+	if err := Validate(&th); err != nil {
+		t.Fatal(err)
+	}
+	if th.Tokens["bubble"] != "#ffffffcc" || th.Tokens["glass"] != "#ffffff80" {
+		t.Errorf("alpha kept: bubble %s glass %s", th.Tokens["bubble"], th.Tokens["glass"])
+	}
+	if c, err := parseHex(th.Tokens["bubble-me"]); err != nil || c.a >= 1 {
+		t.Errorf("bubble-me derived translucent: %s", th.Tokens["bubble-me"])
+	}
+	if th.Tokens["card"] != strings.ToLower(th.Tokens["card"]) || len(th.Tokens["card"]) != 7 {
+		t.Errorf("an opaque token stays #rrggbb: %s", th.Tokens["card"])
+	}
+	var glass *TokenGroup
+	for i := range Groups {
+		if Groups[i].Name == "Glass chats" {
+			glass = &Groups[i]
+		}
+	}
+	if glass == nil || !glass.Alpha || strings.Join(glass.Tokens, ",") != "glass,glass-border,bubble,bubble-me" {
+		t.Errorf("glass group = %+v", glass)
+	}
+}

@@ -15,6 +15,8 @@ export interface ThemeDef {
 export interface TokenGroup {
   name: string;
   tokens: string[];
+  /** the group's colours may be translucent (#rrggbbaa), like the glass of the chats */
+  alpha?: boolean;
 }
 export interface ThemeChoice {
   theme: string;
@@ -28,8 +30,16 @@ export interface ThemeList {
 }
 
 const SHADOW = {
-  light: { shadow: "0 1px 2px rgba(29, 35, 48, 0.06), 0 14px 30px -14px rgba(29, 35, 48, 0.22)", scrim: "rgba(29, 35, 48, 0.32)" },
-  dark: { shadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px -14px rgba(0, 0, 0, 0.7)", scrim: "rgba(0, 0, 0, 0.55)" },
+  light: {
+    shadow: "0 1px 2px rgba(29, 35, 48, 0.06), 0 14px 30px -14px rgba(29, 35, 48, 0.22)",
+    scrim: "rgba(29, 35, 48, 0.32)",
+    bubble: "0 1px 1px rgba(29, 35, 48, 0.05), 0 6px 16px -8px rgba(29, 35, 48, 0.22)",
+  },
+  dark: {
+    shadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px -14px rgba(0, 0, 0, 0.7)",
+    scrim: "rgba(0, 0, 0, 0.55)",
+    bubble: "0 1px 1px rgba(0, 0, 0, 0.3), 0 8px 18px -8px rgba(0, 0, 0, 0.6)",
+  },
 };
 const CACHE_KEY = "hadron.theme";
 /** Fired on window after a theme is applied, so widgets and terminals repaint. */
@@ -67,6 +77,7 @@ export function applyTokens(mode: "light" | "dark", tokens: Record<string, strin
   for (const [k, v] of Object.entries(tokens)) el.style.setProperty(`--${k}`, v);
   el.style.setProperty("--shadow", SHADOW[mode].shadow);
   el.style.setProperty("--scrim", SHADOW[mode].scrim);
+  el.style.setProperty("--bubble-shadow", SHADOW[mode].bubble);
   el.setAttribute("data-theme", mode);
   window.dispatchEvent(new Event(THEME_EVENT));
 }

@@ -1383,6 +1383,17 @@ export const chip_color_list = (a: { workspace_id?: string } = {}) => call<ChipC
 export const chip_color_set = (a: { workspace_id?: string; path: string; value: string; color?: TagColor | "" }) => call<ChipColors>("chip_color_set", a);
 export const chip_color_auto_set = (a: { workspace_id?: string; path: string; auto: boolean }) => call<ChipColors>("chip_color_auto_set", a);
 
+// ---- how the chats look ----
+
+/** on: frosted glass; solid: the same bubbles on opaque surfaces (macOS Reduce transparency); off */
+export type GlassMode = "on" | "solid" | "off";
+export interface UIDisplay {
+  reduce_transparency: boolean;
+  glass_chats: boolean;
+  glass: GlassMode;
+}
+export const ui_display_get = () => call<UIDisplay>("ui_display_get", {});
+
 // ---- themes ----
 
 export const theme_list = () => call<import("./theme").ThemeList>("theme_list");

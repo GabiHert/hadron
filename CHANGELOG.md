@@ -7,6 +7,12 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Glass chats: the planner panel and the card panel (on the board and the dashboard) are one frosted-glass surface from header to composer. The header and the message box float over the conversation, which scrolls beneath them, and messages float on the glass as rounded bubbles: yours on the right in the accent tint, the planner's, reports, widgets, questions and events on the left or in the middle.
+- The Chat/Terminal switch and the Conversation/Links/Context tabs are glass pills with the selected one raised; the icon buttons, chips, model picker, message box and Send button are glass too.
+- Settings → Appearance has a "Glass chats" switch, on by default. When macOS Reduce transparency is on, the chats keep their bubbles on solid surfaces.
+- Every theme has glass colours (glass, glass-border, bubble, bubble-me), and the theme editor sets them with an opacity slider. Custom themes get them from their own colours.
+
 ## [0.2.34] - 2026-11-17
 
 ### Added

@@ -19,6 +19,7 @@ import { useBoard } from "./state/useBoard";
 import { useKeyBindings } from "./state/useKeys";
 import { useKeyboard, useLastPanel } from "./state/useKeyboard";
 import { useZoom } from "./state/useZoom";
+import { useGlass } from "./state/useGlass";
 import { cardEl, focusEl, whenReady } from "./commands";
 import type { Env, ModalName } from "./commands";
 import { startThemes, themeActions } from "./theme";
@@ -66,6 +67,7 @@ export default function App() {
 
   const { overrides } = useKeyBindings(actions.toast);
   const { zoom, step: zoomStep } = useZoom(actions.toast);
+  useGlass();
   const [confirmReq, setConfirmReq] = useState<ConfirmReq | null>(null);
   const [newIn, setNewIn] = useState<string | undefined>(undefined);
   const lastPanel = useLastPanel();

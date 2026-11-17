@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/GabiHert/hadron/internal/accessibility"
 	"regexp"
 	"strings"
 
@@ -41,7 +42,40 @@ type SettingsUpdateIn struct {
 
 var settingKeyRe = regexp.MustCompile(`^[a-z][a-z0-9_.]*$`)
 
+// SettingGlassChats switches the chats' glass look; it is on unless set to false.
+const SettingGlassChats = "ui.glass_chats"
+
+// UIDisplayOut is what ui_display_get returns.
+type UIDisplayOut struct {
+	accessibility.Display
+	// GlassChats is the "Glass chats" setting.
+	GlassChats bool `json:"glass_chats" jsonschema:"the Glass chats setting (ui.glass_chats), on by default"`
+	// Glass is what the chats show: on (frosted glass), solid (the same bubbles on opaque surfaces,
+	// because macOS asks for less transparency) or off.
+	Glass string `json:"glass" jsonschema:"on, solid (Reduce transparency is on in macOS) or off"`
+}
+
 func registerUI(r *Registry) {
+	Register(r, Spec{Name: "ui_display_get", Description: "Read how the chats look: the Glass chats setting (ui.glass_chats, changed with settings_update), whether macOS asks for reduced transparency, and the result: glass on, solid, or off."},
+		func(ctx context.Context, c *Call, in struct{}) (UIDisplayOut, error) {
+			out := UIDisplayOut{GlassChats: true}
+			if raw, err := c.Store.Settings.Get(SettingGlassChats); err == nil {
+				_ = json.Unmarshal(raw, &out.GlassChats)
+			}
+			if c.Deps.Display != nil {
+				out.Display = c.Deps.Display()
+			}
+			switch {
+			case !out.GlassChats:
+				out.Glass = "off"
+			case out.ReduceTransparency:
+				out.Glass = "solid"
+			default:
+				out.Glass = "on"
+			}
+			return out, nil
+		})
+
 	Register(r, Spec{Name: "ui_panel_collapse", Description: "Collapse or expand the planner or card panel of a workspace.", Mutates: true, Entities: []string{"workspaces"}},
 		func(ctx context.Context, c *Call, in UIPanelCollapseIn) (domain.Workspace, error) {
 			if err := checkPanel(in.Panel, false); err != nil {

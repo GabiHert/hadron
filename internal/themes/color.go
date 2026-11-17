@@ -99,3 +99,43 @@ func NormalizeHex(s string, bg string) (string, error) {
 	}
 	return c.hex(), nil
 }
+
+// hexA is #rrggbb when opaque, else #rrggbbaa.
+func (c rgba) hexA() string {
+	if c.a >= 1 {
+		return c.hex()
+	}
+	return fmt.Sprintf("%s%02x", c.hex(), int(math.Round(math.Max(0, math.Min(1, c.a))*255)))
+}
+
+func (c rgba) alpha(a float64) rgba { c.a = a; return c }
+
+// NormalizeHexAlpha returns a colour as lowercase #rrggbb, or #rrggbbaa when it is translucent.
+func NormalizeHexAlpha(s string) (string, error) {
+	c, err := parseHex(s)
+	if err != nil {
+		return "", err
+	}
+	return c.hexA(), nil
+}
+
+// Glass derives the chat's glass tokens from a theme's card, text and accent colours: a
+// translucent pane, a thin light edge, bubbles a little see-through, and the user's bubble in the
+// accent tint.
+func Glass(mode string, card, fg, acc rgba) map[string]string {
+	white := rgba{255, 255, 255, 1}
+	if mode == "dark" {
+		return map[string]string{
+			"glass":        card.alpha(0.55).hexA(),
+			"glass-border": white.alpha(0.1).hexA(),
+			"bubble":       mix(card, fg, 0.05).alpha(0.85).hexA(),
+			"bubble-me":    mix(card, acc, 0.26).alpha(0.9).hexA(),
+		}
+	}
+	return map[string]string{
+		"glass":        card.alpha(0.55).hexA(),
+		"glass-border": white.alpha(0.7).hexA(),
+		"bubble":       card.alpha(0.86).hexA(),
+		"bubble-me":    mix(card, acc, 0.14).alpha(0.92).hexA(),
+	}
+}

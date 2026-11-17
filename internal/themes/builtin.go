@@ -81,3 +81,19 @@ var Builtins = []Theme{
 		"term": "#000000", "termbar": "#141414", "tfg": "#ffffff", "tdim": "#bdbdbd", "tb": "#8cc8ff", "tg": "#7dff9e", "ty": "#ffd24d", "tr": "#ff8a80", "tm": "#ff9ad5", "tc": "#5ff0e0"},
 		[10][2]string{{"#e6e6e6", "#262626"}, {"#8cc8ff", "#0d2440"}, {"#5ff0e0", "#08302c"}, {"#7dff9e", "#0b3017"}, {"#d4ff5c", "#283208"}, {"#ffd24d", "#3a2c00"}, {"#ffad66", "#3d2108"}, {"#ff8a80", "#420f0c"}, {"#ff9ad5", "#3d0f2b"}, {"#d4b0ff", "#2a1347"}})},
 }
+
+// Every built-in theme gets the chat's glass from its own card, text and accent colours. The
+// Builtins share their token maps with ClassicLight and ClassicDark, so those get it too.
+func init() {
+	for i := range Builtins {
+		t := &Builtins[i]
+		card, _ := parseHex(t.Tokens["card"])
+		fg, _ := parseHex(t.Tokens["fg"])
+		acc, _ := parseHex(t.Tokens["acc"])
+		for k, v := range Glass(t.Mode, card, fg, acc) {
+			if _, ok := t.Tokens[k]; !ok {
+				t.Tokens[k] = v
+			}
+		}
+	}
+}

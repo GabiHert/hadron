@@ -254,30 +254,33 @@ export function ChatThread({ messages, questions, onAnswer, empty, className, sc
     ro.observe(el);
     for (const child of Array.from(el.children)) ro.observe(child);
   });
+  // The wrapper holds the glass's backdrop; without glass it is display: contents and changes nothing.
   return (
-    <div
-      className={className}
-      ref={box}
-      role="log"
-      aria-label="Conversation"
-      onScroll={(e) => {
-        const el = e.currentTarget;
-        const before = last.current;
-        if (el.scrollHeight - el.scrollTop - el.clientHeight < 48) stick.current = true;
-        // Only the reader scrolling up stops the follow. A scroll the browser makes because the
-        // lines changed (the old card's emptied, the new card's not yet pinned) does not.
-        else if (el.scrollHeight === before.height && el.scrollTop < before.top) stick.current = false;
-        last.current = { top: el.scrollTop, height: el.scrollHeight };
-      }}
-    >
-      {messages.length === 0 ? empty : null}
-      {messages.map((m) => {
-        const q = m.question_id ? byId.get(m.question_id) : undefined;
-        if (m.kind === "report" && m.report_kind === "question" && q)
-          return <QuestionCard key={m.id} q={q} onAnswer={(sel, notes) => onAnswer(q.id, sel, notes)} />;
-        return <ChatLine key={m.id} m={m} scripts={scripts} pinnedIds={pinnedIds} onPin={workspaceId ? (id) => void pin(id) : undefined} />;
-      })}
-      {replying ? <div className="typing" role="status">Planner is replying…</div> : null}
+    <div className="glasswrap">
+      <div
+        className={className}
+        ref={box}
+        role="log"
+        aria-label="Conversation"
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          const before = last.current;
+          if (el.scrollHeight - el.scrollTop - el.clientHeight < 48) stick.current = true;
+          // Only the reader scrolling up stops the follow. A scroll the browser makes because the
+          // lines changed (the old card's emptied, the new card's not yet pinned) does not.
+          else if (el.scrollHeight === before.height && el.scrollTop < before.top) stick.current = false;
+          last.current = { top: el.scrollTop, height: el.scrollHeight };
+        }}
+      >
+        {messages.length === 0 ? empty : null}
+        {messages.map((m) => {
+          const q = m.question_id ? byId.get(m.question_id) : undefined;
+          if (m.kind === "report" && m.report_kind === "question" && q)
+            return <QuestionCard key={m.id} q={q} onAnswer={(sel, notes) => onAnswer(q.id, sel, notes)} />;
+          return <ChatLine key={m.id} m={m} scripts={scripts} pinnedIds={pinnedIds} onPin={workspaceId ? (id) => void pin(id) : undefined} />;
+        })}
+        {replying ? <div className="typing" role="status">Planner is replying…</div> : null}
+      </div>
     </div>
   );
 }
