@@ -1393,6 +1393,10 @@ export interface UIDisplay {
   reduce_transparency: boolean;
   glass_chats: boolean;
   glass: GlassMode;
+  /** the Glass transparency setting (ui.glass_transparency): 0 the theme's own glass, 100 the most see-through */
+  glass_transparency: number;
+  /** what every glass surface's alpha is multiplied by: 1 at 0, down to 0.4 at 100 */
+  glass_scale: number;
 }
 export const ui_display_get = () => call<UIDisplay>("ui_display_get", {});
 

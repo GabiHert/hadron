@@ -490,6 +490,12 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
    the panel's ::before, which does not scroll; the floating header and composer blur only what
    passes under them; bubbles and controls get shadows, not blur. Without glass the chat looks as
    before. "solid" keeps the shapes on opaque surfaces, for macOS Reduce transparency. */
+/* Glass transparency (Settings, Appearance): --glass-k scales the alpha of every glass surface, 1 is
+   the theme's own glass and 0.4 the most see-through (the slider stops there so text keeps its
+   contrast). The pane under the chat takes the full scale; surfaces that float over text (the
+   chat's header and composer, the top bar, the tutorial caption) take half of it, so what scrolls
+   under them stays a blur behind readable text. useGlass sets --glass-k on <html> from ui_display_get. */
+:root{--glass-k:1;--glass-pane:color-mix(in srgb,var(--glass) calc(var(--glass-k) * 100%),transparent);--glass-veil:calc(.5 + var(--glass-k) * .5)}
 .glasswrap{display:contents}
 :where(:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)){position:relative}
 :root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel){isolation:isolate;border-color:var(--glass-border);
@@ -498,7 +504,7 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
     radial-gradient(55% 34% at 96% 40%,color-mix(in srgb,var(--ok) 11%,transparent),transparent 72%),
     radial-gradient(65% 40% at 36% 100%,color-mix(in srgb,var(--tag-purple) 13%,transparent),transparent 72%),
     var(--bg)}
-:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:var(--glass);
+:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:var(--glass-pane);
   box-shadow:inset 1px 0 0 var(--glass-border),inset -1px 0 0 var(--glass-border);
   -webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%)}
 /* The header, the conversation and the composer sit on the panel's glass: no surfaces of their own. */
@@ -507,7 +513,7 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
 :root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel) .glasswrap>:is(.chat,.cbody){background:transparent;border:0;gap:10px}
 /* In the chat view the header and composer float over the conversation. */
 :root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay]>.ghead,:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay]>.composer{position:absolute;left:0;right:0;z-index:3;
-  background:color-mix(in srgb,var(--glass) 70%,transparent);
+  background:color-mix(in srgb,var(--glass) calc(var(--glass-veil) * 70%),transparent);
   -webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%)}
 :root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay]>.ghead{top:0;box-shadow:inset 0 1px 0 var(--glass-border),0 1px 0 var(--glass-border),0 8px 18px -14px rgba(0,0,0,.35)}
 :root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay]>.composer{bottom:0;box-shadow:inset 0 1px 0 var(--glass-border),0 -8px 18px -14px rgba(0,0,0,.35)}
@@ -560,7 +566,7 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
   transition:top .45s cubic-bezier(.2,.8,.2,1),left .45s cubic-bezier(.2,.8,.2,1),width .45s cubic-bezier(.2,.8,.2,1),height .45s cubic-bezier(.2,.8,.2,1),box-shadow .3s;pointer-events:none}
 .tour-hole.none{box-shadow:0 0 0 200vmax var(--scrim)}
 .tour-cap{position:fixed;width:min(360px,calc(100vw - 32px));padding:14px 16px 12px;border-radius:16px;color:var(--fg);
-  background:var(--glass,var(--card));border:1px solid var(--glass-border,var(--border));
+  background:color-mix(in srgb,var(--glass,var(--card)) calc(var(--glass-veil) * 100%),transparent);border:1px solid var(--glass-border,var(--border));
   box-shadow:inset 0 1px 0 var(--glass-border,transparent),var(--shadow);
   -webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);
   animation:tour-in .35s cubic-bezier(.2,.8,.2,1);transition:top .45s cubic-bezier(.2,.8,.2,1),left .45s cubic-bezier(.2,.8,.2,1)}
@@ -699,7 +705,7 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
   .ti-mover{transform:translate(100px,0)}
 }
 /* The quit guard: "Hold ⌘Q to quit" with a ring that fills while the keys stay down. */
-.quithold{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:70;display:flex;align-items:center;gap:12px;padding:12px 18px 12px 14px;border-radius:14px;background:var(--glass,var(--card));-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid var(--glass-border,var(--border));box-shadow:var(--shadow);color:var(--fg);font-size:14px;font-weight:500;pointer-events:none;animation:quithold-in .14s ease-out}
+.quithold{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:70;display:flex;align-items:center;gap:12px;padding:12px 18px 12px 14px;border-radius:14px;background:color-mix(in srgb,var(--glass,var(--card)) calc(var(--glass-veil) * 100%),transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid var(--glass-border,var(--border));box-shadow:var(--shadow);color:var(--fg);font-size:14px;font-weight:500;pointer-events:none;animation:quithold-in .14s ease-out}
 .quithold.tap{animation:quithold-in .14s ease-out,quithold-out .4s ease-in 1.4s forwards}
 .quitring{flex:none;transform:rotate(-90deg)}
 .quitring circle{fill:none;stroke-width:3.2}
@@ -733,10 +739,10 @@ html,body,#root,.win{overflow:clip}
    (Reduce transparency) and glass off keep the opaque bar. */
 :root[data-glass="on"] .win{--topbar:44px}
 :root[data-glass="on"] .top{position:absolute;top:0;left:0;right:0;
-  background:color-mix(in srgb,var(--side) 58%,transparent);border-bottom-color:var(--glass-border);
+  background:color-mix(in srgb,var(--side) calc(var(--glass-veil) * 58%),transparent);border-bottom-color:var(--glass-border);
   box-shadow:0 1px 0 color-mix(in srgb,var(--glass-border) 50%,transparent),0 8px 18px -16px rgba(0,0,0,.4);
   -webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%)}
-:root[data-glass="on"] .top .wsbar{background:color-mix(in srgb,var(--card) 55%,transparent);border-color:var(--glass-border)}
+:root[data-glass="on"] .top .wsbar{background:color-mix(in srgb,var(--card) calc(var(--glass-veil) * 55%),transparent);border-color:var(--glass-border)}
 /* Below the bar: everything in the window starts under it, except the chats, which run under it. */
 :root[data-glass="on"] .shell>*{border-top:var(--topbar,0px) solid transparent}
 :root[data-glass="on"] .shell>:is(.ppanel,.cpanel)[data-overlay]{border-top:0}

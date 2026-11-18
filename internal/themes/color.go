@@ -139,3 +139,21 @@ func Glass(mode string, card, fg, acc rgba) map[string]string {
 		"bubble-me":    mix(card, acc, 0.14).alpha(0.92).hexA(),
 	}
 }
+
+// Glass transparency is the Settings slider, 0 to 100: 0 keeps a theme's own glass and 100 is the
+// most see-through it goes. MinGlassScale caps that end so text on the glass keeps its contrast.
+const (
+	DefaultGlassTransparency = 60
+	MinGlassScale            = 0.4
+)
+
+// GlassScale is the factor the window multiplies every glass surface's alpha by (--glass-k) for a
+// glass transparency; out-of-range values are clamped.
+func GlassScale(transparency float64) float64 {
+	t := math.Max(0, math.Min(100, transparency))
+	return math.Round((1-(1-MinGlassScale)*t/100)*1000) / 1000
+}
+
+// GlassVeil is the gentler factor for surfaces that float over text (the chat's header and
+// composer, the top bar, the tutorial caption): half of the scale.
+func GlassVeil(scale float64) float64 { return 0.5 + scale*0.5 }

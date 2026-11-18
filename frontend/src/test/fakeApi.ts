@@ -580,7 +580,9 @@ const fns = {
   sound_play: vi.fn(async (_a: { sound: string }) => ({ played: true, volume: 0.6 })),
   ui_display_get: vi.fn(async (): Promise<UIDisplay> => {
     const on = state.fx.settings[SETTING_GLASS] !== false;
-    return { glass_chats: on, reduce_transparency: state.reduceTransparency, glass: !on ? "off" : state.reduceTransparency ? "solid" : "on" };
+    const t = typeof state.fx.settings["ui.glass_transparency"] === "number" ? (state.fx.settings["ui.glass_transparency"] as number) : 60;
+    const glass_scale = Math.round((1 - (0.6 * t) / 100) * 1000) / 1000;
+    return { glass_chats: on, reduce_transparency: state.reduceTransparency, glass: !on ? "off" : state.reduceTransparency ? "solid" : "on", glass_transparency: t, glass_scale };
   }),
   theme_list: vi.fn(async () => clone({ themes: themes.themes, groups: THEME_GROUPS, active: themes.active })),
   theme_set: vi.fn(async (a: { theme?: string; light?: string; dark?: string }) => {

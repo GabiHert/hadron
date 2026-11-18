@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/GabiHert/hadron/internal/domain"
+	"github.com/GabiHert/hadron/internal/store"
+	"github.com/GabiHert/hadron/internal/themes"
 )
 
 // UIPanelCollapseIn is the input of ui_panel_collapse.
@@ -45,6 +47,22 @@ var settingKeyRe = regexp.MustCompile(`^[a-z][a-z0-9_.]*$`)
 // SettingGlassChats switches the chats' glass look; it is on unless set to false.
 const SettingGlassChats = "ui.glass_chats"
 
+// SettingGlassTransparency is the Glass transparency slider: 0 (the theme's own glass) to 100 (the
+// most see-through it goes), themes.DefaultGlassTransparency when unset.
+const SettingGlassTransparency = "ui.glass_transparency"
+
+// GlassTransparency reads the Glass transparency setting.
+func GlassTransparency(st *store.Store) float64 {
+	t := float64(themes.DefaultGlassTransparency)
+	if raw, err := st.Settings.Get(SettingGlassTransparency); err == nil {
+		var v float64
+		if json.Unmarshal(raw, &v) == nil && v >= 0 && v <= 100 {
+			t = v
+		}
+	}
+	return t
+}
+
 // UIDisplayOut is what ui_display_get returns.
 type UIDisplayOut struct {
 	accessibility.Display
@@ -53,6 +71,10 @@ type UIDisplayOut struct {
 	// Glass is what the chats show: on (frosted glass), solid (the same bubbles on opaque surfaces,
 	// because macOS asks for less transparency) or off.
 	Glass string `json:"glass" jsonschema:"on, solid (Reduce transparency is on in macOS) or off"`
+	// GlassTransparency is the Glass transparency slider.
+	GlassTransparency float64 `json:"glass_transparency" jsonschema:"the Glass transparency setting (ui.glass_transparency): 0 is the theme's own glass, 100 the most see-through; 60 by default"`
+	// GlassScale is what every glass surface's alpha is multiplied by for that setting.
+	GlassScale float64 `json:"glass_scale" jsonschema:"the factor the glass surfaces' alpha is multiplied by, from 1 (at 0) down to 0.4 (at 100)"`
 }
 
 // EventTutorial asks the window to start the tutorial.
@@ -91,9 +113,10 @@ func registerUI(r *Registry) {
 			return ev, nil
 		})
 
-	Register(r, Spec{Name: "ui_display_get", Description: "Read how the chats look: the Glass chats setting (ui.glass_chats, changed with settings_update), whether macOS asks for reduced transparency, and the result: glass on, solid, or off."},
+	Register(r, Spec{Name: "ui_display_get", Description: "Read how the chats look: the Glass chats setting (ui.glass_chats), the Glass transparency setting (ui.glass_transparency, 0 to 100) and the alpha scale it gives the glass, whether macOS asks for reduced transparency, and the result: glass on, solid, or off. Change the settings with settings_update."},
 		func(ctx context.Context, c *Call, in struct{}) (UIDisplayOut, error) {
-			out := UIDisplayOut{GlassChats: true}
+			out := UIDisplayOut{GlassChats: true, GlassTransparency: GlassTransparency(c.Store)}
+			out.GlassScale = themes.GlassScale(out.GlassTransparency)
 			if raw, err := c.Store.Settings.Get(SettingGlassChats); err == nil {
 				_ = json.Unmarshal(raw, &out.GlassChats)
 			}
@@ -167,7 +190,7 @@ func registerUI(r *Registry) {
 			return c.Store.Settings.All()
 		})
 
-	Register(r, Spec{Name: "settings_update", Description: "Change global settings, such as ui.theme (a theme id from theme_list, or system to follow macOS with ui.theme.light and ui.theme.dark; theme_set does the same), keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like \"Mod+D\" or \"Shift+Mod+P\"; see hadron_guide keyboard) or ui.zoom (the window zoom, 0.7 to 2, 1 is 100%), or the sounds a card makes moving into and out of a needs-you column: sounds.enabled (true or false), sounds.volume (0 to 1) and sounds.muted_workspaces (workspace ids that stay silent). Returns all settings.", Mutates: true, Entities: []string{"settings"}},
+	Register(r, Spec{Name: "settings_update", Description: "Change global settings, such as ui.theme (a theme id from theme_list, or system to follow macOS with ui.theme.light and ui.theme.dark; theme_set does the same), keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like \"Mod+D\" or \"Shift+Mod+P\"; see hadron_guide keyboard) ui.zoom (the window zoom, 0.7 to 2, 1 is 100%), ui.glass_chats (true or false) or ui.glass_transparency (how see-through the glass is, 0 to 100, 60 by default; ui_display_get reads it back), or the sounds a card makes moving into and out of a needs-you column: sounds.enabled (true or false), sounds.volume (0 to 1) and sounds.muted_workspaces (workspace ids that stay silent). Returns all settings.", Mutates: true, Entities: []string{"settings"}},
 		func(ctx context.Context, c *Call, in SettingsUpdateIn) (map[string]json.RawMessage, error) {
 			for k, v := range in.Values {
 				if !settingKeyRe.MatchString(k) {
@@ -216,6 +239,11 @@ func registerUI(r *Registry) {
 				}
 				if err := checkSoundSetting(k, v); err != nil {
 					return nil, err
+				}
+				if k == SettingGlassTransparency {
+					if t, ok := v.(float64); !ok || t < 0 || t > 100 {
+						return nil, fmt.Errorf("%s must be a number from 0 (the theme's own glass) to 100 (the most see-through), got %v", SettingGlassTransparency, v)
+					}
 				}
 				if k == SettingZoom {
 					z, ok := v.(float64)

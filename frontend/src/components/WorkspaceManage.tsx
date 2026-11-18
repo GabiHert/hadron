@@ -176,7 +176,7 @@ export function TabMenu({ board, at, onRename, onDelete, onClose }: { board: Boa
   }, [onClose]);
   if (!ws) return null;
   const item = (label: string, run: () => void, disabled = false) => (
-    <button type="button" role="menuitem" disabled={disabled} onClick={() => { onClose(false); run(); }}>
+    <button key={label} type="button" role="menuitem" disabled={disabled} onClick={() => { onClose(false); run(); }}>
       {label}
     </button>
   );
