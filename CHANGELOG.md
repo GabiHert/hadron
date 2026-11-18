@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.36] - 2026-11-18
+
 ### Added
 - A short animated tutorial for new users: on the first launch, fifteen short steps in four chapters (Basics, Working with the planner, Automate, MCP) dim the app and spotlight the real parts of Hadron, gliding from one to the next with a small animation for each. Skip it any time; ← and → move, Esc closes, and the chapter chips jump ahead.
 - The tutorial covers workspaces, the board and Needs you, making a card, Chat and Terminal, the planner, questions, live widgets, the dashboard, integrations and routines, and most of all MCP: every action in Hadron is an MCP tool, so any Claude session can drive your board, with your server's real address and how to connect Claude Code.
