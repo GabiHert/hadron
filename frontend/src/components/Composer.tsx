@@ -81,6 +81,20 @@ interface Props {
  * cards and files. With onCommand, a message that starts with "/" goes to the session's terminal,
  * not the planner; "//" sends a literal slash to the planner.
  */
+/** The window event that puts text in a composer (by its id) without sending it. */
+const COMPOSE_EVENT = "hadron:compose";
+/** Text waiting for a composer that is not on screen yet, such as the planner's before a workspace exists. */
+const pendingText = new Map<string, string>();
+
+/**
+ * Puts text in a composer, editable and not sent, and focuses it. When that composer is not on
+ * screen yet, the text waits for it.
+ */
+export function fillComposer(id: string, text: string) {
+  pendingText.set(id, text);
+  window.dispatchEvent(new CustomEvent(COMPOSE_EVENT, { detail: { id } }));
+}
+
 export function Composer({ id, label, placeholder, onSend, suggestions, onError, target, cards, columns, mentionPlanner = false, onCommand, running, onStart, sessionName = "The session" }: Props) {
   const [v, setV] = useState("");
   const [files, setFiles] = useState<Attachment[]>([]);
@@ -97,6 +111,23 @@ export function Composer({ id, label, placeholder, onSend, suggestions, onError,
   const sending = useRef(false);
   const mounted = useRef(true);
   useEffect(() => () => void (mounted.current = false), []);
+  // Text another part of the app asked for (the tutorial's last step), now or before this mounted.
+  useEffect(() => {
+    const take = () => {
+      const t = pendingText.get(id);
+      if (t === undefined) return;
+      pendingText.delete(id);
+      setV(t);
+      pendingCaret.current = t.length;
+      requestAnimationFrame(() => field.current?.focus());
+    };
+    take();
+    const on = (e: Event) => {
+      if ((e as CustomEvent<{ id: string }>).detail?.id === id) take();
+    };
+    window.addEventListener(COMPOSE_EVENT, on);
+    return () => window.removeEventListener(COMPOSE_EVENT, on);
+  }, [id]);
   useLayoutEffect(() => {
     const c = pendingCaret.current;
     if (c === null || !field.current) return;

@@ -3552,6 +3552,17 @@
     ]
   },
   {
+    "name": "sound_play",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "sound",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
     "name": "sound_preview",
     "mutates": false,
     "fields": [
@@ -3663,6 +3674,17 @@
     "fields": [
       {
         "name": "mode",
+        "required": false,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "tutorial_show",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "chapter",
         "required": false,
         "type": "string"
       }

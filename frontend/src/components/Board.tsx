@@ -25,7 +25,7 @@ export function ViewSeg({ board }: { board: BoardState }) {
   const view = board.ws?.ui.main_view ?? "board";
   const set = (v: "board" | "dashboard" | "sessions") => void board.actions.setMainView(v);
   return (
-    <div className="seg mview" role="tablist" aria-label="Main view">
+    <div className="seg mview" role="tablist" aria-label="Main view" data-tour="views">
       <button className={view === "board" ? "on" : ""} role="tab" aria-selected={view === "board"} title={withChord("Board", "view.dashboard")} onClick={() => set("board")}>
         <Icon name="board" size={13} />Board
       </button>
@@ -73,7 +73,7 @@ export function Board({ board, onNewSession, onNewWorkspace }: Props) {
 
   const viewSeg = <ViewSeg board={board} />;
   const newBtn = (
-    <button className="btn" onClick={onNewSession} title={withChord("New session", "card.new")}>
+    <button className="btn" data-tour="new-card" onClick={onNewSession} title={withChord("New session", "card.new")}>
       <Icon name="plus" size={13} />New session
     </button>
   );
@@ -170,6 +170,7 @@ export function ColumnView(p: ColProps) {
       <section
         className={"col folded" + (p.over ? " drop" : "")}
         aria-label={`Column ${col.name}, collapsed`}
+        data-tour={col.role === "needs-you" ? "needs-you" : undefined}
         data-col-id={col.id}
         data-col-name={col.name}
         data-folded=""
@@ -227,6 +228,7 @@ export function ColumnView(p: ColProps) {
     <section
       className={"col" + (p.over ? " drop" : "")}
       aria-label={`Column ${col.name}`}
+      data-tour={col.role === "needs-you" ? "needs-you" : undefined}
       data-col-id={col.id}
       data-col-name={col.name}
       onDragOver={(e) => {

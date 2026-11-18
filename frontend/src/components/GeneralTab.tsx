@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { CHAPTERS } from "./Tutorial";
 import * as api from "../api";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Settings → General: app-wide behaviour that is not about one workspace. */
-export function GeneralTab({ toast }: { toast: (msg: string) => void }) {
+export function GeneralTab({ toast, onTutorial }: { toast: (msg: string) => void; onTutorial?: (chapter?: string) => void }) {
   const [restore, setRestore] = useState(true);
   useEffect(() => {
     let alive = true;
@@ -34,6 +35,19 @@ export function GeneralTab({ toast }: { toast: (msg: string) => void }) {
       <p className="hint">
         Sessions that were running when Hadron quit, updated or crashed start again with their conversation. A session you stopped yourself, or that you ended with /exit, stays stopped. Turning this off also forgets what was running.
       </p>
+      {onTutorial ? (
+        <>
+          <h5 style={{ margin: "16px 0 6px" }}>Tutorial</h5>
+          <div className="inline" style={{ flexWrap: "wrap", gap: 6 }}>
+            <button className="btn" type="button" onClick={() => onTutorial()}>Replay tutorial</button>
+            <span className="hint">or jump to</span>
+            {CHAPTERS.map((c) => (
+              <button key={c.id} className="btn sm" type="button" aria-label={`Tutorial chapter: ${c.title}`} onClick={() => onTutorial(c.id)}>{c.title}</button>
+            ))}
+          </div>
+          <p className="hint">A short tour: the basics, working with the planner, automating with the dashboard, integrations and routines, and driving Hadron over MCP. Also in Help and ⌘K.</p>
+        </>
+      ) : null}
     </>
   );
 }

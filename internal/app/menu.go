@@ -99,6 +99,7 @@ func buildMenu(a *App) *menu.Menu {
 	}
 	m.Append(menu.WindowMenu())
 	help := m.AddSubmenu("Help")
+	help.AddText("Show the Tutorial", nil, func(*menu.CallbackData) { a.emit(actions.EventTutorial, nil) })
 	help.AddText("What's New in Hadron", nil, func(*menu.CallbackData) { a.emit(EventWhatsNew, nil) })
 	return m
 }

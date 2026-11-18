@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/sounds"
@@ -112,7 +113,33 @@ type SoundPreviewOut struct {
 	Volume float64 `json:"volume"`
 }
 
+// SoundPlayIn is the input of sound_play.
+type SoundPlayIn struct {
+	Sound string `json:"sound" jsonschema:"tour_glide, tour_tick, tour_pop or tour_chime (the tutorial's sounds), or needs_you or back_to_work"`
+}
+
+// SoundPlayOut is the result of sound_play.
+type SoundPlayOut struct {
+	Played bool    `json:"played" jsonschema:"false when sounds are off in Settings, Sounds"`
+	Volume float64 `json:"volume"`
+}
+
 func registerSounds(r *Registry) {
+	Register(r, Spec{Name: "sound_play", Description: "Play one of Hadron's UI sounds the way the app does: silent when sounds are off (sounds.enabled), at the sounds.volume setting. The window uses it for the tutorial's sounds: tour_glide, tour_tick, tour_pop and tour_chime."},
+		func(ctx context.Context, c *Call, in SoundPlayIn) (SoundPlayOut, error) {
+			if !slices.Contains(sounds.AllKinds(), in.Sound) {
+				return SoundPlayOut{}, fmt.Errorf("sound %q does not exist. Use one of %s", in.Sound, strings.Join(sounds.AllKinds(), ", "))
+			}
+			p := SoundPrefs(c.Store)
+			if !p.Enabled || p.Volume <= 0 || c.Deps.PlaySound == nil {
+				return SoundPlayOut{Volume: p.Volume}, nil
+			}
+			if err := c.Deps.PlaySound(in.Sound, p.Volume); err != nil {
+				return SoundPlayOut{Volume: p.Volume}, err
+			}
+			return SoundPlayOut{Played: true, Volume: p.Volume}, nil
+		})
+
 	Register(r, Spec{Name: "sound_preview", Description: "Play one of Hadron's sounds now, even when sounds are off: needs_you (the chime when a card moves into a needs-you column) or back_to_work (the note when it moves out). Settings: sounds.enabled, sounds.volume (0 to 1) and sounds.muted_workspaces (workspace ids), through settings_update."},
 		func(ctx context.Context, c *Call, in SoundPreviewIn) (SoundPreviewOut, error) {
 			if !slices.Contains(sounds.Kinds, in.Sound) {

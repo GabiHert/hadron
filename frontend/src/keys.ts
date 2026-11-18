@@ -46,6 +46,10 @@ const pick = (n: number): CommandDef => ({ id: `question.pick.${n}`, title: `Pic
 
 export const DEFAULTS: CommandDef[] = [
   { id: "palette.toggle", title: "Command palette", group: "General", scope: "global", keys: ["Mod+K"], terminal: true, dialog: true, menu: "View" },
+  { id: "help.tutorial", title: "Show the tutorial", group: "General", scope: "global", keys: [] },
+  { id: "help.tutorial.planner", title: "Tutorial: working with the planner", group: "General", scope: "global", keys: [] },
+  { id: "help.tutorial.automate", title: "Tutorial: automate (dashboard, integrations, routines)", group: "General", scope: "global", keys: [] },
+  { id: "help.tutorial.mcp", title: "Tutorial: MCP, driving Hadron from any Claude session", group: "General", scope: "global", keys: [] },
   { id: "help.keys", title: "Keyboard shortcuts", group: "General", scope: "global", keys: ["?", "Mod+/"], terminal: true, menu: "View" },
   { id: "card.new", title: "New session", group: "General", scope: "global", keys: ["Mod+N"], terminal: true, menu: "Card" },
   { id: "workspace.new", title: "New workspace", group: "General", scope: "global", keys: [] },

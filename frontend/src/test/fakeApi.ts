@@ -28,7 +28,7 @@ export const card = (id: string, wsId: string, colId: string, nick: string, posi
 export function defaultFixture(): Fixture {
   return {
     version: "v0.0.1-test",
-    settings: { active_workspace: "w1" },
+    settings: { active_workspace: "w1", "tutorial.seen": true },
     workspaces: [ws("w1", "Acme", { position: 0 }), ws("w2", "Work", { position: 1, color: "#2f7a4b" })],
     columns: {
       w1: [
@@ -576,6 +576,7 @@ const fns = {
     return clone(v);
   }),
   chip_color_list: vi.fn(async () => clone(state.chipColors)),
+  sound_play: vi.fn(async (_a: { sound: string }) => ({ played: true, volume: 0.6 })),
   ui_display_get: vi.fn(async (): Promise<UIDisplay> => {
     const on = state.fx.settings[SETTING_GLASS] !== false;
     return { glass_chats: on, reduce_transparency: state.reduceTransparency, glass: !on ? "off" : state.reduceTransparency ? "solid" : "on" };

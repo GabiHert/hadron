@@ -1,3 +1,4 @@
+import { showTutorial } from "./components/Tutorial";
 // What each command in keys.ts does. The dispatcher (keys.ts), the palette, the cheat sheet and the
 // native menus all run commands through runCommand, so a key press, a palette pick and a menu click
 // do the same thing. Handlers return false when they did nothing, so the key goes on to the page.
@@ -221,7 +222,7 @@ export function onUIRequest(cb: (r: UIRequest) => void): () => void {
 
 // ---- the handlers ----
 
-export type ModalName = "newws" | "newsession" | "newfree" | "settings" | "palette" | "feedback" | "whatsnew" | "keys";
+export type ModalName = "newws" | "newsession" | "newfree" | "settings" | "palette" | "feedback" | "whatsnew" | "keys" | "tutorial";
 
 /** What the handlers can reach. App builds it on every render. */
 export interface Env {
@@ -462,6 +463,10 @@ function answerApproval(env: Env, approve: boolean): boolean {
 const HANDLERS: Record<string, Handler> = {
   "palette.toggle": (env) => env.setModal(env.modal === "palette" ? null : "palette"),
   "help.keys": (env) => env.setModal(env.modal === "keys" ? null : "keys"),
+  "help.tutorial": () => (showTutorial(), true),
+  "help.tutorial.planner": () => (showTutorial("planner"), true),
+  "help.tutorial.automate": () => (showTutorial("automate"), true),
+  "help.tutorial.mcp": () => (showTutorial("mcp"), true),
   "card.new": (env) => env.newSessionIn(),
   "workspace.new": (env) => env.setModal("newws"),
   "settings.open": (env) => env.openSettings(),

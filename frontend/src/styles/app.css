@@ -1,6 +1,10 @@
 .serif{font-family:var(--head)}.mono{font-family:var(--mono)}
 .cap{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--fg3)}
-.top{--wails-draggable:drag;height:44px;flex:none;display:flex;align-items:center;gap:10px;padding:0 12px 0 84px;background:var(--side);border-bottom:1px solid var(--border);min-width:0}
+/* --traffic is the room the macOS window buttons take at the left of the top bar, with about 16px
+   of clear space after the green one; in full screen they are hidden and the room closes up. */
+:root{--traffic:94px}
+.top.fs{padding-left:12px}
+.top{--wails-draggable:drag;height:44px;flex:none;display:flex;align-items:center;gap:10px;padding:0 12px 0 var(--traffic);background:var(--side);border-bottom:1px solid var(--border);min-width:0}
 .brand{display:flex;align-items:center;gap:8px;flex:none;margin-left:6px}
 .wordmark{font:600 15px var(--brand);letter-spacing:-0.01em}
 .ver{font-size:11.5px;color:var(--fg3)}
@@ -231,7 +235,7 @@ textarea.in.grow-max{overflow-y:auto;scrollbar-width:thin}
 @media (max-width: 1180px){.ppanel{width:290px}.cpanel{width:390px}}
 @media (max-width: 960px){
   body{padding-block:0;padding-left:0;padding-right:0}
-    .top{padding-left:84px}
+    .top{padding-left:var(--traffic)}
   .ver,.hide-narrow{display:none}
   .only-narrow{display:inline-grid}
   .ppanel,.cpanel{position:fixed;top:44px;bottom:0;z-index:40;width:min(440px,100%);box-shadow:var(--shadow);display:none}
@@ -547,4 +551,150 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
   :root[data-glass="on"] :is(.ppanel,.cpanel)::before,:root[data-glass="on"] :is(.ppanel,.cpanel)[data-overlay]>:is(.ghead,.composer){background:var(--card);-webkit-backdrop-filter:none;backdrop-filter:none}
   :root[data-glass="on"] :is(.ppanel,.cpanel) :is(.b-pl,.b-rep,.b-ev,.qbox,.qdone,.typing,.b-cmd .mono,.widget .wframe,.in,.seg,.tabs){background:var(--card)}
   :root[data-glass="on"] :is(.ppanel,.cpanel) :is(.b-me,.seg button.on,.tab.on){background:var(--sel)}
+}
+
+/* The tutorial: the app dimmed around a spotlight that glides between elements, and a glass
+   caption. The dimming is the spotlight's own giant shadow, so one element both dims and cuts out. */
+.tour{position:fixed;inset:0;z-index:300;pointer-events:auto}
+.tour-hole{position:fixed;border-radius:12px;box-shadow:0 0 0 200vmax var(--scrim),0 0 0 2px color-mix(in srgb,var(--acc) 70%,transparent),0 0 24px 4px color-mix(in srgb,var(--acc) 35%,transparent);
+  transition:top .45s cubic-bezier(.2,.8,.2,1),left .45s cubic-bezier(.2,.8,.2,1),width .45s cubic-bezier(.2,.8,.2,1),height .45s cubic-bezier(.2,.8,.2,1),box-shadow .3s;pointer-events:none}
+.tour-hole.none{box-shadow:0 0 0 200vmax var(--scrim)}
+.tour-cap{position:fixed;width:min(360px,calc(100vw - 32px));padding:14px 16px 12px;border-radius:16px;color:var(--fg);
+  background:var(--glass,var(--card));border:1px solid var(--glass-border,var(--border));
+  box-shadow:inset 0 1px 0 var(--glass-border,transparent),var(--shadow);
+  -webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);
+  animation:tour-in .35s cubic-bezier(.2,.8,.2,1);transition:top .45s cubic-bezier(.2,.8,.2,1),left .45s cubic-bezier(.2,.8,.2,1)}
+.tour-cap.centred{width:min(420px,calc(100vw - 32px))}
+.tour-cap h3{margin:2px 0 8px;font:600 17px var(--head);letter-spacing:-.01em}
+.tour-cap p{margin:8px 0 0;color:var(--fg2);line-height:1.5}
+.tour-cap .tour-note{font-size:12px;color:var(--fg3)}
+.tour-count{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.05em}
+.tour-dots{display:flex;gap:5px;margin:12px 0 10px}
+.tour-dots span{width:6px;height:6px;border-radius:99px;background:var(--dot);transition:width .3s,background .3s}
+.tour-dots span.past{background:color-mix(in srgb,var(--acc) 45%,var(--dot))}
+.tour-dots span.on{width:18px;background:var(--acc)}
+.tour-btns{display:flex;gap:6px;align-items:center}
+.tour-btns .btn{border-radius:10px}
+@keyframes tour-in{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes tour-fade{from{opacity:0}to{opacity:1}}
+/* Illustrations: small, theme-aware, built from the app's own tokens. */
+.tour-ill{margin:6px 0 2px;padding:12px;border-radius:12px;background:color-mix(in srgb,var(--bubble,var(--muted)) 80%,transparent);border:1px solid var(--glass-border,var(--border));display:grid;place-items:center;min-height:84px;overflow:hidden;font-size:12px}
+.tour-ill.big{min-height:130px}
+.ti-card{display:flex;flex-direction:column;gap:2px;padding:7px 10px;border-radius:9px;background:var(--card);border:1px solid var(--border);box-shadow:var(--bubble-shadow,var(--shadow));min-width:104px}
+.ti-card b{font-size:12px}.ti-card span{font-size:11px;color:var(--fg3)}
+.ti-session{display:flex;align-items:center;gap:10px}
+.ti-arrow{color:var(--acc);font-size:18px;animation:ti-nudge 1.6s ease-in-out infinite}
+.ti-term{display:flex;align-items:center;gap:4px;padding:8px 10px;border-radius:9px;background:var(--term);color:var(--tg);font:12px var(--mono)}
+.ti-cursor{width:7px;height:13px;background:var(--tfg);animation:ti-blink 1s steps(2) infinite}
+.ti-tabs{display:flex;gap:4px}
+.ti-tabs span{padding:4px 12px;border-radius:99px;border:1px solid var(--border);background:var(--card);color:var(--fg2)}
+.ti-tabs span.on{background:var(--sel);color:var(--acc);font-weight:600;animation:ti-tab 3.6s ease-in-out infinite}
+.ti-board{position:relative;display:grid;grid-template-columns:repeat(3,92px);gap:8px;height:96px}
+.ti-col{border-radius:9px;background:var(--muted);border:1px solid var(--row);padding:5px 7px}
+.ti-col i{font-style:normal;font-size:10.5px;color:var(--fg3)}
+.ti-col.needs{border-color:color-mix(in srgb,var(--warn) 50%,var(--row));background:color-mix(in srgb,var(--warnb) 60%,var(--muted))}
+.ti-col.needs i{color:var(--warn)}
+.ti-mover{position:absolute;top:30px;left:6px;width:80px;padding:6px 8px;border-radius:8px;background:var(--card);border:1px solid var(--border);box-shadow:var(--bubble-shadow,var(--shadow));font-size:11px;font-weight:600;animation:ti-move 4s cubic-bezier(.5,0,.3,1) infinite}
+.ti-new{display:flex;flex-direction:column;align-items:center;gap:8px}
+.ti-btn{padding:4px 11px;border-radius:8px;border:1px solid var(--border);background:var(--card);animation:ti-press 3s ease-in-out infinite}
+.ti-pop{animation:ti-pop 3s ease-in-out infinite}
+.ti-ct{display:flex;flex-direction:column;gap:8px;align-items:center}
+.ti-seg{position:relative;display:grid;grid-template-columns:72px 72px;border-radius:99px;border:1px solid var(--border);background:var(--card);padding:2px}
+.ti-seg span{position:relative;z-index:1;text-align:center;padding:3px 0;color:var(--fg2)}
+.ti-knob{position:absolute!important;z-index:0!important;top:2px;left:2px;width:72px;height:calc(100% - 4px);border-radius:99px;background:var(--sel);animation:ti-knob 3.6s ease-in-out infinite}
+.ti-ctbody{display:flex;flex-direction:column;gap:4px;width:150px}
+.ti-line{height:6px;border-radius:99px;background:var(--row)}.ti-line.short{width:60%}
+.ti-chat{display:flex;flex-direction:column;gap:6px;width:220px}
+.ti-bub{padding:6px 10px;border-radius:14px;max-width:80%;box-shadow:var(--bubble-shadow,none)}
+.ti-bub.them{align-self:flex-start;background:var(--card);border:1px solid var(--border);border-bottom-left-radius:4px}
+.ti-bub.me{align-self:flex-end;background:var(--bubble-me,var(--sel));border-bottom-right-radius:4px}
+.ti-send{animation:ti-send 3.2s cubic-bezier(.2,.8,.2,1) infinite}
+.ti-q{display:flex;flex-direction:column;gap:5px;width:220px;padding:9px 10px;border-radius:12px;background:var(--card);border:1px solid color-mix(in srgb,var(--warn) 45%,var(--border))}
+.ti-opt{padding:4px 8px;border-radius:8px;border:1px solid var(--border);color:var(--fg2)}
+.ti-pick{animation:ti-pick 3.2s ease-in-out infinite}
+.ti-pal{display:flex;align-items:center;gap:5px}
+.ti-key{display:inline-grid;place-items:center;min-width:28px;height:28px;padding:0 6px;border-radius:7px;background:var(--card);border:1px solid var(--border);box-shadow:0 2px 0 var(--border);font-weight:600;animation:ti-press 2.4s ease-in-out infinite}
+.ti-field{margin-left:6px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--fg3);animation:ti-type 2.4s steps(12) infinite;overflow:hidden;white-space:nowrap}
+@keyframes ti-blink{50%{opacity:0}}
+@keyframes ti-nudge{50%{transform:translateX(4px)}}
+@keyframes ti-tab{0%,30%{transform:none}40%,70%{transform:translateX(0);filter:brightness(1.05)}}
+@keyframes ti-move{0%,15%{transform:translate(0,0)}45%,70%{transform:translate(100px,0)}100%{transform:translate(0,0)}}
+@keyframes ti-press{0%,40%,100%{transform:none}45%{transform:translateY(1px) scale(.97)}}
+@keyframes ti-pop{0%,45%{opacity:0;transform:translateY(-6px) scale(.95)}60%,90%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes ti-knob{0%,40%{transform:none}50%,90%{transform:translateX(72px)}100%{transform:none}}
+@keyframes ti-send{0%,10%{opacity:0;transform:translateY(16px)}30%,85%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes ti-pick{0%,35%{background:transparent;color:var(--fg2)}45%,90%{background:var(--sel);color:var(--fg);border-color:var(--acc)}100%{background:transparent}}
+@keyframes ti-type{from{max-width:30px}to{max-width:140px}}
+/* Chapters: chips above the caption to jump between them; a gap in the dots between chapters. */
+.tour-chapters{display:flex;flex-wrap:wrap;gap:4px;margin:-2px 0 8px}
+.tour-chapters button{border:1px solid var(--glass-border,var(--border));background:color-mix(in srgb,var(--bubble,var(--card)) 60%,transparent);color:var(--fg2);border-radius:99px;padding:2px 9px;font-size:11px}
+.tour-chapters button.on{background:var(--bubble-me,var(--sel));color:var(--fg);font-weight:600;box-shadow:var(--bubble-shadow,none)}
+.tour-total{color:var(--fg3);text-transform:none;letter-spacing:0}
+.tour-dots span.gap{margin-left:6px}
+.ti-widget{display:flex;flex-direction:column;gap:6px;width:200px;padding:9px 10px;border-radius:12px;background:var(--card);border:1px solid var(--border);box-shadow:var(--bubble-shadow,none)}
+.ti-widget b{font-size:11.5px}
+.ti-bars{display:flex;align-items:flex-end;gap:8px;height:56px}
+.ti-bars span{flex:1;border-radius:4px 4px 2px 2px;background:color-mix(in srgb,var(--acc) 70%,var(--card));transform-origin:bottom;animation:ti-grow 2.8s ease-in-out infinite}
+.ti-dash{display:grid;grid-template-columns:repeat(2,104px);gap:6px}
+.ti-blk{display:flex;flex-direction:column;gap:2px;padding:6px 8px;border-radius:9px;background:var(--card);border:1px solid var(--border);box-shadow:var(--bubble-shadow,none);animation:ti-fadein 3.6s ease-in-out infinite}
+.ti-blk:nth-child(2){animation-delay:.2s}.ti-blk.wide{grid-column:span 2;animation-delay:.4s}
+.ti-blk i{font-style:normal;font-size:10.5px;color:var(--fg3)}
+.ti-num{font:600 18px var(--head)}.ti-num.warn{color:var(--warn)}
+.ti-chips{display:flex;gap:4px}.ti-chips em{font-style:normal;font-size:10.5px;padding:1px 7px;border-radius:99px;background:var(--sel);color:var(--fg)}
+.ti-integ{display:flex;align-items:center;gap:10px}
+.ti-ticket{display:flex;flex-direction:column;gap:2px;padding:7px 10px;border-radius:9px;border:1px dashed var(--border);background:var(--muted);min-width:104px}
+.ti-ticket i{font-style:normal;font:600 11px var(--mono);color:var(--acc)}.ti-ticket span{font-size:11px;color:var(--fg2)}
+.ti-sync{color:var(--acc);font-size:18px;animation:ti-spin 3s linear infinite}
+.ti-rout{display:flex;flex-direction:column;align-items:center;gap:6px;width:230px}
+.ti-clock{position:relative;width:30px;height:30px;border-radius:99px;border:2px solid var(--fg3)}
+.ti-hand{position:absolute;left:50%;top:4px;width:2px;height:11px;margin-left:-1px;background:var(--acc);transform-origin:50% 100%;animation:ti-spin 4s linear infinite}
+.ti-when{font-style:normal;font-size:10.5px;color:var(--fg3)}
+.ti-tools{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;max-width:300px}
+.ti-tools span{font:11px var(--mono);padding:2px 7px;border-radius:99px;background:var(--card);border:1px solid var(--border);color:var(--fg2);animation:ti-fadein 3.6s ease-in-out infinite}
+.ti-connect{display:flex;flex-direction:column;align-items:center;gap:6px}
+.ti-connect i{font-style:normal;font-size:11px;color:var(--fg3)}
+.ti-addr{font-size:12px;padding:5px 10px;border-radius:8px;background:var(--card);border:1px solid var(--border);color:var(--acc);box-shadow:var(--bubble-shadow,none)}
+.ti-live{display:flex;align-items:flex-start;gap:10px}
+.ti-call{max-width:180px;overflow:hidden;white-space:nowrap}
+.ti-typed{display:inline-block;overflow:hidden;white-space:nowrap;animation:ti-typing 4s steps(28) infinite}
+.ti-live .ti-col{display:flex;flex-direction:column;gap:5px;width:116px;min-height:78px}
+.ti-drop{animation:ti-drop 4s cubic-bezier(.2,.8,.2,1) infinite}
+@keyframes ti-grow{0%,10%{transform:scaleY(.15)}45%,85%{transform:scaleY(1)}100%{transform:scaleY(.15)}}
+@keyframes ti-fadein{0%,8%{opacity:0;transform:translateY(4px)}25%,85%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes ti-spin{to{transform:rotate(360deg)}}
+@keyframes ti-typing{0%{max-width:0}45%,100%{max-width:180px}}
+@keyframes ti-drop{0%,50%{opacity:0;transform:translateY(-10px) scale(.95)}62%,92%{opacity:1;transform:none}100%{opacity:0}}
+/* The caption's sound toggle, and the last step's prompts for the planner. */
+.tour-mute{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:99px;color:var(--fg3)}
+.tour-mute[aria-pressed="true"]{color:var(--fg2)}
+.tour-amb{position:absolute;top:8px;right:38px;width:28px;height:28px;border-radius:99px;color:var(--fg3)}
+.tour-amb[aria-pressed="true"]{color:var(--acc)}
+.tour-amb:disabled{opacity:.4}
+.tour-cap .tour-chapters{padding-right:62px}
+.tour-asks{display:flex;flex-direction:column;gap:5px;margin:10px 0 2px}
+.tour-ask{text-align:left;font-size:12px;line-height:1.35;padding:6px 10px;border-radius:12px;border:1px solid var(--glass-border,var(--border));background:color-mix(in srgb,var(--bubble,var(--card)) 75%,transparent);color:var(--fg);box-shadow:var(--bubble-shadow,none)}
+.tour-ask:hover,.tour-ask:focus-visible{border-color:color-mix(in srgb,var(--acc) 55%,var(--glass-border,var(--border)))}
+.ti-handoff{display:flex;flex-direction:column;gap:6px;width:250px}
+.ti-handoff .ti-bub{font-size:11.5px}
+.ti-made{display:flex;gap:5px;justify-content:center;margin-top:2px}
+.ti-made .ti-card{min-width:0;padding:5px 7px}.ti-made .ti-card b{font-size:10.5px}.ti-made .ti-card span{font-size:9.5px}
+.ti-made .ti-blk{padding:5px 7px}.ti-made .ti-num{font-size:14px}
+.ti-h1{animation:ti-seq1 5s ease-out infinite}
+.ti-h2{animation:ti-seq2 5s ease-out infinite}
+.ti-h3{animation:ti-seq3 5s ease-out infinite}
+.ti-h4{animation:ti-seq4 5s ease-out infinite}
+.ti-h5{animation:ti-seq5 5s ease-out infinite}
+@keyframes ti-seq1{0%{opacity:0;transform:translateY(10px)}8%,92%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes ti-seq2{0%,22%{opacity:0;transform:translateY(8px)}32%,92%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes ti-seq3{0%,44%{opacity:0;transform:scale(.85)}52%,92%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes ti-seq4{0%,52%{opacity:0;transform:scale(.85)}60%,92%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes ti-seq5{0%,60%{opacity:0;transform:scale(.85)}68%,92%{opacity:1;transform:none}100%{opacity:0}}
+/* Reduce motion: the spotlight and caption cut to the next place and fade in; nothing slides. */
+@media (prefers-reduced-motion: reduce){
+  .tour-hole{transition:none}
+  .tour-cap{animation:tour-fade .25s ease-out!important;transition:none}
+  .tour-ill *{animation:none!important}
+  .ti-pop,.ti-send,.ti-drop,.ti-blk,.ti-tools span,.ti-h1,.ti-h2,.ti-h3,.ti-h4,.ti-h5{opacity:1}
+  .ti-typed{max-width:none}
+  .ti-mover{transform:translate(100px,0)}
 }

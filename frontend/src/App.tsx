@@ -10,6 +10,10 @@ import { NewSession, NewWorkspace, Settings } from "./components/Modals";
 import { CheatSheet, ConfirmDialog, Palette, paletteItems } from "./components/KeyDialogs";
 import type { ConfirmReq } from "./components/KeyDialogs";
 import { WhatsNew } from "./components/WhatsNew";
+import { ambientOff, ambientOn, uiSound } from "./tourAudio";
+import { chapterStart, SETTING_TUTORIAL_AMBIENT, SETTING_TUTORIAL_MUTED, SETTING_TUTORIAL_SEEN, TUTORIAL_EVENT, Tutorial } from "./components/Tutorial";
+import type { McpGlance, TourSound } from "./components/Tutorial";
+import { fillComposer } from "./components/Composer";
 import { PlannerPanel } from "./components/PlannerPanel";
 import { Icon } from "./components/ui";
 import { useUpdateAvailable } from "./components/UpdatesCard";
@@ -41,6 +45,8 @@ export default function App() {
   const board = useBoard();
   const { ws, toast, actions } = board;
   const [modal, setModal] = useState<Modal>(null);
+  const wsRef = useRef(ws);
+  wsRef.current = ws;
   const [plannerView, setPlannerView] = useState<"chat" | "terminal">("chat");
   const [cardView, setCardView] = useState<"chat" | "terminal">("chat");
   const [tab, setTab] = useState<CardTab>("conv");
@@ -51,12 +57,99 @@ export default function App() {
   const [feedbackArea, setFeedbackArea] = useState("board");
   const update = useUpdateAvailable();
   const checkedChangelog = useRef(false);
+  // Once, when the board has loaded: the tutorial on a first launch (it was never seen), which
+  // also holds What's new back until the next launch.
+  const [firstRun, setFirstRun] = useState<"pending" | "tour" | "done">("pending");
+  useEffect(() => {
+    if (!board.ready || firstRun !== "pending") return;
+    Promise.resolve(api.settings_get())
+      .then((s) => {
+        const seen = (s as Record<string, unknown> | null)?.[SETTING_TUTORIAL_SEEN] === true;
+        setFirstRun(seen ? "done" : "tour");
+        if (!seen) {
+          setTourStart(0);
+          setModal((m) => m ?? "tutorial");
+        }
+      })
+      .catch(() => setFirstRun("done"));
+  }, [board.ready, firstRun]);
+  // The tutorial starts at a chapter when asked from Settings, ⌘K or tutorial_show.
+  const [tourStart, setTourStart] = useState(0);
+  const [tourMcp, setTourMcp] = useState<McpGlance | null>(null);
+  const openTutorial = useCallback((chapter?: string) => {
+    setTourStart(chapterStart(chapter));
+    setModal("tutorial");
+  }, []);
+  useEffect(() => api.onEvent("tutorial:show", (d) => openTutorial((d as { chapter?: string } | null)?.chapter)), [openTutorial]);
+  useEffect(() => {
+    const on = (e: Event) => openTutorial((e as CustomEvent<{ chapter?: string }>).detail?.chapter);
+    window.addEventListener(TUTORIAL_EVENT, on);
+    return () => window.removeEventListener(TUTORIAL_EVENT, on);
+  }, [openTutorial]);
+  // The MCP steps show the real server's address and tool count (never its token).
+  useEffect(() => {
+    if (modal !== "tutorial") return;
+    Promise.resolve(api.mcp_info())
+      .then((i) => i && setTourMcp({ url: i.url, tools: i.tool_count }))
+      .catch(() => undefined);
+  }, [modal]);
+  // The tutorial's sounds go through Hadron's player (silent when Sounds are off); its own mute
+  // toggle is remembered in tutorial.muted.
+  const [tourMuted, setTourMuted] = useState(false);
+  // The Sounds volume (0 when Sounds are off), for the sounds the window makes itself: the
+  // caption's clicks and the ambient pad. The ambient pad has its own switch, on by default.
+  const [tourVol, setTourVol] = useState(0);
+  const [tourAmbient, setTourAmbient] = useState(true);
+  const ambientTour = useCallback((on: boolean) => {
+    setTourAmbient(on);
+    void Promise.resolve(api.settings_update({ values: { [SETTING_TUTORIAL_AMBIENT]: on } })).catch(() => undefined);
+  }, []);
+  const uiTour = useCallback((kind: "hover" | "press") => uiSound(kind, tourVol), [tourVol]);
+  useEffect(() => {
+    if (modal === "tutorial" && !tourMuted && tourAmbient && tourVol > 0) ambientOn(tourVol);
+    else ambientOff();
+  }, [modal, tourMuted, tourAmbient, tourVol]);
+  useEffect(() => () => ambientOff(), []);
+  const playTour = useCallback((sound: TourSound) => void Promise.resolve(api.sound_play({ sound })).catch(() => undefined), []);
+  const muteTour = useCallback((m: boolean) => {
+    setTourMuted(m);
+    void Promise.resolve(api.settings_update({ values: { [SETTING_TUTORIAL_MUTED]: m } })).catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    if (modal !== "tutorial") return;
+    Promise.resolve(api.settings_get())
+      .then((raw) => {
+        const s = (raw ?? {}) as Record<string, unknown>;
+        setTourMuted(s[SETTING_TUTORIAL_MUTED] === true);
+        setTourAmbient(s[SETTING_TUTORIAL_AMBIENT] !== false);
+        const vol = typeof s["sounds.volume"] === "number" ? (s["sounds.volume"] as number) : 0.6;
+        setTourVol(s["sounds.enabled"] === false ? 0 : vol);
+      })
+      .catch(() => undefined);
+  }, [modal]);
+  const endTutorial = useCallback((_finished: boolean, ask?: string) => {
+    setModal((m) => (m === "tutorial" ? null : m));
+    void Promise.resolve(api.settings_update({ values: { [SETTING_TUTORIAL_SEEN]: true } })).catch(() => undefined);
+    if (!ask) return;
+    // The last step hands over to the planner: its message box gets the prompt, editable, not sent.
+    fillComposer("planner-msg", ask);
+    const cur = wsRef.current;
+    if (!cur) {
+      setModal("newws");
+      actions.toast("Create a workspace first; your message to the planner will be waiting there.");
+      return;
+    }
+    setPlannerView("chat");
+    if (cur.ui.full && cur.ui.full !== "planner") void actions.setFullscreen("");
+    if (cur.ui.collapsed?.planner) void actions.setCollapsed("planner", false);
+    if (isNarrowWindow()) setMobile("planner");
+  }, [actions]);
   // Once after the board loads: open What's new when a release nobody has seen is running.
   useEffect(() => {
-    if (!ws || checkedChangelog.current) return;
+    if (!ws || checkedChangelog.current || firstRun !== "done") return;
     checkedChangelog.current = true;
     Promise.resolve(api.changelog_get()).then((i) => { if (i?.show) setModal((m) => m ?? "whatsnew"); }).catch(() => undefined);
-  }, [ws]);
+  }, [ws, firstRun]);
   useEffect(() => api.onEvent("menu:whatsnew", () => setModal("whatsnew")), []);
   useEffect(() => startThemes(), []);
   const openFeedback = () => {
@@ -199,11 +292,12 @@ export default function App() {
       {modal === "newws" ? <NewWorkspace board={board} onClose={() => setModal(null)} /> : null}
       {modal === "newsession" ? <NewSession board={board} columnId={newIn} onClose={() => { setModal(null); setNewIn(undefined); }} /> : null}
       {modal === "newfree" ? <NewFreeSession board={board} onClose={() => setModal(null)} onStarted={() => { if (ws && ws.ui.main_view !== "sessions") void actions.setMainView("sessions"); }} /> : null}
-      {modal === "settings" ? <Settings board={board} initialTab={settingsTab} onTab={trackTab} onWhatsNew={() => setModal("whatsnew")} onClose={() => setModal(null)} /> : null}
+      {modal === "settings" ? <Settings board={board} initialTab={settingsTab} onTab={trackTab} onWhatsNew={() => setModal("whatsnew")} onTutorial={(chapter?: string) => openTutorial(chapter)} onClose={() => setModal(null)} /> : null}
       {modal === "palette" ? <Palette items={paletteItems(board, overrides, (id) => void run(id), openSettings)} onClose={() => setModal(null)} /> : null}
       {modal === "keys" ? <CheatSheet overrides={overrides} onClose={() => setModal(null)} onSettings={() => openSettings("keyboard")} /> : null}
       {confirmReq ? <ConfirmDialog req={confirmReq} onClose={() => setConfirmReq(null)} /> : null}
       {modal === "whatsnew" ? <WhatsNew onClose={() => setModal(null)} /> : null}
+      {modal === "tutorial" ? <Tutorial key={tourStart} start={tourStart} mcp={tourMcp} play={playTour} muted={tourMuted} onMute={muteTour} ui={uiTour} ambient={tourAmbient} onAmbient={ambientTour} onClose={endTutorial} /> : null}
       {modal === "feedback" ? <FeedbackModal board={board} area={feedbackArea} onClose={() => setModal(null)} /> : null}
       {toast ? <div className="toast" role="status">{toast.text}</div> : null}
     </div>

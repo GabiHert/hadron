@@ -55,7 +55,42 @@ type UIDisplayOut struct {
 	Glass string `json:"glass" jsonschema:"on, solid (Reduce transparency is on in macOS) or off"`
 }
 
+// EventTutorial asks the window to start the tutorial.
+const EventTutorial = "tutorial:show"
+
+// SettingTutorialSeen records that the tutorial was seen, finished or skipped; without it the
+// tutorial opens on launch.
+const SettingTutorialSeen = "tutorial.seen"
+
+// TutorialChapters are the tutorial's chapters, in order.
+var TutorialChapters = []string{"basics", "planner", "automate", "mcp"}
+
+// TutorialShowIn is the input of tutorial_show.
+type TutorialShowIn struct {
+	Chapter string `json:"chapter,omitempty" jsonschema:"start at a chapter: basics, planner (working with the planner: chat, questions, widgets), automate (dashboard, integrations, routines) or mcp (driving Hadron from any Claude session); the start when left out"`
+}
+
+// TutorialEvent is the payload of EventTutorial.
+type TutorialEvent struct {
+	Chapter string `json:"chapter,omitempty"`
+}
+
 func registerUI(r *Registry) {
+	Register(r, Spec{Name: "tutorial_show", Description: "Start the tutorial in the app window, from the start or at a chapter: basics (workspaces, the board, cards, Chat and Terminal), planner (the planner, questions, widgets), automate (dashboard, integrations, routines) or mcp (every action is an MCP tool; connecting Claude Code). Use it when the user is new or asks how Hadron works. It shows sample data only and changes nothing."},
+		func(ctx context.Context, c *Call, in TutorialShowIn) (TutorialEvent, error) {
+			if err := userOrPlanner(c, "start the tutorial"); err != nil {
+				return TutorialEvent{}, err
+			}
+			if in.Chapter != "" && !contains(TutorialChapters, in.Chapter) {
+				return TutorialEvent{}, fmt.Errorf("chapter %q must be one of %s", in.Chapter, strings.Join(TutorialChapters, ", "))
+			}
+			ev := TutorialEvent{Chapter: in.Chapter}
+			if c.Deps.Emit != nil {
+				c.Deps.Emit(EventTutorial, ev)
+			}
+			return ev, nil
+		})
+
 	Register(r, Spec{Name: "ui_display_get", Description: "Read how the chats look: the Glass chats setting (ui.glass_chats, changed with settings_update), whether macOS asks for reduced transparency, and the result: glass on, solid, or off."},
 		func(ctx context.Context, c *Call, in struct{}) (UIDisplayOut, error) {
 			out := UIDisplayOut{GlassChats: true}
