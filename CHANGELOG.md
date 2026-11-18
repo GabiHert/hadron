@@ -7,6 +7,18 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- A short animated tutorial for new users: on the first launch, fifteen short steps in four chapters (Basics, Working with the planner, Automate, MCP) dim the app and spotlight the real parts of Hadron, gliding from one to the next with a small animation for each. Skip it any time; ← and → move, Esc closes, and the chapter chips jump ahead.
+- The tutorial covers workspaces, the board and Needs you, making a card, Chat and Terminal, the planner, questions, live widgets, the dashboard, integrations and routines, and most of all MCP: every action in Hadron is an MCP tool, so any Claude session can drive your board, with your server's real address and how to connect Claude Code.
+- It ends by handing you to the planner: you don't have to set Hadron up by hand. "Ask the planner" puts a ready prompt in the planner's message box for you to edit and send, and three example prompts fill it with one click.
+- Sounds bring the tour to life: a glide as the spotlight moves and a tick between steps, a short sting when each chapter starts (the four share a motif), and every animation has its own small sound: a card sliding and landing, a message sending and a reply arriving, a question popping up and an answer chosen, a widget sparkling in, a routine's clock, items cascading in from an integration, an MCP tool call chirping. The ending plays a flourish as the planner's work appears, and a gentle chime closes the tour. Buttons click softly under the pointer, and a very quiet ambient pad plays underneath (its own switch on the caption). Everything follows Settings → Sounds (off means silent, and its volume), nothing is louder than the needs-you chime, the caption's mute silences it all and is remembered, and with Reduce motion the animations' sounds are left out.
+- Where a part isn't on screen yet (an empty board, a collapsed panel, Settings closed), the tutorial shows an animated preview instead, with sample data only; it never creates cards or workspaces.
+- Replay the tutorial any time, from the start or at a chapter: Help → Show the Tutorial, ⌘K ("Show the tutorial", "Tutorial: MCP" and so on), or Settings → General. It follows your theme and the glass look, and uses fades instead of movement when macOS Reduce motion is on.
+- MCP: `tutorial_show {chapter?}` starts the tutorial, so the planner can offer it, and `sound_play` plays Hadron's sounds the way the app does.
+
+### Fixed
+- The new-workspace "+" button in the top bar no longer sits against the macOS window buttons; it has clear space after them, and moves back to the edge in full screen.
+
 ## [0.2.35] - 2026-11-17
 
 ### Added

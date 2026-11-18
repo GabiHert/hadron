@@ -312,12 +312,12 @@ export function NewSession({ board, onClose, columnId }: { board: Board; onClose
   );
 }
 
-type SettingsCtx = { onWhatsNew?: () => void };
+type SettingsCtx = { onWhatsNew?: () => void; onTutorial?: (chapter?: string) => void };
 type SettingsTab = { id: string; label: string; render: (board: Board, ctx: SettingsCtx) => ReactNode };
 
 /** Add a tab by adding an entry. */
 export const SETTINGS_TABS: SettingsTab[] = [
-  { id: "general", label: "General", render: (b) => <GeneralTab toast={b.actions.toast} /> },
+  { id: "general", label: "General", render: (b, ctx) => <GeneralTab toast={b.actions.toast} onTutorial={ctx.onTutorial} /> },
   { id: "appearance", label: "Appearance", render: (b) => <AppearanceTab board={b} /> },
   { id: "sounds", label: "Sounds", render: (b) => <SoundsTab board={b} /> },
   { id: "notifications", label: "Notifications", render: (b) => <NotificationsTab board={b} /> },
@@ -339,7 +339,7 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "updates", label: "Updates", render: (_b, ctx) => <UpdatesCard onWhatsNew={ctx.onWhatsNew} /> },
 ];
 
-export function Settings({ board, onClose, tabs = SETTINGS_TABS, initialTab = "columns", onTab, onWhatsNew }: { board: Board; onClose: () => void; tabs?: SettingsTab[]; initialTab?: string; onTab?: (id: string) => void; onWhatsNew?: () => void }) {
+export function Settings({ board, onClose, tabs = SETTINGS_TABS, initialTab = "columns", onTab, onWhatsNew, onTutorial }: { board: Board; onClose: () => void; tabs?: SettingsTab[]; initialTab?: string; onTab?: (id: string) => void; onWhatsNew?: () => void; onTutorial?: (chapter?: string) => void }) {
   const [tab, setTab] = useState(initialTab);
   useEffect(() => onTab?.(tab), [tab, onTab]);
   const cur = tabs.find((t) => t.id === tab) ?? tabs[0];
@@ -369,7 +369,7 @@ export function Settings({ board, onClose, tabs = SETTINGS_TABS, initialTab = "c
               </button>
             ))}
           </nav>
-          <div className="sbody">{cur.render(board, { onWhatsNew })}</div>
+          <div className="sbody">{cur.render(board, { onWhatsNew, onTutorial })}</div>
         </div>
       </div>
     </Scrim>

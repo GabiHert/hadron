@@ -48,6 +48,9 @@ const P = {
   shrink: "M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5",
   dash: "M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z",
   edit: "M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4",
+  speaker: "M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12",
+  mute: "M4 9h4l5-4v14l-5-4H4zM17 9l5 6M22 9l-5 6",
+  wave: "M3 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0",
 } as const;
 
 export type IconName = keyof typeof P;

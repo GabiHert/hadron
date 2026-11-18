@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 // Player plays the sounds with afplay from WAV files it writes once into Dir.
@@ -16,8 +17,8 @@ type Player struct {
 
 // File returns the path of a sound, writing it first when it is missing.
 func (p *Player) File(kind string) (string, error) {
-	if !slices.Contains(Kinds, kind) {
-		return "", fmt.Errorf("no sound %q: use needs_you or back_to_work", kind)
+	if !slices.Contains(AllKinds(), kind) {
+		return "", fmt.Errorf("no sound %q: use one of %s", kind, strings.Join(AllKinds(), ", "))
 	}
 	path := filepath.Join(p.Dir, kind+".wav")
 	if _, err := os.Stat(path); err == nil {

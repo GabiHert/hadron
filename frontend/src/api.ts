@@ -1394,6 +1394,13 @@ export interface UIDisplay {
 }
 export const ui_display_get = () => call<UIDisplay>("ui_display_get", {});
 
+// ---- tutorial ----
+
+/** Asks the window to start the tutorial (the planner's way in; the window opens it directly). */
+/** Plays one of Hadron's sounds as the app does: silent when Sounds are off, at the Sounds volume. */
+export const sound_play = (a: { sound: string }) => call<{ played: boolean; volume: number }>("sound_play", a);
+export const tutorial_show = (a: { chapter?: "basics" | "planner" | "automate" | "mcp" } = {}) => call<{ chapter?: string }>("tutorial_show", a);
+
 // ---- themes ----
 
 export const theme_list = () => call<import("./theme").ThemeList>("theme_list");

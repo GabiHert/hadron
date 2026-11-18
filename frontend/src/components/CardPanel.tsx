@@ -131,7 +131,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
               </div>
             ) : null}
           </div>
-          <div className="seg" role="tablist" aria-label="Card view">
+          <div className="seg" role="tablist" aria-label="Card view" data-tour="card-view">
             <button className={view === "chat" ? "on" : ""} aria-pressed={view === "chat"} title={withChord("Chat", "view.terminal")} onClick={() => setView("chat")}><Icon name="chat" size={13} />Chat</button>
             <button className={view === "terminal" ? "on" : ""} aria-pressed={view === "terminal"} title={withChord("Terminal", "view.terminal")} onClick={() => setView("terminal")}><Icon name="term" size={13} />Terminal</button>
           </div>

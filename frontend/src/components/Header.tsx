@@ -29,6 +29,7 @@ interface Props {
 
 export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSettings, onTogglePlanner, updateSlot }: Props) {
   const { visible, activeId, data, actions } = board;
+  const fullScreen = useFullScreen();
   const [editing, setEditing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [menu, setMenu] = useState<TabMenuAt | null>(null);
@@ -65,13 +66,14 @@ export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSetting
   };
   const deletingWs = visible.find((w) => w.id === deleting);
   return (
-    <header className="top">
+    <header className={"top" + (fullScreen ? " fs" : "")}>
       <button className="ibtn only-narrow" onClick={onTogglePlanner} aria-label="Open the planner chat"><Icon name="chat" /></button>
       <div
         className="wsbar"
         role="tablist"
         aria-label="Workspaces"
         data-zone="workspaces"
+        data-tour="workspaces"
         onKeyDown={(e) => {
           // ← and → move between the workspaces; ↩ or Space opens the focused one.
           if (e.target instanceof HTMLInputElement) return;
@@ -151,9 +153,29 @@ export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSetting
       <button className="ibtn" onClick={onFeedback} aria-label="Send feedback" title="Send feedback"><Icon name="bubble" /></button>
       <button className="ibtn" onClick={onPalette} aria-label="Command palette" title={withChord("Command palette", "palette.toggle")}><Icon name="search" /></button>
       <button className="ibtn" onClick={() => void themeActions.toggleMode()} aria-label="Switch light or dark" title="Switch light or dark"><Icon name="moon" /></button>
-      <button className="ibtn" onClick={onSettings} aria-label="Settings" title={withChord("Settings", "settings.open")}><Icon name="gear" /></button>
+      <button className="ibtn" data-tour="settings" onClick={onSettings} aria-label="Settings" title={withChord("Settings", "settings.open")}><Icon name="gear" /></button>
       {menu ? <TabMenu board={board} at={menu} onClose={closeMenu} onRename={() => setEditing(menu.id)} onDelete={() => setDeleting(menu.id)} /> : null}
       {deletingWs ? <DeleteWorkspace board={board} ws={deletingWs} onClose={() => setDeleting(null)} /> : null}
     </header>
   );
+}
+
+/**
+ * Whether the window fills the screen (macOS full screen), where the window buttons are hidden and
+ * the top bar needs no room for them. WKWebView does not report the native full screen to CSS, so
+ * this compares the window with the screen.
+ */
+export function isFullScreen(win: Pick<Window, "innerWidth" | "innerHeight" | "screen"> = window): boolean {
+  const s = win.screen;
+  return !!s && s.width > 0 && win.innerWidth >= s.width && win.innerHeight >= s.height;
+}
+
+function useFullScreen(): boolean {
+  const [fs, setFs] = useState(() => (typeof window === "undefined" ? false : isFullScreen()));
+  useEffect(() => {
+    const on = () => setFs(isFullScreen());
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  return fs;
 }

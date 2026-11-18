@@ -57,7 +57,7 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
       </nav>
     );
   return (
-    <aside ref={panel} className={"ppanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label="Planner" data-zone="planner" data-overlay={view === "chat" ? "" : undefined} tabIndex={-1}>
+    <aside ref={panel} className={"ppanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label="Planner" data-tour="planner" data-zone="planner" data-overlay={view === "chat" ? "" : undefined} tabIndex={-1}>
       <div className="phead ghead">
         <span className={`dot ${dot}${dot === "working" ? " pulse" : ""}`} title={`Planner ${dot}`} />
         <h2>Planner{isFull ? ` · ${ws.name}` : ""}</h2>
