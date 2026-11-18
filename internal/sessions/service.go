@@ -112,6 +112,9 @@ type Request struct {
 	Strict bool
 	// Restart stops the target's running session first instead of refusing to start.
 	Restart bool
+	// Nudge, with Restore, is typed into the restored session once its prompt shows: it was working
+	// when Hadron went down. Without it a restore types nothing.
+	Nudge string
 	// Restore is a restart after Hadron itself restarted: no first prompt and no handoff.
 	Restore bool
 }
@@ -248,7 +251,7 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 		first = req.Handoff
 	}
 	if req.Restore {
-		first = "" // a restore brings back a conversation; it never types anything into it
+		first = req.Nudge // a restore brings back a conversation; it types nothing but the nudge
 	}
 	if err := tx.Sessions.Create(&row); err != nil {
 		return row, nil, err
@@ -361,6 +364,12 @@ func (s *Service) isLatest(row domain.Session, cardID string) bool {
 }
 
 func (s *Service) onLiveness(row domain.Session, cardID, liveness string) {
+	// While Hadron quits, the processes ending must not overwrite what they were doing: that is
+	// what a restore reads to nudge the sessions that were working.
+	if s.closing.Load() {
+		return
+	}
+	_ = s.cfg.Store.Sessions.SetWorking(row.ID, liveness == domain.LivenessWorking)
 	if !s.isLatest(row, cardID) {
 		return
 	}

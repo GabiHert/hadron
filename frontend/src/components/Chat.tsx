@@ -238,6 +238,11 @@ export function ChatThread({ messages, questions, onAnswer, empty, className, sc
   useLayoutEffect(() => {
     stick.current = true;
   }, [scope]);
+  // Sending a message brings the view back to the newest line, even after reading further up.
+  const newest = messages[messages.length - 1];
+  useLayoutEffect(() => {
+    if (newest?.author === "you") stick.current = true;
+  }, [newest?.id, newest?.author]);
   useLayoutEffect(follow, [messages.length, questions.length, replying, scope]);
   // Lines that grow after they render (a widget sizing itself, a font arriving) keep the view pinned.
   const grow = useRef<ResizeObserver | null>(null);

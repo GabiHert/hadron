@@ -20,6 +20,7 @@ import (
 	"github.com/GabiHert/hadron/internal/changelog"
 	"github.com/GabiHert/hadron/internal/chat"
 	"github.com/GabiHert/hadron/internal/dlog"
+	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/fields"
 	"github.com/GabiHert/hadron/internal/integrations"
 	"github.com/GabiHert/hadron/internal/mcpserver"
@@ -292,11 +293,25 @@ func (a *App) restoreSessions(ctx context.Context) {
 	if n := a.sess.RestoreFree(ctx); n > 0 {
 		a.log.Info("restored free sessions", "count", n)
 	}
-	n := a.sess.RestoreAll(ctx, restoreStagger)
+	n, nudged := a.sess.RestoreAllNudging(ctx, restoreStagger)
 	if n > 0 {
-		a.log.Info("restored sessions", "count", n)
+		a.log.Info("restored sessions", "count", n, "nudged", len(nudged))
 	}
+	a.reportNudged(nudged)
 	a.autostartPlanner(ctx)
+}
+
+// reportNudged tells each workspace's planner, in one line, which restored sessions were asked to
+// continue because they were working when Hadron went down. The line is also kept in the planner
+// chat, so it shows when the planner is not running.
+func (a *App) reportNudged(nudged []sessions.Nudged) {
+	for _, g := range sessions.GroupNudged(nudged) {
+		line := sessions.NudgeReport(g.Names)
+		msg := domain.Message{WorkspaceID: g.WorkspaceID, Channel: "planner", Author: "system", Kind: "event", Text: line, Delivered: true}
+		_ = a.st.Messages.Create(&msg)
+		a.emit(actions.EventChanged, actions.ChangedEvent{WorkspaceID: g.WorkspaceID, Entities: []string{"messages"}})
+		a.chat.Enqueue(g.WorkspaceID, "[Hadron] "+line, nil)
+	}
 }
 
 // soundDebounce is how long a burst of board changes may last and still play one sound; soundQuiet

@@ -7,6 +7,16 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- The top bar is glass, like Safari's toolbar: a frosted, translucent bar the chats scroll beneath, blurred. It follows the Glass chats setting and turns solid with macOS Reduce transparency.
+- Sessions that were busy on a task when Hadron quit, updated or crashed are asked to continue once they are back ("Hadron restarted while you were working. Continue where you left off."). Idle sessions are left alone, and the planner hears which cards were asked. Settings → General has a switch for it under "Resume running sessions", on by default.
+
+### Fixed
+- A workspace tab's menu is a small popover under its tab again, instead of a strip across the whole window. Archived workspaces to restore have their own labelled section in it.
+- Renaming a workspace tab no longer scrolls the top bar, so the window buttons and the other tabs stay in place.
+- With glass chats, the newest message is always fully above the message box, also when the box grows, a widget grows or the window resizes.
+- Settings in a short window: the section list scrolls on its own inside the dialog, and keeps the selected section in view.
+
 ## [0.2.36] - 2026-11-18
 
 ### Added

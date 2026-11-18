@@ -3,14 +3,22 @@ import { CHAPTERS } from "./Tutorial";
 import * as api from "../api";
 import { SETTING_QUIT_GUARD } from "./QuitGuard";
 
+/** Whether restored sessions that were working are told to continue; on unless false. */
+export const SETTING_RESTORE_NUDGE = "sessions.restore_nudge";
+
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Settings → General: app-wide behaviour that is not about one workspace. */
 export function GeneralTab({ toast, onTutorial }: { toast: (msg: string) => void; onTutorial?: (chapter?: string) => void }) {
   const [restore, setRestore] = useState(true);
   const [guard, setGuard] = useState(true);
+  const [nudge, setNudge] = useState(true);
   useEffect(() => {
     let alive = true;
+    api
+      .settings_get({ key: SETTING_RESTORE_NUDGE })
+      .then((v) => alive && setNudge(v[SETTING_RESTORE_NUDGE] !== false))
+      .catch(() => {});
     api
       .settings_get({ key: "sessions.restore_on_launch" })
       .then((v) => alive && setRestore(v["sessions.restore_on_launch"] !== false))
@@ -27,6 +35,14 @@ export function GeneralTab({ toast, onTutorial }: { toast: (msg: string) => void
     try {
       await api.settings_update({ values: { "sessions.restore_on_launch": on } });
       setRestore(on);
+    } catch (e) {
+      toast(errText(e));
+    }
+  };
+  const toggleNudge = async (on: boolean) => {
+    try {
+      await api.settings_update({ values: { [SETTING_RESTORE_NUDGE]: on } });
+      setNudge(on);
     } catch (e) {
       toast(errText(e));
     }
@@ -48,6 +64,13 @@ export function GeneralTab({ toast, onTutorial }: { toast: (msg: string) => void
       </label>
       <p className="hint">
         Sessions that were running when Hadron quit, updated or crashed start again with their conversation. A session you stopped yourself, or that you ended with /exit, stays stopped. Turning this off also forgets what was running.
+      </p>
+      <label className="inline" style={{ marginLeft: 22 }}>
+        <input type="checkbox" aria-label="Ask sessions that were working to continue" disabled={!restore} checked={restore && nudge} onChange={(e) => void toggleNudge(e.target.checked)} />
+        <span>Ask sessions that were working to continue</span>
+      </label>
+      <p className="hint" style={{ marginLeft: 22 }}>
+        A session that was busy on a task when Hadron went down gets “Hadron restarted while you were working. Continue where you left off.” once it is back. Idle sessions are left alone, and the planner hears which cards were asked.
       </p>
       {onTutorial ? (
         <>

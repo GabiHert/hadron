@@ -10,17 +10,18 @@ import (
 // Sessions is the repo for PTY sessions.
 type Sessions struct{ s *Store }
 
-const sessCols = `id, created_at, updated_at, workspace_id, card_id, kind, command, cwd, pid, status, exit_code, claude_session_id, started_at, ended_at, restore`
+const sessCols = `id, created_at, updated_at, workspace_id, card_id, kind, command, cwd, pid, status, exit_code, claude_session_id, started_at, ended_at, restore, working`
 
 func scanSession(r scanner) (domain.Session, error) {
 	var x domain.Session
 	var cr, up, st string
 	var card, ended sql.NullString
-	var restore int
-	err := r.Scan(&x.ID, &cr, &up, &x.WorkspaceID, &card, &x.Kind, &x.Command, &x.Cwd, &x.PID, &x.Status, &x.ExitCode, &x.ClaudeSessionID, &st, &ended, &restore)
+	var restore, working int
+	err := r.Scan(&x.ID, &cr, &up, &x.WorkspaceID, &card, &x.Kind, &x.Command, &x.Cwd, &x.PID, &x.Status, &x.ExitCode, &x.ClaudeSessionID, &st, &ended, &restore, &working)
 	x.CreatedAt, x.UpdatedAt, x.StartedAt = parseTS(cr), parseTS(up), parseTS(st)
 	x.CardID = card.String
 	x.Restore = restore == 1
+	x.Working = working == 1
 	x.EndedAt = scanTSPtr(ended)
 	return x, err
 }
@@ -34,8 +35,8 @@ func (r *Sessions) Create(x *domain.Session) error {
 	if x.Status == "" {
 		x.Status = "running"
 	}
-	_, err := r.s.q.Exec(`INSERT INTO sessions (`+sessCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		x.ID, ts(x.CreatedAt), ts(x.UpdatedAt), x.WorkspaceID, nullable(x.CardID), x.Kind, x.Command, x.Cwd, x.PID, x.Status, x.ExitCode, x.ClaudeSessionID, ts(x.StartedAt), tsPtr(x.EndedAt), b2i(x.Restore))
+	_, err := r.s.q.Exec(`INSERT INTO sessions (`+sessCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		x.ID, ts(x.CreatedAt), ts(x.UpdatedAt), x.WorkspaceID, nullable(x.CardID), x.Kind, x.Command, x.Cwd, x.PID, x.Status, x.ExitCode, x.ClaudeSessionID, ts(x.StartedAt), tsPtr(x.EndedAt), b2i(x.Restore), b2i(x.Working))
 	return mapErr(err)
 }
 
@@ -149,6 +150,12 @@ func (r *Sessions) ByClaudeID(claudeSessionID string) ([]domain.Session, error) 
 // SetRestore flags or unflags a session for restoring after a restart.
 func (r *Sessions) SetRestore(id string, restore bool) error {
 	_, err := r.s.q.Exec(`UPDATE sessions SET restore=? WHERE id=?`, b2i(restore), id)
+	return err
+}
+
+// SetWorking records whether a session is working (Claude busy on a task) right now.
+func (r *Sessions) SetWorking(id string, working bool) error {
+	_, err := r.s.q.Exec(`UPDATE sessions SET working=? WHERE id=?`, b2i(working), id)
 	return err
 }
 

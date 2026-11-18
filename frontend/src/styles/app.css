@@ -712,3 +712,48 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
 @keyframes quithold-in{from{opacity:0;transform:translate(-50%,-50%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%)}}
 @keyframes quithold-out{to{opacity:0}}
 @media (prefers-reduced-motion:reduce){.quithold,.quithold.tap{animation:none}.quithold.tap{animation:quithold-out .01s linear 1.6s forwards}}
+
+/* The workspace tab menu: compact, under its tab; the archived workspaces in their own section. */
+.wstabmenu{width:max-content;max-width:min(280px,calc(100vw - 16px))}
+.wmenu-group{display:flex;flex-direction:column;border-top:1px solid var(--border);margin-top:4px;padding-top:4px}
+.wmenu-label{padding:3px 9px 2px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--fg3)}
+/* Nothing may scroll the window or the top bar sideways (a focused field at the edge used to drag
+   the traffic lights and the other tabs out of view); only the tab strip scrolls. clip, unlike
+   hidden, cannot be scrolled by script or by focus. */
+html,body,#root,.win{overflow:clip}
+.top{position:relative;z-index:30;overflow-x:clip;overflow-y:visible}
+/* The newest line clears the floating composer: a spacer as tall as the composer ends the
+   conversation (a flex item always counts toward the scroll range, unlike padding in some engines). */
+:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay] .glasswrap>:is(.chat,.cbody){padding-bottom:0}
+:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay] .glasswrap>:is(.chat,.cbody)::after{content:"";flex:none;height:calc(var(--gf,0px) + 2px);margin-top:2px}
+
+/* Glass top bar, like Safari's toolbar: with glass on, the bar floats over the window as frosted
+   glass, and the chats scroll beneath it (their floating headers start under the bar, their lines
+   pass behind it blurred). Everything else in the window starts below the bar, as before. Solid
+   (Reduce transparency) and glass off keep the opaque bar. */
+:root[data-glass="on"] .win{--topbar:44px}
+:root[data-glass="on"] .top{position:absolute;top:0;left:0;right:0;
+  background:color-mix(in srgb,var(--side) 58%,transparent);border-bottom-color:var(--glass-border);
+  box-shadow:0 1px 0 color-mix(in srgb,var(--glass-border) 50%,transparent),0 8px 18px -16px rgba(0,0,0,.4);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%)}
+:root[data-glass="on"] .top .wsbar{background:color-mix(in srgb,var(--card) 55%,transparent);border-color:var(--glass-border)}
+/* Below the bar: everything in the window starts under it, except the chats, which run under it. */
+:root[data-glass="on"] .shell>*{border-top:var(--topbar,0px) solid transparent}
+:root[data-glass="on"] .shell>:is(.ppanel,.cpanel)[data-overlay]{border-top:0}
+:root[data-glass="on"] :is(.ppanel,.cpanel)[data-overlay]>.ghead{top:var(--topbar,0px)}
+:root[data-glass="on"] :is(.ppanel,.cpanel)[data-overlay] .glasswrap>:is(.chat,.cbody){padding-top:calc(var(--gh,0px) + var(--topbar,0px) + 12px);scroll-padding-top:calc(var(--gh,0px) + var(--topbar,0px))}
+/* Full-screen and narrow-window panels are fixed below the bar already. */
+:root[data-glass="on"] :is(.ppanel,.cpanel).full{--topbar:0px}
+@media (max-width: 960px){:root[data-glass="on"] :is(.ppanel,.cpanel){--topbar:0px}}
+/* Menus from the bar stay opaque so they read well over the glass. */
+:root[data-glass="on"] .top .wmenu-list{background:var(--card)}
+@media (prefers-reduced-transparency: reduce){
+  :root[data-glass="on"] .top{background:var(--side);-webkit-backdrop-filter:none;backdrop-filter:none}
+}
+
+/* Settings in a short window: the section list and the pane scroll on their own, inside the modal. */
+.settings{overflow:hidden}
+.snav{overflow-y:auto;min-height:0;overscroll-behavior:contain;scrollbar-width:thin}
+.snav button{flex:none}
+.sbody{min-height:0;overscroll-behavior:contain}
+@media (max-width: 560px){.snav{overflow-y:hidden}}

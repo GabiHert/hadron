@@ -108,6 +108,9 @@ type Session struct {
 	// Restore means the session is meant to be running: Hadron brings it back after a restart,
 	// an update or a crash. It is cleared when the session ends on its own or the user stops it.
 	Restore bool `json:"restore"`
+	// Working is the last liveness Hadron saw: true when Claude was busy on a task. Hadron
+	// freezes it when it quits, so a restored session that was mid-task can be told to go on.
+	Working bool `json:"working"`
 }
 
 // Free session kinds.
