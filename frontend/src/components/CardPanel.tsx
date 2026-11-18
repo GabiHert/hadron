@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useGlassOverlay } from "../state/useGlassOverlay";
 import { onUIRequest, whenReady } from "../commands";
 import { withChord } from "../keys";
 import * as api from "../api";
@@ -42,6 +43,8 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   const { info: modelInfo } = useModels(ws?.id ?? "", actions.toast);
   const { links, reload: reloadLinks } = useLinks(cardId, actions.toast);
   const menuBtn = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLElement>(null);
+  useGlassOverlay(panel, view === "chat" && tab === "conv", cardId);
   // e (edit) and m (model) on the board open the card's menu or its model picker.
   useEffect(
     () =>
@@ -89,8 +92,8 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   const canResume = !!claudeId && !status?.running;
   const folder = cardFolder(c.cwd, ws.root);
   return (
-    <aside className={"cpanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label={`Card ${c.nick}`} data-zone="card" data-card={c.id} tabIndex={-1}>
-      <div className="cph">
+    <aside ref={panel} className={"cpanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label={`Card ${c.nick}`} data-zone="card" data-card={c.id} data-overlay={view === "chat" && tab === "conv" ? "" : undefined} tabIndex={-1}>
+      <div className="cph ghead">
         <div className="l1">
           <button className="ibtn mclose" onClick={closeMobile} aria-label="Back to the board"><Icon name="back" /></button>
           {isFull ? null : <button className="ibtn hide-narrow" style={{ width: 26, height: 26 }} onClick={() => void actions.setCollapsed("card", true)} aria-label="Collapse the card panel" title={withChord("Collapse the card panel", "panel.card.toggle")}><Icon name="fwd" size={14} /></button>}

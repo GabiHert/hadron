@@ -3669,6 +3669,11 @@
     ]
   },
   {
+    "name": "ui_display_get",
+    "mutates": false,
+    "fields": null
+  },
+  {
     "name": "ui_fullscreen",
     "mutates": true,
     "fields": [

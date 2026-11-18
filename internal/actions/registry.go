@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GabiHert/hadron/internal/accessibility"
 	"github.com/GabiHert/hadron/internal/feedback"
 	"github.com/GabiHert/hadron/internal/notifications"
 	"reflect"
@@ -100,6 +101,9 @@ type Deps struct {
 	Feedback *feedback.Service
 	// Notifications posts macOS notifications. It may be nil, as in most tests: nothing is posted.
 	Notifications *notifications.Service
+	// Display reads the macOS display settings, such as Reduce transparency. It may be nil, as in
+	// tests: nothing is reduced then.
+	Display func() accessibility.Display
 	// PlaySound plays one of the UI sounds at a volume from 0 to 1. It may be nil, as in tests.
 	PlaySound func(kind string, volume float64) error
 }

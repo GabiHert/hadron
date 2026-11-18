@@ -29,6 +29,12 @@
   --tr: #f0877d;
   --tm: #d6a0e8;
   --tc: #7fcfd6;
+  /* Glass chats: the translucent pane, its edge, and the bubbles that float on it. */
+  --glass: #ffffff8c;
+  --glass-border: #ffffffb3;
+  --bubble: #ffffffdb;
+  --bubble-me: #e0e4efeb;
+  --bubble-shadow: 0 1px 1px rgba(29, 35, 48, 0.05), 0 6px 16px -8px rgba(29, 35, 48, 0.22);
   --shadow: 0 1px 2px rgba(29, 35, 48, 0.06), 0 14px 30px -14px rgba(29, 35, 48, 0.22);
   --scrim: rgba(29, 35, 48, 0.32);
   --sans: "Inter Tight", -apple-system, "Segoe UI", sans-serif;
@@ -82,6 +88,11 @@
     --muted: #1f1e1c;
     --term: #121110;
     --termbar: #191817;
+    --glass: #2322208c;
+    --glass-border: #ffffff1a;
+    --bubble: #2d2c2ad9;
+    --bubble-me: #3f4454e6;
+    --bubble-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), 0 8px 18px -8px rgba(0, 0, 0, 0.6);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px -14px rgba(0, 0, 0, 0.7);
     --scrim: rgba(0, 0, 0, 0.55);
     --tag-grey: #b4bac4;
@@ -129,6 +140,11 @@
   --muted: #1f1e1c;
   --term: #121110;
   --termbar: #191817;
+  --glass: #2322208c;
+  --glass-border: #ffffff1a;
+  --bubble: #2d2c2ad9;
+  --bubble-me: #3f4454e6;
+  --bubble-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), 0 8px 18px -8px rgba(0, 0, 0, 0.6);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px -14px rgba(0, 0, 0, 0.7);
   --scrim: rgba(0, 0, 0, 0.55);
   --tag-grey: #b4bac4;

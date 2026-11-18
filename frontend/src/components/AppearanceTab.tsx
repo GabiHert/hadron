@@ -1,10 +1,11 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import * as api from "../api";
 import { ZOOM_MAX, ZOOM_MIN } from "../commands";
 import { chordLabel } from "../keys";
 import type { Board } from "../state/useBoard";
 import { useZoom } from "../state/useZoom";
+import { applyGlass, SETTING_GLASS_CHATS } from "../state/useGlass";
 import { loadThemes, resolve, themeActions, useThemes } from "../theme";
 import type { ThemeDef, TokenGroup } from "../theme";
 
@@ -61,6 +62,59 @@ interface Draft {
   tokens: Record<string, string>;
 }
 
+/** The opacity of #rrggbbaa, 1 for #rrggbb. */
+export function alphaOf(hex: string): number {
+  return /^#[0-9a-fA-F]{8}$/.test(hex) ? parseInt(hex.slice(7, 9), 16) / 255 : 1;
+}
+
+/** #rrggbb at an opacity: #rrggbb when opaque, else #rrggbbaa. */
+export function withAlpha(hex: string, a: number): string {
+  const base = hex.slice(0, 7).toLowerCase();
+  if (a >= 1) return base;
+  return base + Math.round(Math.max(0, a) * 255).toString(16).padStart(2, "0");
+}
+
+/** Settings → Appearance → Glass chats: on by default, solid while macOS reduces transparency. */
+function GlassSwitch({ toast }: { toast: (t: string) => void }) {
+  const [d, setD] = useState<api.UIDisplay | null>(null);
+  useEffect(() => {
+    let live = true;
+    const load = () => api.ui_display_get().then((x) => live && setD(x)).catch(() => {});
+    void load();
+    window.addEventListener("focus", load);
+    return () => {
+      live = false;
+      window.removeEventListener("focus", load);
+    };
+  }, []);
+  const set = async (on: boolean) => {
+    try {
+      await api.settings_update({ values: { [SETTING_GLASS_CHATS]: on } });
+      const x = await api.ui_display_get();
+      setD(x);
+      applyGlass(x.glass);
+    } catch (e) {
+      toast(errText(e));
+    }
+  };
+  return (
+    <>
+      <span className="fgl">Chats</span>
+      <div>
+        <label className="inline">
+          <input type="checkbox" aria-label="Glass chats" checked={d ? d.glass_chats : true} disabled={!d} onChange={(e) => void set(e.target.checked)} />
+          <span>Glass chats</span>
+        </label>
+        <span className="hint" style={{ display: "block" }}>
+          {d?.glass_chats && d.reduce_transparency
+            ? "macOS Reduce transparency is on, so the chats keep their bubbles on solid surfaces."
+            : "Messages float as bubbles on a frosted pane in the planner chat and the card's conversation."}
+        </span>
+      </div>
+    </>
+  );
+}
+
 /** The theme editor: name, mode and every token, with a live preview. */
 function ThemeEditor({ draft: start, groups, onDone, toast }: { draft: Draft; groups: TokenGroup[]; onDone: (saved?: ThemeDef) => void; toast: (t: string) => void }) {
   const [d, setD] = useState<Draft>(start);
@@ -113,14 +167,23 @@ function ThemeEditor({ draft: start, groups, onDone, toast }: { draft: Draft; gr
             <fieldset key={g.name} className="te-group">
               <legend className="cap">{g.name}</legend>
               <div className="te-toks">
-                {g.tokens.map((k) => (
-                  <label key={k} className="te-tok">
-                    <input type="color" aria-label={`${k} colour`} value={d.tokens[k] ?? "#000000"} onChange={(e) => setTok(k, e.target.value)} />
-                    <span className="mono">{k}</span>
-                    <input className="in mono" aria-label={`${k} hex`} value={d.tokens[k] ?? ""} spellCheck={false}
-                      onChange={(e) => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) setTok(k, e.target.value.toLowerCase()); else setD({ ...d, tokens: { ...d.tokens, [k]: e.target.value } }); }} />
-                  </label>
-                ))}
+                {g.tokens.map((k) => {
+                  const v = d.tokens[k] ?? "";
+                  const ok = g.alpha ? /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/ : /^#[0-9a-fA-F]{6}$/;
+                  return (
+                    <label key={k} className="te-tok">
+                      <input type="color" aria-label={`${k} colour`} value={v.slice(0, 7) || "#000000"}
+                        onChange={(e) => setTok(k, g.alpha ? withAlpha(e.target.value, alphaOf(v)) : e.target.value)} />
+                      <span className="mono">{k}</span>
+                      <input className="in mono" aria-label={`${k} hex`} value={v} spellCheck={false}
+                        onChange={(e) => { if (ok.test(e.target.value)) setTok(k, e.target.value.toLowerCase()); else setD({ ...d, tokens: { ...d.tokens, [k]: e.target.value } }); }} />
+                      {g.alpha ? (
+                        <input type="range" min={0} max={100} aria-label={`${k} opacity`} value={Math.round(alphaOf(v) * 100)} title={`${Math.round(alphaOf(v) * 100)}% opaque`}
+                          onChange={(e) => setTok(k, withAlpha(v.slice(0, 7) || "#000000", Number(e.target.value) / 100))} />
+                      ) : null}
+                    </label>
+                  );
+                })}
               </div>
             </fieldset>
           ))}
@@ -231,6 +294,7 @@ export function AppearanceTab({ board }: { board: Board }) {
             <span className="mono" aria-label="Current zoom" style={{ minWidth: 44 }}>{pct}%</span>
             <button className="btn sm quiet" type="button" disabled={zoom === 1} onClick={() => step(0)}>Actual size ({chordLabel("zoom.reset")})</button>
           </div>
+          <GlassSwitch toast={toast} />
         </div>
       </div>
       <p className="hint">

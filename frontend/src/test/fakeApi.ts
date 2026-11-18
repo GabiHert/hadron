@@ -2,7 +2,7 @@
 // like the backend enough for the UI to react (rename, move, delete...), so tests can assert both
 // the calls made and what the user then sees.
 import { vi } from "vitest";
-import type { FreeSession, ChipColors, Routine, ModelOption, Feedback, FeedbackSharing, SharedFeedbackList, NotificationEvent, NotificationOpen, NotificationSettings, NotificationsOut, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
+import type { FreeSession, ChipColors, Routine, ModelOption, Feedback, UIDisplay, FeedbackSharing, SharedFeedbackList, NotificationEvent, NotificationOpen, NotificationSettings, NotificationsOut, BlockView, Card, Column, DryRunItem, FieldEntry, FilterSpec, PromptInfo, PromptKind, PromptLayer, Rule, RuleLogEntry, View, LaunchProfile, McpCall, McpInfo, Message, Question, Role, SessionStatus, SlashCommand, FileHit, Workspace, ScriptView, ScriptLog, Link, RemoteSession } from "../api";
 
 export interface Fixture {
   workspaces: Workspace[];
@@ -174,7 +174,8 @@ export const state: {
   /** the Sessions space's free sessions */
   free: FreeSession[];
   notifications: NotificationsOut;
-} = { notifications: defaultNotifications(), free: [], dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], routines: [], chipColors: { palette: [], rules: [], plain: [] }, ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
+  reduceTransparency: boolean;
+} = { reduceTransparency: false, notifications: defaultNotifications(), free: [], dash: defaultDash(), fx: defaultFixture(), schema: defaultSchema(), views: [], rules: [], routines: [], chipColors: { palette: [], rules: [], plain: [] }, ruleLog: [], dryRun: [], prompts: defaultPrompts(), filterError: "", update: idleUpdate(), changelogShow: false, profiles: defaultProfiles(), plannerProfile: {}, policyGlobal: "decisions_only", policyOverride: {}, running: { sessions: [], restore_on_launch: true }, sessions: {},
   mcp: { running: true, url: "http://127.0.0.1:47820/mcp", port: 47820, token: "tok-0123456789abcdef", tool_count: 61, connect_command: "" },
   mcpCalls: [],
   messages: [],
@@ -201,7 +202,8 @@ const defaultThemes = (): { themes: FakeTheme[]; active: { theme: string; light:
   active: { theme: "system", light: "classic-light", dark: "classic-dark" },
 });
 export const themes = defaultThemes();
-const THEME_GROUPS = [{ name: "Surfaces", tokens: ["bg", "card"] }, { name: "Text", tokens: ["fg"] }, { name: "Accent and states", tokens: ["acc"] }, { name: "Terminal", tokens: ["term", "tfg"] }];
+const SETTING_GLASS = "ui.glass_chats";
+const THEME_GROUPS = [{ name: "Surfaces", tokens: ["bg", "card"] }, { name: "Text", tokens: ["fg"] }, { name: "Accent and states", tokens: ["acc"] }, { name: "Glass chats", tokens: ["glass", "bubble-me"], alpha: true }, { name: "Terminal", tokens: ["term", "tfg"] }];
 
 export const reset = (fx: Fixture = defaultFixture()) => {
   Object.assign(themes, defaultThemes());
@@ -237,6 +239,7 @@ export const reset = (fx: Fixture = defaultFixture()) => {
   state.sessions = { planner: running("sess-planner", { liveness: "working" }) };
   state.fx = fx;
   state.free = [];
+  state.reduceTransparency = false;
   state.notifications = defaultNotifications();
   freeSeq = 0;
   for (const f of Object.values(fns)) f.mockClear();
@@ -573,6 +576,10 @@ const fns = {
     return clone(v);
   }),
   chip_color_list: vi.fn(async () => clone(state.chipColors)),
+  ui_display_get: vi.fn(async (): Promise<UIDisplay> => {
+    const on = state.fx.settings[SETTING_GLASS] !== false;
+    return { glass_chats: on, reduce_transparency: state.reduceTransparency, glass: !on ? "off" : state.reduceTransparency ? "solid" : "on" };
+  }),
   theme_list: vi.fn(async () => clone({ themes: themes.themes, groups: THEME_GROUPS, active: themes.active })),
   theme_set: vi.fn(async (a: { theme?: string; light?: string; dark?: string }) => {
     for (const id of [a.theme, a.light, a.dark]) if (id && id !== "system" && !themes.themes.some((t) => t.id === id)) throw new Error(`no such theme "${id}"`);

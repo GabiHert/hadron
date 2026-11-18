@@ -15,7 +15,7 @@ type Theme struct {
 	Name    string            `json:"name"`
 	Mode    string            `json:"mode" jsonschema:"light or dark"`
 	Builtin bool              `json:"builtin"`
-	Tokens  map[string]string `json:"tokens" jsonschema:"colour per token name, such as bg, fg, acc, tag-blue or tb, as #rrggbb"`
+	Tokens  map[string]string `json:"tokens" jsonschema:"colour per token name, such as bg, fg, acc, tag-blue or tb, as #rrggbb; the chat glass tokens (glass, glass-border, bubble, bubble-me) may be translucent, as #rrggbbaa"`
 }
 
 // TagNames are the tag palette's colours, the same list as actions.ChipPalette.
@@ -25,6 +25,20 @@ var TagNames = []string{"grey", "blue", "teal", "green", "lime", "amber", "orang
 type TokenGroup struct {
 	Name   string   `json:"name"`
 	Tokens []string `json:"tokens"`
+	// Alpha says the group's colours may be translucent (#rrggbbaa), like the glass of the chats.
+	Alpha bool `json:"alpha,omitempty"`
+}
+
+// GlassTokens are the chat's glass surface and bubbles. They keep their alpha.
+var GlassTokens = []string{"glass", "glass-border", "bubble", "bubble-me"}
+
+func isAlpha(k string) bool {
+	for _, g := range GlassTokens {
+		if g == k {
+			return true
+		}
+	}
+	return false
 }
 
 // Groups lists every colour token of a theme.
@@ -37,6 +51,7 @@ var Groups = func() []TokenGroup {
 		{Name: "Surfaces", Tokens: []string{"bg", "side", "card", "muted", "row", "sel", "border", "dot"}},
 		{Name: "Text", Tokens: []string{"fg", "fg2", "fg3"}},
 		{Name: "Accent and states", Tokens: []string{"acc", "on", "ok", "okb", "warn", "warnb", "bad", "badb"}},
+		{Name: "Glass chats", Tokens: GlassTokens, Alpha: true},
 		{Name: "Terminal", Tokens: []string{"term", "termbar", "tfg", "tdim", "tr", "tg", "ty", "tb", "tm", "tc"}},
 		{Name: "Tags", Tokens: tags},
 	}
@@ -99,6 +114,9 @@ func Validate(t *Theme) error {
 			return fmt.Errorf("%q is not a theme token; tokens are %s", k, strings.Join(TokenNames, ", "))
 		}
 		h, err := NormalizeHex(v, bg)
+		if isAlpha(k) {
+			h, err = NormalizeHexAlpha(v)
+		}
 		if err != nil {
 			return fmt.Errorf("token %s: %w", k, err)
 		}
@@ -156,6 +174,15 @@ func Complete(t *Theme) {
 	for _, st := range [][2]string{{"ok", "okb"}, {"warn", "warnb"}, {"bad", "badb"}} {
 		if has(st[0]) {
 			set(st[1], mix(bg, get(st[0]), 0.16))
+		}
+	}
+	// The chat's glass from the theme's own card and accent, unless it sets them.
+	if !has("glass") || !has("glass-border") || !has("bubble") || !has("bubble-me") {
+		g := Glass(t.Mode, get("card"), get("fg"), get("acc"))
+		for _, k := range GlassTokens {
+			if !has(k) {
+				t.Tokens[k] = g[k]
+			}
 		}
 	}
 	// Terminal.

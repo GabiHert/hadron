@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/GabiHert/hadron/internal/accessibility"
 	"github.com/GabiHert/hadron/internal/feedback"
 	"github.com/GabiHert/hadron/internal/notifications"
 	"log"
@@ -146,7 +147,7 @@ func New(st *store.Store) *App {
 			}
 			return exec.Command("/usr/bin/open", u).Run()
 		}}
-	a.reg = actions.NewRegistry(actions.Deps{Feedback: fb, Notifications: a.notes, PlaySound: player.Play, Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
+	a.reg = actions.NewRegistry(actions.Deps{Display: accessibility.Read, Feedback: fb, Notifications: a.notes, PlaySound: player.Play, Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
 	a.integ.FieldChanged = a.reg.FieldChanged
 	a.integ.Events = a.reg.RunEvents
 	if err := a.integ.Sync(); err != nil {
