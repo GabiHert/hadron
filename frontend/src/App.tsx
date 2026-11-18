@@ -14,6 +14,7 @@ import { ambientOff, ambientOn, uiSound } from "./tourAudio";
 import { chapterStart, SETTING_TUTORIAL_AMBIENT, SETTING_TUTORIAL_MUTED, SETTING_TUTORIAL_SEEN, TUTORIAL_EVENT, Tutorial } from "./components/Tutorial";
 import type { McpGlance, TourSound } from "./components/Tutorial";
 import { fillComposer } from "./components/Composer";
+import { QuitGuard } from "./components/QuitGuard";
 import { PlannerPanel } from "./components/PlannerPanel";
 import { Icon } from "./components/ui";
 import { useUpdateAvailable } from "./components/UpdatesCard";
@@ -299,6 +300,7 @@ export default function App() {
       {modal === "whatsnew" ? <WhatsNew onClose={() => setModal(null)} /> : null}
       {modal === "tutorial" ? <Tutorial key={tourStart} start={tourStart} mcp={tourMcp} play={playTour} muted={tourMuted} onMute={muteTour} ui={uiTour} ambient={tourAmbient} onAmbient={ambientTour} onClose={endTutorial} /> : null}
       {modal === "feedback" ? <FeedbackModal board={board} area={feedbackArea} onClose={() => setModal(null)} /> : null}
+      <QuitGuard toast={actions.toast} />
       {toast ? <div className="toast" role="status">{toast.text}</div> : null}
     </div>
   );

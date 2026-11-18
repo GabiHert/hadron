@@ -24,6 +24,7 @@ import (
 	"github.com/GabiHert/hadron/internal/integrations"
 	"github.com/GabiHert/hadron/internal/mcpserver"
 	"github.com/GabiHert/hadron/internal/pty"
+	"github.com/GabiHert/hadron/internal/quitguard"
 	"github.com/GabiHert/hadron/internal/run"
 	"github.com/GabiHert/hadron/internal/script"
 	"github.com/GabiHert/hadron/internal/sessions"
@@ -56,6 +57,8 @@ type App struct {
 	// notes posts macOS notifications; needs notices cards arriving in Needs you for it.
 	notes *notifications.Service
 	needs *notifications.Watcher
+	// guard keeps ⌘Q, the menu's Quit and the Dock's from quitting by accident.
+	guard *quitguard.Guard
 
 	mu  sync.Mutex
 	ctx context.Context
@@ -90,16 +93,24 @@ func New(st *store.Store) *App {
 		},
 	})
 	a.sess.CleanRunDir()
-	a.upd = update.New(update.Deps{
-		Version: run.Version, AppName: "Hadron", Repo: "GabiHert/hadron",
-		Env:  env,
-		Emit: a.emit,
-		Dir:  run.UpdateDir(), LogPath: run.UpdateLogPath(),
+	a.guard = &quitguard.Guard{
+		Enabled: func() bool { return actions.QuitGuardOn(st) },
+		Emit:    a.send,
+		Show:    a.showWindow,
 		Quit: func() {
 			if c := a.context(); c != nil {
 				wruntime.Quit(c)
 			}
 		},
+		SystemQuitting: quitguard.SystemQuitting,
+	}
+	a.upd = update.New(update.Deps{
+		Version: run.Version, AppName: "Hadron", Repo: "GabiHert/hadron",
+		Env:  env,
+		Emit: a.emit,
+		Dir:  run.UpdateDir(), LogPath: run.UpdateLogPath(),
+		// The installer quits past the guard: it relaunches the new version when this one is gone.
+		Quit: a.guard.QuitNow,
 	})
 	a.upd.CleanLeftovers()
 	a.fields = fields.NewRegistry()
@@ -147,7 +158,7 @@ func New(st *store.Store) *App {
 			}
 			return exec.Command("/usr/bin/open", u).Run()
 		}}
-	a.reg = actions.NewRegistry(actions.Deps{Display: accessibility.Read, Feedback: fb, Notifications: a.notes, PlaySound: player.Play, Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
+	a.reg = actions.NewRegistry(actions.Deps{Quit: a.guard.QuitNow, Display: accessibility.Read, Feedback: fb, Notifications: a.notes, PlaySound: player.Play, Store: st, Emit: a.emit, Version: run.Version, Update: a.upd, Home: run.Home(), Sessions: a.sess, MCP: a.mcpInfo, Chat: a.chat, Fields: a.fields, Integrations: a.integ, Log: a.log, Changelog: changelog.Embedded()})
 	a.integ.FieldChanged = a.reg.FieldChanged
 	a.integ.Events = a.reg.RunEvents
 	if err := a.integ.Sync(); err != nil {
@@ -236,6 +247,7 @@ func (a *App) startup(ctx context.Context) {
 		a.log.Warn("notification", "error", err.Error())
 	}
 	a.setupNotifications(ctx)
+	quitguard.Install(a.guard)
 	// The MCP server must be listening before any planner starts, so the config files it writes
 	// name the port the server really got.
 	if err := a.mcp.Start(); err != nil {

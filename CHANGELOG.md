@@ -16,6 +16,11 @@ for its "What's new" window.
 - Replay the tutorial any time, from the start or at a chapter: Help → Show the Tutorial, ⌘K ("Show the tutorial", "Tutorial: MCP" and so on), or Settings → General. It follows your theme and the glass look, and uses fades instead of movement when macOS Reduce motion is on.
 - MCP: `tutorial_show {chapter?}` starts the tutorial, so the planner can offer it, and `sound_play` plays Hadron's sounds the way the app does.
 
+### Changed
+- ⌘Q no longer quits Hadron at once: hold it for a second, as in Chrome. A quick tap only shows "Hold ⌘Q to quit" with a ring that fills while you hold, and letting go early cancels it.
+- Quit from the Hadron menu or the Dock asks first, and says how many sessions are running and whether they resume.
+- Settings → General has a "Guard against quitting by accident" switch, on by default. Updates, and macOS logging out or shutting down, still quit without asking.
+
 ### Fixed
 - The new-workspace "+" button in the top bar no longer sits against the macOS window buttons; it has clear space after them, and moves back to the edge in full screen.
 
