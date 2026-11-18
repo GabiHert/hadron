@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.35] - 2026-11-17
+
 ### Added
 - Glass chats: the planner panel and the card panel (on the board and the dashboard) are one frosted-glass surface from header to composer. The header and the message box float over the conversation, which scrolls beneath them, and messages float on the glass as rounded bubbles: yours on the right in the accent tint, the planner's, reports, widgets, questions and events on the left or in the middle.
 - The Chat/Terminal switch and the Conversation/Links/Context tabs are glass pills with the selected one raised; the icon buttons, chips, model picker, message box and Send button are glass too.
