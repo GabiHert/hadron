@@ -7,6 +7,11 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Changed
+- ⌘Q no longer quits Hadron at once: hold it for a second, as in Chrome. A quick tap only shows "Hold ⌘Q to quit" with a ring that fills while you hold, and letting go early cancels it.
+- Quit from the Hadron menu or the Dock asks first, and says how many sessions are running and whether they resume.
+- Settings → General has a "Guard against quitting by accident" switch, on by default. Updates, and macOS logging out or shutting down, still quit without asking.
+
 ## [0.2.35] - 2026-11-17
 
 ### Added

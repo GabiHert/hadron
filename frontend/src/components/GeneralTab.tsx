@@ -1,16 +1,22 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
+import { SETTING_QUIT_GUARD } from "./QuitGuard";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Settings → General: app-wide behaviour that is not about one workspace. */
 export function GeneralTab({ toast }: { toast: (msg: string) => void }) {
   const [restore, setRestore] = useState(true);
+  const [guard, setGuard] = useState(true);
   useEffect(() => {
     let alive = true;
     api
       .settings_get({ key: "sessions.restore_on_launch" })
       .then((v) => alive && setRestore(v["sessions.restore_on_launch"] !== false))
+      .catch(() => {});
+    api
+      .settings_get({ key: SETTING_QUIT_GUARD })
+      .then((v) => alive && setGuard(v[SETTING_QUIT_GUARD] !== false))
       .catch(() => {});
     return () => {
       alive = false;
@@ -24,6 +30,14 @@ export function GeneralTab({ toast }: { toast: (msg: string) => void }) {
       toast(errText(e));
     }
   };
+  const toggleGuard = async (on: boolean) => {
+    try {
+      await api.settings_update({ values: { [SETTING_QUIT_GUARD]: on } });
+      setGuard(on);
+    } catch (e) {
+      toast(errText(e));
+    }
+  };
   return (
     <>
       <h4>General</h4>
@@ -33,6 +47,13 @@ export function GeneralTab({ toast }: { toast: (msg: string) => void }) {
       </label>
       <p className="hint">
         Sessions that were running when Hadron quit, updated or crashed start again with their conversation. A session you stopped yourself, or that you ended with /exit, stays stopped. Turning this off also forgets what was running.
+      </p>
+      <label className="inline" style={{ marginTop: 14 }}>
+        <input type="checkbox" aria-label="Guard against quitting by accident" checked={guard} onChange={(e) => void toggleGuard(e.target.checked)} />
+        <span>Guard against quitting by accident</span>
+      </label>
+      <p className="hint">
+        Hold ⌘Q for a second to quit: a quick tap only shows a reminder. Quit from the Hadron menu or the Dock asks first and says how many sessions are running. Updates still quit and reopen on their own.
       </p>
     </>
   );

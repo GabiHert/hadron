@@ -106,6 +106,8 @@ type Deps struct {
 	Display func() accessibility.Display
 	// PlaySound plays one of the UI sounds at a volume from 0 to 1. It may be nil, as in tests.
 	PlaySound func(kind string, volume float64) error
+	// Quit quits Hadron past the quit guard. It may be nil, as in tests.
+	Quit func()
 }
 
 // Spec describes an action.

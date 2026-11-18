@@ -1,5 +1,10 @@
 [
   {
+    "name": "app_quit",
+    "mutates": false,
+    "fields": null
+  },
+  {
     "name": "app_status",
     "mutates": false,
     "fields": null

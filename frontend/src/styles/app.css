@@ -548,3 +548,18 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
   :root[data-glass="on"] :is(.ppanel,.cpanel) :is(.b-pl,.b-rep,.b-ev,.qbox,.qdone,.typing,.b-cmd .mono,.widget .wframe,.in,.seg,.tabs){background:var(--card)}
   :root[data-glass="on"] :is(.ppanel,.cpanel) :is(.b-me,.seg button.on,.tab.on){background:var(--sel)}
 }
+
+/* The quit guard: "Hold ⌘Q to quit" with a ring that fills while the keys stay down. */
+.quithold{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:70;display:flex;align-items:center;gap:12px;padding:12px 18px 12px 14px;border-radius:14px;background:var(--glass,var(--card));-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid var(--glass-border,var(--border));box-shadow:var(--shadow);color:var(--fg);font-size:14px;font-weight:500;pointer-events:none;animation:quithold-in .14s ease-out}
+.quithold.tap{animation:quithold-in .14s ease-out,quithold-out .4s ease-in 1.4s forwards}
+.quitring{flex:none;transform:rotate(-90deg)}
+.quitring circle{fill:none;stroke-width:3.2}
+.quitring .track{stroke:var(--border)}
+.quitring .fill{stroke:var(--acc);stroke-linecap:round;stroke-dashoffset:94.25}
+.quithold.holding .quitring .fill{animation:quitring-fill var(--hold,1s) linear forwards}
+.quithold.done .quitring .fill{stroke-dashoffset:0}
+.quithold.tap .quitring .fill{transition:stroke-dashoffset .2s ease-out}
+@keyframes quitring-fill{from{stroke-dashoffset:94.25}to{stroke-dashoffset:0}}
+@keyframes quithold-in{from{opacity:0;transform:translate(-50%,-50%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%)}}
+@keyframes quithold-out{to{opacity:0}}
+@media (prefers-reduced-motion:reduce){.quithold,.quithold.tap{animation:none}.quithold.tap{animation:quithold-out .01s linear 1.6s forwards}}

@@ -118,7 +118,8 @@ func appOptions(assets embed.FS, a *App, m *menu.Menu, primary bool) *options.Ap
 			About:    &mac.AboutInfo{Title: "Hadron", Message: "Version " + run.Version},
 		},
 		Menu: m,
-		// ⌘W and the close button hide the app instead of quitting, so sessions keep running. ⌘Q quits.
+		// ⌘W and the close button hide the app instead of quitting, so sessions keep running. ⌘Q quits
+		// when held (internal/quitguard).
 		HideWindowOnClose: true,
 		SingleInstanceLock: &options.SingleInstanceLock{
 			UniqueId: instanceID(),
@@ -135,6 +136,8 @@ func appOptions(assets embed.FS, a *App, m *menu.Menu, primary bool) *options.Ap
 	if primary {
 		o.OnStartup = func(ctx context.Context) { a.startup(ctx) }
 		o.OnShutdown = func(ctx context.Context) { a.shutdown() }
+		// Every quit asks the guard first; true keeps Hadron running.
+		o.OnBeforeClose = func(ctx context.Context) bool { return a.guard != nil && a.guard.BeforeClose() }
 	}
 	return o
 }

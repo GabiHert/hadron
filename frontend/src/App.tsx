@@ -10,6 +10,7 @@ import { NewSession, NewWorkspace, Settings } from "./components/Modals";
 import { CheatSheet, ConfirmDialog, Palette, paletteItems } from "./components/KeyDialogs";
 import type { ConfirmReq } from "./components/KeyDialogs";
 import { WhatsNew } from "./components/WhatsNew";
+import { QuitGuard } from "./components/QuitGuard";
 import { PlannerPanel } from "./components/PlannerPanel";
 import { Icon } from "./components/ui";
 import { useUpdateAvailable } from "./components/UpdatesCard";
@@ -205,6 +206,7 @@ export default function App() {
       {confirmReq ? <ConfirmDialog req={confirmReq} onClose={() => setConfirmReq(null)} /> : null}
       {modal === "whatsnew" ? <WhatsNew onClose={() => setModal(null)} /> : null}
       {modal === "feedback" ? <FeedbackModal board={board} area={feedbackArea} onClose={() => setModal(null)} /> : null}
+      <QuitGuard toast={actions.toast} />
       {toast ? <div className="toast" role="status">{toast.text}</div> : null}
     </div>
   );

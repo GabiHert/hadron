@@ -107,6 +107,8 @@ export const chooseFolder = (start: string): Promise<string> => ChooseFolder(sta
 export const app_status = () => call<AppStatus>("app_status");
 export const settings_get = (a: { key?: string } = {}) => call<Record<string, unknown>>("settings_get", a);
 export const settings_update = (a: { values: Record<string, unknown> }) => call<Record<string, unknown>>("settings_update", a);
+/** Quits Hadron past the quit guard: the quit confirmation's Quit button. */
+export const app_quit = () => call<{ quitting: boolean }>("app_quit", {});
 
 // ---- workspaces ----
 export const workspace_list = (a: { include_archived?: boolean } = {}) => call<Workspace[]>("workspace_list", a);
