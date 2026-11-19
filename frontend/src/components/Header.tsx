@@ -66,6 +66,7 @@ export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSetting
   };
   const deletingWs = visible.find((w) => w.id === deleting);
   return (
+    <>
     <header className={"top" + (fullScreen ? " fs" : "")}>
       <button className="ibtn only-narrow" onClick={onTogglePlanner} aria-label="Open the planner chat"><Icon name="chat" /></button>
       <div
@@ -155,8 +156,10 @@ export function Header({ board, onNewWorkspace, onPalette, onFeedback, onSetting
       <button className="ibtn" onClick={() => void themeActions.toggleMode()} aria-label="Switch light or dark" title="Switch light or dark"><Icon name="moon" /></button>
       <button className="ibtn" data-tour="settings" onClick={onSettings} aria-label="Settings" title={withChord("Settings", "settings.open")}><Icon name="gear" /></button>
       {menu ? <TabMenu board={board} at={menu} onClose={closeMenu} onRename={() => setEditing(menu.id)} onDelete={() => setDeleting(menu.id)} /> : null}
-      {deletingWs ? <DeleteWorkspace board={board} ws={deletingWs} onClose={() => setDeleting(null)} /> : null}
     </header>
+    {/* Outside the header: its glass (backdrop-filter) would trap a fixed dialog inside the bar. */}
+    {deletingWs ? <DeleteWorkspace board={board} ws={deletingWs} onClose={() => setDeleting(null)} /> : null}
+    </>
   );
 }
 

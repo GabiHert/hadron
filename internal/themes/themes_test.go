@@ -304,3 +304,46 @@ func TestGlassTokensKeepAlphaAndAreDerived(t *testing.T) {
 		t.Errorf("glass group = %+v", glass)
 	}
 }
+
+// The Glass transparency slider at its most see-through end still leaves text readable: the pane
+// at MinGlassScale of its alpha, the floating header at the veil of that, in every builtin.
+func TestGlassStaysReadableAtTheMostTransparentEnd(t *testing.T) {
+	if GlassScale(0) != 1 || GlassScale(100) != MinGlassScale || GlassScale(250) != MinGlassScale || GlassScale(-5) != 1 {
+		t.Fatalf("scale: 0→%v 100→%v 250→%v -5→%v", GlassScale(0), GlassScale(100), GlassScale(250), GlassScale(-5))
+	}
+	if d := GlassScale(DefaultGlassTransparency); d > 0.7 {
+		t.Fatalf("the default (%v) should be clearly more see-through than the theme's glass", d)
+	}
+	for _, tr := range []float64{0, DefaultGlassTransparency, 100} {
+		k := GlassScale(tr)
+		veil := GlassVeil(k)
+		for _, th := range Builtins {
+			col := func(n string) rgba {
+				c, err := parseHex(th.Tokens[n])
+				if err != nil {
+					t.Fatalf("%s: %s: %v", th.ID, n, err)
+				}
+				return c
+			}
+			backdrop := mix(col("bg"), col("acc"), 0.14)
+			g := col("glass")
+			pane := g.alpha(g.a * k).over(backdrop)
+			head := g.alpha(g.a * 0.7 * veil).over(pane)
+			bubble := col("bubble").over(pane)
+			field := col("bubble").over(head)
+			for _, c := range []struct {
+				fg, on string
+				bg     rgba
+				min    float64
+			}{
+				{"fg", "glass", pane, 7}, {"fg2", "glass", pane, 4.5}, {"fg3", "glass", pane, 4},
+				{"fg", "glass head", head, 7}, {"fg2", "glass head", head, 4.5}, {"fg3", "glass head", head, 4},
+				{"fg", "bubble", bubble, 7}, {"fg2", "bubble", bubble, 4.5}, {"fg", "a field", field, 7},
+			} {
+				if r := contrast(col(c.fg), c.bg); r < c.min {
+					t.Errorf("%s at transparency %v: %s on %s has contrast %.2f, want at least %.1f", th.ID, tr, c.fg, c.on, r, c.min)
+				}
+			}
+		}
+	}
+}

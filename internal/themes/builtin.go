@@ -54,7 +54,7 @@ var Builtins = []Theme{
 	ClassicLight,
 	ClassicDark,
 	{ID: "nucleus", Name: "Nucleus", Mode: "light", Builtin: true, Tokens: tok(map[string]string{
-		"bg": "#f7f8fb", "side": "#eef0f5", "card": "#ffffff", "fg": "#121726", "fg2": "#454d61", "fg3": "#6a7186", "border": "#dde1ea", "row": "#e9ecf2", "sel": "#e2e8fb",
+		"bg": "#f7f8fb", "side": "#eef0f5", "card": "#ffffff", "fg": "#121726", "fg2": "#454d61", "fg3": "#646b80", "border": "#dde1ea", "row": "#e9ecf2", "sel": "#e2e8fb",
 		"acc": "#2346c8", "on": "#ffffff", "ok": "#1f7a4a", "okb": "#dff2e6", "warn": "#8a5a00", "warnb": "#f8edd2", "bad": "#b42f2a", "badb": "#f8e1df", "dot": "#cfd4df", "muted": "#f2f4f8",
 		"term": "#0f1320", "termbar": "#171c2b", "tfg": "#e4e8f2", "tdim": "#8a92a8", "tb": "#86a2ff", "tg": "#6fd39b", "ty": "#eabb5a", "tr": "#f2857b", "tm": "#d79bf5", "tc": "#6fd2e3"}, classicLightTags)},
 	{ID: "deep-space", Name: "Deep Space", Mode: "dark", Builtin: true, Tokens: tok(map[string]string{

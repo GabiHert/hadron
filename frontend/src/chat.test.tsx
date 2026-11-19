@@ -217,7 +217,7 @@ describe("lines and the typing indicator", () => {
     );
     expect(screen.getByText("blocked")).toHaveClass("bad");
     expect(screen.getByText("VPN is down")).toBeInTheDocument();
-    expect(screen.getByText("Moved to Needs you: it needs you")).toHaveClass("b-ev");
+    expect(screen.getByText("Moved to Needs you: it needs you").closest(".b-ev")).not.toBeNull();
     expect(screen.getByRole("group", { name: "Widget Sessions" })).toBeInTheDocument();
   });
 });
@@ -271,7 +271,7 @@ describe("the chat in the app", () => {
     await user.click(screen.getByRole("button", { name: "Open search-console" }));
     const panel = screen.getByRole("complementary", { name: "Card search-console" });
     const box = await within(panel).findByLabelText("Message about this card");
-    expect(box).toHaveAttribute("placeholder", "Goes to the planner tagged [ACME-508 search-console]; it relays to the session.");
+    expect(box).toHaveAttribute("placeholder", "Via the planner, tagged [ACME-508 search-console]");
     await user.type(box, "check the retry{Enter}");
     await waitFor(() => expect(mocks.chat_send).toHaveBeenCalledWith({ workspace_id: "w1", channel: "card:c1", text: "check the retry" }));
   });

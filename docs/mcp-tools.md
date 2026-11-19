@@ -71,7 +71,7 @@ Read global settings: one by key, or all.
 
 ### `settings_update`
 
-Change global settings, such as ui.theme (a theme id from theme_list, or system to follow macOS with ui.theme.light and ui.theme.dark; theme_set does the same), keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like "Mod+D" or "Shift+Mod+P"; see hadron_guide keyboard) or ui.zoom (the window zoom, 0.7 to 2, 1 is 100%), or the sounds a card makes moving into and out of a needs-you column: sounds.enabled (true or false), sounds.volume (0 to 1) and sounds.muted_workspaces (workspace ids that stay silent). Returns all settings.
+Change global settings, such as ui.theme (a theme id from theme_list, or system to follow macOS with ui.theme.light and ui.theme.dark; theme_set does the same), keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like "Mod+D" or "Shift+Mod+P"; see hadron_guide keyboard) ui.zoom (the window zoom, 0.7 to 2, 1 is 100%), ui.glass_chats (true or false) or ui.glass_transparency (how see-through the glass is, 0 to 100, 60 by default; ui_display_get reads it back), or the sounds a card makes moving into and out of a needs-you column: sounds.enabled (true or false), sounds.volume (0 to 1) and sounds.muted_workspaces (workspace ids that stay silent). Returns all settings.
 
 *changes data*
 
@@ -2298,7 +2298,7 @@ Start the tutorial in the app window, from the start or at a chapter: basics (wo
 
 ### `ui_display_get`
 
-Read how the chats look: the Glass chats setting (ui.glass_chats, changed with settings_update), whether macOS asks for reduced transparency, and the result: glass on, solid, or off.
+Read how the chats look: the Glass chats setting (ui.glass_chats), the Glass transparency setting (ui.glass_transparency, 0 to 100) and the alpha scale it gives the glass, whether macOS asks for reduced transparency, and the result: glass on, solid, or off. Change the settings with settings_update.
 
 *reads*
 

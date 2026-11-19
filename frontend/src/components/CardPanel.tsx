@@ -219,7 +219,7 @@ function CardConversation({ board, running, onStart }: { board: Board; running?:
       <Composer
         id={`card-msg-${c.id}`}
         label="Message about this card"
-        placeholder={`Goes to the planner tagged ${tag}; it relays to the session.`}
+        placeholder={`Via the planner, tagged ${tag}`}
         onSend={ch.send}
         onError={actions.toast}
         target={{ workspace_id: ws.id, card: c.id }}

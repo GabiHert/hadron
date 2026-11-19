@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as api from "../api";
 import type { Workspace, WorkspaceDeleteOut } from "../api";
 import type { Board } from "../state/useBoard";
@@ -78,6 +78,16 @@ export function DeleteWorkspace({ board, ws, onClose }: { board: Board; ws: Work
 export function RenameField({ ws, onDone, onSave }: { ws: Workspace; onDone: () => void; onSave: (name: string) => void }) {
   const [name, setName] = useState(ws.name);
   const done = useRef(false);
+  const input = useRef<HTMLInputElement>(null);
+  // Focus without letting the browser scroll the window or the header to it: the tab strip keeps
+  // its place, and only scrolls itself when the field is out of its view.
+  useLayoutEffect(() => {
+    const el = input.current;
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    el.select();
+    revealInStrip(el);
+  }, []);
   const finish = (save: boolean) => {
     if (done.current) return;
     done.current = true;
@@ -88,12 +98,11 @@ export function RenameField({ ws, onDone, onSave }: { ws: Workspace; onDone: () 
   return (
     <input
       className="in wsname"
+      ref={input}
       aria-label={`Rename ${ws.name}`}
-      autoFocus
       maxLength={60}
       size={Math.max(4, name.length)}
       value={name}
-      onFocus={(e) => e.currentTarget.select()}
       onChange={(e) => setName(e.target.value)}
       onBlur={() => finish(true)}
       onKeyDown={(e) => {
@@ -109,8 +118,30 @@ export function RenameField({ ws, onDone, onSave }: { ws: Workspace; onDone: () 
 
 export interface TabMenuAt {
   id: string;
+  /** Where the pointer was; used only when the tab cannot be found. */
   x: number;
   y: number;
+}
+
+/** Scrolls the tab strip, and only it, so el is in its view. */
+export function revealInStrip(el: HTMLElement) {
+  const bar = el.closest<HTMLElement>(".wsbar");
+  if (!bar) return;
+  const b = bar.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  if (r.right > b.right) bar.scrollLeft += r.right - b.right + 4;
+  else if (r.left < b.left) bar.scrollLeft -= b.left - r.left + 4;
+}
+
+/**
+ * Where the tab menu goes: under its tab, left-aligned with it, in the header's own coordinates
+ * (the window may be zoomed, so client pixels are scaled back), and kept inside the header's width.
+ */
+export function tabMenuPlace(tab: DOMRect, header: DOMRect, headerWidth: number, menuWidth: number): { left: number; top: number } {
+  const z = headerWidth > 0 && header.width > 0 ? header.width / headerWidth : 1;
+  const left = (tab.left - header.left) / z;
+  const top = (tab.bottom - header.top) / z + 4;
+  return { left: Math.max(8, Math.min(left, headerWidth - menuWidth - 8)), top };
 }
 
 /** The right-click menu of a workspace tab: rename, move, archive or delete, and restore an archived one. */
@@ -126,8 +157,17 @@ export function TabMenu({ board, at, onRename, onDelete, onClose }: { board: Boa
       live = false;
     };
   }, []);
+  const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
+  // Anchor under the tab, inside the header (which holds the menu), not at the pointer.
+  useLayoutEffect(() => {
+    const el = root.current;
+    const header = el?.closest<HTMLElement>(".top");
+    const tab = Array.from(header?.querySelectorAll<HTMLElement>("[data-ws-id]") ?? []).find((t) => t.dataset.wsId === at.id);
+    if (!el || !header || !tab) return;
+    setPlace(tabMenuPlace(tab.getBoundingClientRect(), header.getBoundingClientRect(), header.offsetWidth, el.offsetWidth));
+  }, [at.id, archived.length]);
   useEffect(() => {
-    root.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not([disabled])')?.focus();
+    root.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not([disabled])')?.focus({ preventScroll: true });
     const away = (e: MouseEvent) => {
       if (!root.current?.contains(e.target as Node)) onClose(false);
     };
@@ -136,7 +176,7 @@ export function TabMenu({ board, at, onRename, onDelete, onClose }: { board: Boa
   }, [onClose]);
   if (!ws) return null;
   const item = (label: string, run: () => void, disabled = false) => (
-    <button type="button" role="menuitem" disabled={disabled} onClick={() => { onClose(false); run(); }}>
+    <button key={label} type="button" role="menuitem" disabled={disabled} onClick={() => { onClose(false); run(); }}>
       {label}
     </button>
   );
@@ -146,7 +186,7 @@ export function TabMenu({ board, at, onRename, onDelete, onClose }: { board: Boa
       className="wmenu-list wstabmenu"
       role="menu"
       aria-label={`Actions for ${ws.name}`}
-      style={{ position: "fixed", left: at.x, top: at.y, zIndex: 50 }}
+      style={place ? { position: "absolute", left: place.left, top: place.top, right: "auto", zIndex: 50 } : { position: "fixed", left: at.x, top: at.y, right: "auto", zIndex: 50 }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.preventDefault();
@@ -166,7 +206,13 @@ export function TabMenu({ board, at, onRename, onDelete, onClose }: { board: Boa
       {item("Move left", () => void board.actions.moveWorkspace(ws.id, i - 1), i <= 0)}
       {item("Move right", () => void board.actions.moveWorkspace(ws.id, i + 1), i >= board.visible.length - 1)}
       {item("Archive or delete…", onDelete, board.visible.length < 2)}
-      {archived.map((w) => item(`Restore ${w.name}`, () => void board.actions.run(() => api.workspace_archive({ workspace_id: w.id, archived: false }))))}
+      {archived.length ? (
+        // Restoring is about the archived workspaces, not this tab: its own labelled section.
+        <div role="group" aria-label="Archived workspaces" className="wmenu-group">
+          <div className="wmenu-label" aria-hidden="true">Archived workspaces</div>
+          {archived.map((w) => item(`Restore ${w.name}`, () => void board.actions.run(() => api.workspace_archive({ workspace_id: w.id, archived: false }))))}
+        </div>
+      ) : null}
     </div>
   );
 }

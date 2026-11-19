@@ -5,7 +5,7 @@ import { ZOOM_MAX, ZOOM_MIN } from "../commands";
 import { chordLabel } from "../keys";
 import type { Board } from "../state/useBoard";
 import { useZoom } from "../state/useZoom";
-import { applyGlass, SETTING_GLASS_CHATS } from "../state/useGlass";
+import { applyGlass, DEFAULT_GLASS_TRANSPARENCY, glassScale, SETTING_GLASS_CHATS, SETTING_GLASS_TRANSPARENCY } from "../state/useGlass";
 import { loadThemes, resolve, themeActions, useThemes } from "../theme";
 import type { ThemeDef, TokenGroup } from "../theme";
 
@@ -74,9 +74,15 @@ export function withAlpha(hex: string, a: number): string {
   return base + Math.round(Math.max(0, a) * 255).toString(16).padStart(2, "0");
 }
 
-/** Settings → Appearance → Glass chats: on by default, solid while macOS reduces transparency. */
+/**
+ * Settings → Appearance → Glass chats: on by default, solid while macOS reduces transparency; and
+ * the Glass transparency slider under it, which previews on the window while it is dragged and is
+ * saved when let go.
+ */
 function GlassSwitch({ toast }: { toast: (t: string) => void }) {
   const [d, setD] = useState<api.UIDisplay | null>(null);
+  // The slider's value while it is dragged; null shows the saved one.
+  const [drag, setDrag] = useState<number | null>(null);
   useEffect(() => {
     let live = true;
     const load = () => api.ui_display_get().then((x) => live && setD(x)).catch(() => {});
@@ -87,16 +93,31 @@ function GlassSwitch({ toast }: { toast: (t: string) => void }) {
       window.removeEventListener("focus", load);
     };
   }, []);
-  const set = async (on: boolean) => {
+  const save = async (values: Record<string, unknown>) => {
     try {
-      await api.settings_update({ values: { [SETTING_GLASS_CHATS]: on } });
+      await api.settings_update({ values });
       const x = await api.ui_display_get();
       setD(x);
-      applyGlass(x.glass);
+      applyGlass(x.glass, x.glass_scale);
     } catch (e) {
       toast(errText(e));
+      if (d) applyGlass(d.glass, d.glass_scale);
     }
   };
+  const set = (on: boolean) => save({ [SETTING_GLASS_CHATS]: on });
+  const saved = d?.glass_transparency ?? DEFAULT_GLASS_TRANSPARENCY;
+  const pct = drag ?? saved;
+  const slide = (v: number) => {
+    setDrag(v);
+    if (d) applyGlass(d.glass, glassScale(v));
+  };
+  const commit = async () => {
+    if (drag === null) return;
+    const v = drag;
+    if (v !== saved) await save({ [SETTING_GLASS_TRANSPARENCY]: v });
+    setDrag(null);
+  };
+  const glassOn = !!d && d.glass === "on";
   return (
     <>
       <span className="fgl">Chats</span>
@@ -109,6 +130,24 @@ function GlassSwitch({ toast }: { toast: (t: string) => void }) {
           {d?.glass_chats && d.reduce_transparency
             ? "macOS Reduce transparency is on, so the chats keep their bubbles on solid surfaces."
             : "Messages float as bubbles on a frosted pane in the planner chat and the card's conversation."}
+        </span>
+      </div>
+      <label htmlFor="ap-glass-t">Glass transparency</label>
+      <div>
+        <div className="inline">
+          <input id="ap-glass-t" type="range" min={0} max={100} step={5} value={pct} disabled={!glassOn} aria-valuetext={`${pct}%`}
+            onChange={(e) => slide(Number(e.target.value))}
+            onPointerUp={() => void commit()} onKeyUp={() => void commit()} onBlur={() => void commit()} />
+          <span className="mono" aria-label="Current glass transparency" style={{ minWidth: 44 }}>{pct}%</span>
+          <button className="btn sm quiet" type="button" disabled={!glassOn || pct === DEFAULT_GLASS_TRANSPARENCY}
+            onClick={() => void save({ [SETTING_GLASS_TRANSPARENCY]: DEFAULT_GLASS_TRANSPARENCY })}>Default ({DEFAULT_GLASS_TRANSPARENCY}%)</button>
+        </div>
+        <span className="hint" style={{ display: "block" }}>
+          {d?.glass === "solid"
+            ? "Reduce transparency keeps the glass solid, whatever this says."
+            : d?.glass === "off"
+              ? "Turn on Glass chats to use it."
+              : "How much of the window shows through the chats, the top bar and the tutorial. The blur stays, and it stops short of clear so text keeps its contrast."}
         </span>
       </div>
     </>

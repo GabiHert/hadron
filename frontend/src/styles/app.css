@@ -490,6 +490,12 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
    the panel's ::before, which does not scroll; the floating header and composer blur only what
    passes under them; bubbles and controls get shadows, not blur. Without glass the chat looks as
    before. "solid" keeps the shapes on opaque surfaces, for macOS Reduce transparency. */
+/* Glass transparency (Settings, Appearance): --glass-k scales the alpha of every glass surface, 1 is
+   the theme's own glass and 0.4 the most see-through (the slider stops there so text keeps its
+   contrast). The pane under the chat takes the full scale; surfaces that float over text (the
+   chat's header and composer, the top bar, the tutorial caption) take half of it, so what scrolls
+   under them stays a blur behind readable text. useGlass sets --glass-k on <html> from ui_display_get. */
+:root{--glass-k:1;--glass-pane:color-mix(in srgb,var(--glass) calc(var(--glass-k) * 100%),transparent);--glass-veil:calc(.5 + var(--glass-k) * .5)}
 .glasswrap{display:contents}
 :where(:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)){position:relative}
 :root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel){isolation:isolate;border-color:var(--glass-border);
@@ -498,7 +504,7 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
     radial-gradient(55% 34% at 96% 40%,color-mix(in srgb,var(--ok) 11%,transparent),transparent 72%),
     radial-gradient(65% 40% at 36% 100%,color-mix(in srgb,var(--tag-purple) 13%,transparent),transparent 72%),
     var(--bg)}
-:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:var(--glass);
+:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:var(--glass-pane);
   box-shadow:inset 1px 0 0 var(--glass-border),inset -1px 0 0 var(--glass-border);
   -webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%)}
 /* The header, the conversation and the composer sit on the panel's glass: no surfaces of their own. */
@@ -507,7 +513,7 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
 :root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel) .glasswrap>:is(.chat,.cbody){background:transparent;border:0;gap:10px}
 /* In the chat view the header and composer float over the conversation. */
 :root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay]>.ghead,:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay]>.composer{position:absolute;left:0;right:0;z-index:3;
-  background:color-mix(in srgb,var(--glass) 70%,transparent);
+  background:color-mix(in srgb,var(--glass) calc(var(--glass-veil) * 70%),transparent);
   -webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%)}
 :root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay]>.ghead{top:0;box-shadow:inset 0 1px 0 var(--glass-border),0 1px 0 var(--glass-border),0 8px 18px -14px rgba(0,0,0,.35)}
 :root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay]>.composer{bottom:0;box-shadow:inset 0 1px 0 var(--glass-border),0 -8px 18px -14px rgba(0,0,0,.35)}
@@ -560,7 +566,7 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
   transition:top .45s cubic-bezier(.2,.8,.2,1),left .45s cubic-bezier(.2,.8,.2,1),width .45s cubic-bezier(.2,.8,.2,1),height .45s cubic-bezier(.2,.8,.2,1),box-shadow .3s;pointer-events:none}
 .tour-hole.none{box-shadow:0 0 0 200vmax var(--scrim)}
 .tour-cap{position:fixed;width:min(360px,calc(100vw - 32px));padding:14px 16px 12px;border-radius:16px;color:var(--fg);
-  background:var(--glass,var(--card));border:1px solid var(--glass-border,var(--border));
+  background:color-mix(in srgb,var(--glass,var(--card)) calc(var(--glass-veil) * 100%),transparent);border:1px solid var(--glass-border,var(--border));
   box-shadow:inset 0 1px 0 var(--glass-border,transparent),var(--shadow);
   -webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);
   animation:tour-in .35s cubic-bezier(.2,.8,.2,1);transition:top .45s cubic-bezier(.2,.8,.2,1),left .45s cubic-bezier(.2,.8,.2,1)}
@@ -699,7 +705,7 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
   .ti-mover{transform:translate(100px,0)}
 }
 /* The quit guard: "Hold ⌘Q to quit" with a ring that fills while the keys stay down. */
-.quithold{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:70;display:flex;align-items:center;gap:12px;padding:12px 18px 12px 14px;border-radius:14px;background:var(--glass,var(--card));-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid var(--glass-border,var(--border));box-shadow:var(--shadow);color:var(--fg);font-size:14px;font-weight:500;pointer-events:none;animation:quithold-in .14s ease-out}
+.quithold{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:70;display:flex;align-items:center;gap:12px;padding:12px 18px 12px 14px;border-radius:14px;background:color-mix(in srgb,var(--glass,var(--card)) calc(var(--glass-veil) * 100%),transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid var(--glass-border,var(--border));box-shadow:var(--shadow);color:var(--fg);font-size:14px;font-weight:500;pointer-events:none;animation:quithold-in .14s ease-out}
 .quithold.tap{animation:quithold-in .14s ease-out,quithold-out .4s ease-in 1.4s forwards}
 .quitring{flex:none;transform:rotate(-90deg)}
 .quitring circle{fill:none;stroke-width:3.2}
@@ -712,3 +718,64 @@ label.tbtn input{margin:0;accent-color:var(--tb)}
 @keyframes quithold-in{from{opacity:0;transform:translate(-50%,-50%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%)}}
 @keyframes quithold-out{to{opacity:0}}
 @media (prefers-reduced-motion:reduce){.quithold,.quithold.tap{animation:none}.quithold.tap{animation:quithold-out .01s linear 1.6s forwards}}
+
+/* The workspace tab menu: compact, under its tab; the archived workspaces in their own section. */
+.wstabmenu{width:max-content;max-width:min(280px,calc(100vw - 16px))}
+.wmenu-group{display:flex;flex-direction:column;border-top:1px solid var(--border);margin-top:4px;padding-top:4px}
+.wmenu-label{padding:3px 9px 2px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--fg3)}
+/* Nothing may scroll the window or the top bar sideways (a focused field at the edge used to drag
+   the traffic lights and the other tabs out of view); only the tab strip scrolls. clip, unlike
+   hidden, cannot be scrolled by script or by focus. */
+html,body,#root,.win{overflow:clip}
+.top{position:relative;z-index:30;overflow-x:clip;overflow-y:visible}
+/* The newest line clears the floating composer: a spacer as tall as the composer ends the
+   conversation (a flex item always counts toward the scroll range, unlike padding in some engines). */
+:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay] .glasswrap>:is(.chat,.cbody){padding-bottom:0}
+:root:is([data-glass="on"],[data-glass="solid"]) :is(.ppanel,.cpanel)[data-overlay] .glasswrap>:is(.chat,.cbody)::after{content:"";flex:none;height:calc(var(--gf,0px) + 2px);margin-top:2px}
+
+/* Glass top bar, like Safari's toolbar: with glass on, the bar floats over the window as frosted
+   glass, and the chats scroll beneath it (their floating headers start under the bar, their lines
+   pass behind it blurred). Everything else in the window starts below the bar, as before. Solid
+   (Reduce transparency) and glass off keep the opaque bar. */
+:root[data-glass="on"] .win{--topbar:44px}
+:root[data-glass="on"] .top{position:absolute;top:0;left:0;right:0;
+  background:color-mix(in srgb,var(--side) calc(var(--glass-veil) * 58%),transparent);border-bottom-color:var(--glass-border);
+  box-shadow:0 1px 0 color-mix(in srgb,var(--glass-border) 50%,transparent),0 8px 18px -16px rgba(0,0,0,.4);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%)}
+:root[data-glass="on"] .top .wsbar{background:color-mix(in srgb,var(--card) calc(var(--glass-veil) * 55%),transparent);border-color:var(--glass-border)}
+/* Below the bar: everything in the window starts under it, except the chats, which run under it. */
+:root[data-glass="on"] .shell>*{border-top:var(--topbar,0px) solid transparent}
+:root[data-glass="on"] .shell>:is(.ppanel,.cpanel)[data-overlay]{border-top:0}
+:root[data-glass="on"] :is(.ppanel,.cpanel)[data-overlay]>.ghead{top:var(--topbar,0px)}
+:root[data-glass="on"] :is(.ppanel,.cpanel)[data-overlay] .glasswrap>:is(.chat,.cbody){padding-top:calc(var(--gh,0px) + var(--topbar,0px) + 12px);scroll-padding-top:calc(var(--gh,0px) + var(--topbar,0px))}
+/* Full-screen and narrow-window panels are fixed below the bar already. */
+:root[data-glass="on"] :is(.ppanel,.cpanel).full{--topbar:0px}
+@media (max-width: 960px){:root[data-glass="on"] :is(.ppanel,.cpanel){--topbar:0px}}
+/* Menus from the bar stay opaque so they read well over the glass. */
+:root[data-glass="on"] .top .wmenu-list{background:var(--card)}
+@media (prefers-reduced-transparency: reduce){
+  :root[data-glass="on"] .top{background:var(--side);-webkit-backdrop-filter:none;backdrop-filter:none}
+}
+
+/* Settings in a short window: the section list and the pane scroll on their own, inside the modal. */
+.settings{overflow:hidden}
+.snav{overflow-y:auto;min-height:0;overscroll-behavior:contain;scrollbar-width:thin}
+.snav button{flex:none}
+.sbody{min-height:0;overscroll-behavior:contain}
+@media (max-width: 560px){.snav{overflow-y:hidden}}
+
+/* Notices (system, rule and routine lines): one line is a centred pill, or a centred line between
+   two rules without glass. A notice that wraps becomes a rounded card as wide as a bubble, its text
+   left-aligned and clamped to three lines until "Show more". */
+.b-ev .ev-t{min-width:0;overflow-wrap:anywhere}
+.b-ev.multi{display:block;align-self:center;max-width:92%;text-align:left;line-height:1.45;padding:7px 12px;border:1px solid var(--row);border-radius:10px;background:var(--muted)}
+.b-ev.multi::before,.b-ev.multi::after{display:none}
+.b-ev.clamped .ev-t{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden}
+.b-ev .ev-more{display:block;margin:3px 0 0;padding:0;border:0;background:none;color:var(--acc);font:inherit;font-size:11.5px;cursor:pointer}
+.b-ev .ev-more:hover{text-decoration:underline}
+:root:is([data-glass="on"],[data-glass="solid"]) .glasswrap .b-ev.multi{border-radius:14px;padding:8px 13px}
+.full .b-ev.multi{max-width:72%}
+/* The composer's placeholder keeps to one line: an empty box is one line tall, and a placeholder
+   longer than a narrow panel ends in an ellipsis instead of wrapping onto a clipped second line. */
+.composer textarea:placeholder-shown{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.composer textarea::placeholder{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

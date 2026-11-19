@@ -15,6 +15,7 @@ import (
 // store, home and fake claude.
 func (h *sessionHarness) relaunch(t *testing.T) *sessions.Service {
 	t.Helper()
+	h.settle(t)
 	h.svc.StopAll()
 	waitUntil(t, "processes to end", func() bool { return len(h.svc.LiveSessions()) == 0 })
 	if _, err := h.reg.Deps().Store.Sessions.MarkRunningExited(); err != nil {
@@ -25,6 +26,25 @@ func (h *sessionHarness) relaunch(t *testing.T) *sessions.Service {
 		FirstPromptDelay: 200 * time.Millisecond, ReadyTimeout: harnessReadyTimeout, Window: 150 * time.Millisecond})
 	t.Cleanup(svc.StopAll)
 	return svc
+}
+
+// settle waits until no session is still printing its start-up (working), and its idle is
+// recorded, so a relaunch sees the sessions as idle unless a test says otherwise.
+func (h *sessionHarness) settle(t *testing.T) {
+	t.Helper()
+	st := h.reg.Deps().Store
+	waitUntil(t, "the sessions to go idle", func() bool {
+		rows, _ := st.Sessions.ListRunning()
+		for _, r := range rows {
+			if ps, ok := h.svc.Live(r.ID); ok && ps.Liveness() == "working" {
+				return false
+			}
+			if r.Working {
+				return false
+			}
+		}
+		return true
+	})
 }
 
 func (h *sessionHarness) history() []string {
@@ -165,5 +185,92 @@ func TestRestoreOnLaunchOffRestoresNothingAndForgetsThem(t *testing.T) {
 	h.do("settings_update", m{"values": m{"sessions.restore_on_launch": true}}, nil)
 	if rows, _ := h.reg.Deps().Store.Sessions.ListRestorable(); len(rows) != 0 {
 		t.Errorf("the flags were cleared: %+v", rows)
+	}
+}
+
+// A session that was working when Hadron went down is told to continue once restored; an idle one
+// is left alone, and the planner hears which cards were nudged.
+func TestRestoreNudgesOnlyTheSessionsThatWereWorking(t *testing.T) {
+	h := newSessionHarness(t, false)
+	w := h.workspace("Acme")
+	var a, b domain.Card
+	h.do("card_create", m{"workspace_id": w.ID, "nick": "billing-fix"}, &a)
+	h.do("card_create", m{"workspace_id": w.ID, "nick": "invoice-sync"}, &b)
+	waitUntil(t, "two starts", func() bool { return len(h.history()) == 2 })
+	ra, rb := h.latest(w.ID, a.ID), h.latest(w.ID, b.ID)
+	svc := h.relaunch(t)
+	st := h.reg.Deps().Store
+	// What Hadron last saw: billing-fix was busy, invoice-sync idle (a crash leaves the same).
+	if err := st.Sessions.SetWorking(ra.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := st.Sessions.Get(ra.ID); !got.Working {
+		t.Fatal("working was not recorded")
+	}
+	if got, _ := st.Sessions.Get(rb.ID); got.Working {
+		t.Fatal("an idle session is not working")
+	}
+	before := h.file(".in")
+	n, nudged := svc.RestoreAllNudging(context.Background(), 10*time.Millisecond)
+	if n != 2 || len(nudged) != 1 || nudged[0].Name != "billing-fix" || nudged[0].WorkspaceID != w.ID {
+		t.Fatalf("restored %d, nudged %+v", n, nudged)
+	}
+	waitUntil(t, "the nudge to be typed", func() bool { return strings.Contains(h.file(".in"), sessions.RestoreNudge) })
+	if c := strings.Count(h.file(".in")[len(before):], sessions.RestoreNudge); c != 1 {
+		t.Errorf("the nudge was typed %d times, want once (only billing-fix): %q", c, h.file(".in"))
+	}
+	has := func(c domain.Card, text string) bool {
+		for _, msg := range h.messagesOf(c) {
+			if msg.Kind == "event" && msg.Text == text {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(a, sessions.RestoreNudgedEvent) || !has(b, sessions.RestoreEvent) || has(b, sessions.RestoreNudgedEvent) {
+		t.Error("the cards' events do not say which was asked to continue")
+	}
+	groups := sessions.GroupNudged(nudged)
+	if len(groups) != 1 || sessions.NudgeReport(groups[0].Names) != "Hadron restarted; these sessions were working and were asked to continue: billing-fix." {
+		t.Errorf("report = %+v", groups)
+	}
+}
+
+func TestRestoreNudgeOffTypesNothing(t *testing.T) {
+	h := newSessionHarness(t, false)
+	w := h.workspace("Acme")
+	var a domain.Card
+	h.do("card_create", m{"workspace_id": w.ID, "nick": "billing-fix"}, &a)
+	waitUntil(t, "start", func() bool { return len(h.history()) == 1 })
+	h.do("settings_update", m{"values": m{"sessions.restore_nudge": false}}, nil)
+	ra := h.latest(w.ID, a.ID)
+	svc := h.relaunch(t)
+	_ = h.reg.Deps().Store.Sessions.SetWorking(ra.ID, true)
+	before := h.file(".in")
+	n, nudged := svc.RestoreAllNudging(context.Background(), 10*time.Millisecond)
+	if n != 1 || len(nudged) != 0 {
+		t.Fatalf("restored %d, nudged %+v", n, nudged)
+	}
+	time.Sleep(500 * time.Millisecond)
+	if h.file(".in") != before {
+		t.Errorf("nothing may be typed with the nudge off: %q", h.file(".in"))
+	}
+}
+
+func TestQuittingFreezesWhatTheSessionsWereDoing(t *testing.T) {
+	h := newSessionHarness(t, false)
+	w := h.workspace("Acme")
+	var a domain.Card
+	h.do("card_create", m{"workspace_id": w.ID, "nick": "billing-fix"}, &a)
+	waitUntil(t, "start", func() bool { return len(h.history()) == 1 })
+	ra := h.latest(w.ID, a.ID)
+	st := h.reg.Deps().Store
+	h.settle(t)
+	_ = st.Sessions.SetWorking(ra.ID, true)
+	h.svc.StopAll()
+	// The process ending while Hadron quits reports "ended"; that must not overwrite the record.
+	h.relaunch(t)
+	if got, _ := st.Sessions.Get(ra.ID); !got.Working {
+		t.Error("quitting cleared what the session was doing")
 	}
 }

@@ -343,12 +343,17 @@ export function Settings({ board, onClose, tabs = SETTINGS_TABS, initialTab = "c
   const [tab, setTab] = useState(initialTab);
   useEffect(() => onTab?.(tab), [tab, onTab]);
   const cur = tabs.find((t) => t.id === tab) ?? tabs[0];
+  const nav = useRef<HTMLElement>(null);
+  // The section list scrolls on its own in a short window; the selected section stays in view.
+  useEffect(() => {
+    nav.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView?.({ block: "nearest" });
+  }, [tab]);
   return (
     <Scrim onClose={onClose}>
       <div className="modal wide" role="dialog" aria-modal="true" aria-labelledby="st-t">
         <ModalHead id="st-t" title={`Settings${board.ws ? ` · ${board.ws.name}` : ""}${board.version ? ` · Hadron ${formatVersion(board.version)}` : ""}`} onClose={onClose} />
         <div className="settings">
-          <nav className="snav" aria-label="Settings sections">
+          <nav ref={nav} className="snav" aria-label="Settings sections">
             {tabs.map((t, i) => (
               <button
                 key={t.id}
