@@ -1,13 +1,13 @@
 // The workspace tab menu under its tab, the tab strip keeping its place, the newest chat line above
 // the glass composer, the glass top bar, the Settings list scrolling, and the restore nudge switch.
 import css from "./styles/app.css?raw";
-import { fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { GeneralTab } from "./components/GeneralTab";
 import { revealInStrip, tabMenuPlace } from "./components/WorkspaceManage";
 import { atEnd, useGlassOverlay } from "./state/useGlassOverlay";
-import { mocks, reset, state, ws } from "./test/fakeApi";
+import { message, mocks, reset, state, ws } from "./test/fakeApi";
 
 vi.mock("./api", async () => (await import("./test/fakeApi")).apiMock);
 
@@ -206,5 +206,53 @@ describe("Settings → General: asking working sessions to continue", () => {
     render(<GeneralTab toast={vi.fn()} />);
     await waitFor(async () => expect(await box()).toBeDisabled());
     expect(await box()).not.toBeChecked();
+  });
+});
+
+describe("a card's conversation under the glass composer", () => {
+  it("ends a long reply that arrives while it is open fully above the composer, and keeps the placeholder on one line", async () => {
+    type Cb = (e: { workspace_id: string; entities: string[] }) => void;
+    const subs: Cb[] = [];
+    mocks.onChanged.mockImplementation(((cb: Cb) => {
+      subs.push(cb);
+      return () => {};
+    }) as never);
+    // jsdom has no layout: each line is 120px, the view 200px, and the composer starts 2 lines tall.
+    const composer = { h: 96 };
+    const hOf = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight")!;
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains("composer") ? composer.h : this.classList.contains("ghead") ? 48 : 0;
+      },
+    });
+    const user = await openApp();
+    await user.click(screen.getByRole("button", { name: "Open search-console" }));
+    const panel = screen.getByRole("complementary", { name: "Card search-console" });
+    const box = await within(panel).findByLabelText("Message about this card");
+    // The placeholder is short, and an empty box keeps it to one line (ellipsized if the panel is narrow).
+    expect(box).toHaveAttribute("placeholder", "Via the planner, tagged [ACME-508 search-console]");
+    expect(css).toContain(".composer textarea:placeholder-shown{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}");
+    expect(panel).toHaveAttribute("data-overlay");
+    const log = within(panel).getByRole("log", { name: "Conversation" });
+    expect(log).toHaveClass("cbody");
+    let top = 0;
+    // The spacer (::after) adds the composer's height to the end, as the CSS does.
+    const scrollH = () => log.children.length * 120 + parseInt(panel.style.getPropertyValue("--gf") || "0", 10) + 4;
+    Object.defineProperty(log, "clientHeight", { configurable: true, get: () => 200 });
+    Object.defineProperty(log, "scrollHeight", { configurable: true, get: scrollH });
+    Object.defineProperty(log, "scrollTop", { configurable: true, get: () => top, set: (v: number) => (top = Math.max(0, Math.min(v, scrollH() - 200))) });
+    // A long planner reply lands while the chat is open.
+    state.messages.push(message({ id: "m-long", channel: "card:c1", author: "planner", text: "The session's last update was at 00:04. ".repeat(30) }));
+    act(() => subs.forEach((cb) => cb({ workspace_id: "w1", entities: ["messages"] })));
+    await within(panel).findByText(/The session's last update was at 00:04/);
+    expect(panel.style.getPropertyValue("--gf")).toBe("96px");
+    await waitFor(() => expect(top).toBe(scrollH() - 200));
+    // Its end sits above the composer: the last line's bottom is the spacer's height above the view's end.
+    const lastBottom = log.children.length * 120 - top;
+    expect(200 - lastBottom).toBeGreaterThanOrEqual(96);
+    expect(css).toMatch(/\.glasswrap>:is\(\.chat,\.cbody\)::after\{content:"";flex:none;height:calc\(var\(--gf,0px\) \+ 2px\)/);
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", hOf);
+    mocks.onChanged.mockImplementation((() => () => {}) as never);
   });
 });

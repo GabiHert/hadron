@@ -13,6 +13,8 @@ for its "What's new" window.
 - Sessions that were busy on a task when Hadron quit, updated or crashed are asked to continue once they are back ("Hadron restarted while you were working. Continue where you left off."). Idle sessions are left alone, and the planner hears which cards were asked. Settings → General has a switch for it under "Resume running sessions", on by default.
 
 ### Fixed
+- The message box of a card is one line tall when empty: its hint is shorter ("Via the planner, tagged …") and ends in "…" in a narrow panel instead of wrapping onto a cut-off second line.
+- A long notice in a chat (a routine, rule or system line) is a rounded card as wide as a message, showing three lines with "Show more", instead of a stretched oval. Short notices stay small pills.
 - A workspace tab's menu is a small popover under its tab again, instead of a strip across the whole window. Archived workspaces to restore have their own labelled section in it.
 - Renaming a workspace tab no longer scrolls the top bar, so the window buttons and the other tabs stay in place.
 - With glass chats, the newest message is always fully above the message box, also when the box grows, a widget grows or the window resizes.

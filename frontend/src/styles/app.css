@@ -763,3 +763,19 @@ html,body,#root,.win{overflow:clip}
 .snav button{flex:none}
 .sbody{min-height:0;overscroll-behavior:contain}
 @media (max-width: 560px){.snav{overflow-y:hidden}}
+
+/* Notices (system, rule and routine lines): one line is a centred pill, or a centred line between
+   two rules without glass. A notice that wraps becomes a rounded card as wide as a bubble, its text
+   left-aligned and clamped to three lines until "Show more". */
+.b-ev .ev-t{min-width:0;overflow-wrap:anywhere}
+.b-ev.multi{display:block;align-self:center;max-width:92%;text-align:left;line-height:1.45;padding:7px 12px;border:1px solid var(--row);border-radius:10px;background:var(--muted)}
+.b-ev.multi::before,.b-ev.multi::after{display:none}
+.b-ev.clamped .ev-t{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden}
+.b-ev .ev-more{display:block;margin:3px 0 0;padding:0;border:0;background:none;color:var(--acc);font:inherit;font-size:11.5px;cursor:pointer}
+.b-ev .ev-more:hover{text-decoration:underline}
+:root:is([data-glass="on"],[data-glass="solid"]) .glasswrap .b-ev.multi{border-radius:14px;padding:8px 13px}
+.full .b-ev.multi{max-width:72%}
+/* The composer's placeholder keeps to one line: an empty box is one line tall, and a placeholder
+   longer than a narrow panel ends in an ellipsis instead of wrapping onto a clipped second line. */
+.composer textarea:placeholder-shown{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.composer textarea::placeholder{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

@@ -23,6 +23,49 @@ export function reasonText(reason: string): string {
   return `Not delivered: ${reason || "the planner did not get it"}.`;
 }
 
+/** How many lines a long notice shows before "Show more". */
+export const NOTICE_LINES = 3;
+
+/**
+ * A notice line: a system, rule or routine event. One line is a small centred pill; when it wraps
+ * it becomes a rounded card as wide as a bubble, clamped to NOTICE_LINES with a "Show more". The
+ * line count is measured from the text's own line boxes, so it follows the panel's width.
+ */
+export function Notice({ text }: { text: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  const span = useRef<HTMLSpanElement>(null);
+  const [multi, setMulti] = useState(false);
+  const [clamped, setClamped] = useState(false);
+  const [open, setOpen] = useState(false);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => {
+      const lines = span.current?.getClientRects().length ?? 1;
+      setMulti(lines > 1);
+      setClamped(lines > NOTICE_LINES);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text]);
+  return (
+    <div ref={box} className={"b-ev" + (multi ? " multi" : "") + (clamped && !open ? " clamped" : "")} data-msg="" tabIndex={-1}>
+      <div ref={body} className="ev-t">
+        <span ref={span}>{text}</span>
+      </div>
+      {clamped ? (
+        <button type="button" className="ev-more" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? "Show less" : "Show more"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 const REPORT_PILL: Record<string, string> = { question: "warn", blocked: "bad", done: "acc", progress: "ok" };
 
 /** One message line. A question's report is drawn by the thread as a question card instead. */
@@ -35,7 +78,7 @@ export function ChatLine({ m, onPin, pinnedIds, scripts = false }: { m: Message;
         <Widget title={m.widget_title} html={m.widget_html} scripts={scripts} onPin={onPin ? () => onPin(m.id) : undefined} pinned={pinnedIds?.has(m.id)} />
       </>
     );
-  if (m.kind === "event" || m.author === "rule" || m.author === "system") return <div className="b-ev" data-msg="" tabIndex={-1}>{m.text}</div>;
+  if (m.kind === "event" || m.author === "rule" || m.author === "system") return <Notice text={m.text} />;
   if (m.kind === "report")
     return (
       <>
