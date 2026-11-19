@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.37] - 2026-11-19
+
 ### Added
 - A Glass transparency slider in Settings, Appearance, under Glass chats: it makes the chats, their header and message box, the top bar and the tutorial more or less see-through, and previews while you drag. The glass is now more see-through by default; the blur stays, and the slider stops short of clear so text keeps its contrast. Reduce transparency still keeps it solid.
 - The top bar is glass, like Safari's toolbar: a frosted, translucent bar the chats scroll beneath, blurred. It follows the Glass chats setting and turns solid with macOS Reduce transparency.
