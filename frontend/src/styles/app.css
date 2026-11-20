@@ -779,3 +779,20 @@ html,body,#root,.win{overflow:clip}
    longer than a narrow panel ends in an ellipsis instead of wrapping onto a clipped second line. */
 .composer textarea:placeholder-shown{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .composer textarea::placeholder{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* A card face never grows past its card or scrolls sideways: a long stage, field value, key or assignee
+   ends in an ellipsis (the chip's title keeps the full text), and the column list scrolls only up and down. */
+.clist{overflow-x:hidden}
+.card{min-width:0;overflow:hidden}
+.card>*{min-width:0;max-width:100%}
+.card .l1>.key{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .l1>.pill,.card .l1>.dot{flex:none}
+.card .l1>.hint{min-width:0;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chips{min-width:0;max-width:100%}
+.chips>*{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grp,.grpl{min-width:0}
+.grpc .key{display:block;flex:0 1 auto;min-width:0;max-width:45%;overflow:hidden;text-overflow:ellipsis}
+.grpc .l1>.pill,.grpc .l1>.dot{flex:none}
+.grpc .l2>.pill{display:block;flex:0 1 auto;min-width:0;max-width:60%;overflow:hidden;text-overflow:ellipsis}
+.rail{min-width:0;overflow:hidden}
+.rail .rname{min-height:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

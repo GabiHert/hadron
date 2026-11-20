@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Fixed
+- A long stage or field value no longer sticks out of its card or scrolls the card's text sideways. Chips, keys and assignees that don't fit end in "…" and show the full text when you hover. The same goes for cards in dashboard groups and for collapsed columns.
+
 ## [0.2.37] - 2026-11-19
 
 ### Added

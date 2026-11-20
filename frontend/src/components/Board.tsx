@@ -400,12 +400,12 @@ export function CardFace({ card: c, question, chips, model, colors = EMPTY, sele
     >
       <span className="l1">
         <span className={`dot ${c.liveness}${c.liveness === "working" ? " pulse" : ""}`} title={c.liveness} />
-        <span className={"key" + (keyColor ? " " + tagClass(keyColor) : "")}>{c.key || `~${c.nick}`}</span>
+        <span className={"key" + (keyColor ? " " + tagClass(keyColor) : "")} title={c.key || `~${c.nick}`}>{c.key || `~${c.nick}`}</span>
         {question ? (
           <span className={"pill " + (question.kind === "approval" ? "bad" : "warn")}>{question.kind === "approval" ? "approval" : `Q-${String(question.seq).padStart(2, "0")}`}</span>
         ) : null}
         <span className="spacer" />
-        {c.assignee && c.assignee !== "You" ? <span className="hint">{c.assignee}</span> : null}
+        {c.assignee && c.assignee !== "You" ? <span className="hint" title={c.assignee}>{c.assignee}</span> : null}
       </span>
       <span className="nick">{c.nick}</span>
       {question ? <span className="q">{short(question.text, 90)}</span> : null}
