@@ -10,6 +10,7 @@ import (
 
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/sessions"
+	"github.com/GabiHert/hadron/internal/testwait"
 )
 
 // boxClaude draws an input box like Claude's and edits it in raw mode: typed text shows on the box
@@ -65,11 +66,12 @@ func TestRestoreNudgeIsSubmittedWhenTheFirstEnterIsLost(t *testing.T) {
 	if !ok {
 		t.Fatal("the restored session is not running")
 	}
-	screen := ps.Screen(0, false)
-	lines := strings.Split(strings.TrimRight(screen, "\n "), "\n")
-	if last := strings.TrimSpace(lines[len(lines)-1]); last != "│ >" {
-		t.Errorf("the box should be empty after the nudge, its last line is %q:\n%s", last, screen)
+	// The fake records the line before it redraws, so the screen may lag .in for a moment.
+	lastLine := func() string {
+		lines := strings.Split(strings.TrimRight(ps.Screen(0, false), "\n "), "\n")
+		return strings.TrimSpace(lines[len(lines)-1])
 	}
+	waitUntil(t, "the box to be empty after the nudge", func() bool { return lastLine() == "│ >" })
 }
 
 // A first Enter that works is not followed by a second one.
@@ -89,7 +91,7 @@ func TestRestoreNudgeIsSentOnceWhenTheEnterWorks(t *testing.T) {
 	before := h.file(".in")
 	svc.RestoreAllNudging(context.Background(), 0)
 	waitUntil(t, "the nudge to be submitted", func() bool { return strings.Contains(h.file(".in")[len(before):], sessions.RestoreNudge) })
-	time.Sleep(1500 * time.Millisecond) // past two confirm windows: a stray second Enter would show
+	time.Sleep(2*testwait.Scaled(time.Second) + 500*time.Millisecond) // past two confirm windows: a stray second Enter would show
 	if got := h.file(".in")[len(before):]; got != sessions.RestoreNudge+"\n" {
 		t.Errorf("want the nudge once and no empty submit after it, got %q", got)
 	}

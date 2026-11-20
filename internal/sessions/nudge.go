@@ -55,29 +55,41 @@ func (s *Service) deliverNudge(id string, ps *pty.Session, text string) {
 		return
 	}
 	probe := nudgeProbe(text)
-	shown := s.waitFor(ps, s.cfg.NudgeConfirm, func() bool {
+	shown := s.waitQuiet(ps, func() bool {
 		return pendingInBox(ps.Screen(0, false), probe) && ps.Liveness() == pty.Idle
 	})
+	submitted := func() bool {
+		if shown {
+			return !pendingInBox(ps.Screen(0, false), probe)
+		}
+		return ps.Liveness() == pty.Working
+	}
 	for try := 1; try <= nudgeEnters; try++ {
 		if ps.Keys([]string{"Enter"}) != nil {
 			return
 		}
-		ok := s.waitFor(ps, s.cfg.NudgeConfirm, func() bool {
-			if shown {
-				return !pendingInBox(ps.Screen(0, false), probe)
-			}
-			return ps.Liveness() == pty.Working
-		})
-		if ok {
+		if s.waitQuiet(ps, submitted) {
 			if try > 1 {
 				s.cfg.Log.Info("nudge: submitted after pressing Enter again", "session", id, "enters", try)
 			}
 			return
 		}
-		// The Enter was lost: let the output settle before the next one.
-		s.waitFor(ps, s.cfg.NudgeConfirm, func() bool { return ps.Liveness() == pty.Idle })
+		// The Enter was lost: the output has settled (waitQuiet waited for that), so press again.
 	}
 	s.cfg.Log.Error("nudge: still in the input box after pressing Enter; left for the user", "session", id, "enters", nudgeEnters)
+}
+
+// waitQuiet waits NudgeConfirm for cond, and longer while the session is still printing: on a
+// busy Mac, or while Claude draws a long resume, the screen can lag the input by seconds, and
+// pressing Enter again then would send an empty line, or give up on a nudge that was about to
+// land. It keeps waiting until cond holds or the output has been quiet for the working window,
+// up to NudgeTimeout, and then says whether cond holds.
+func (s *Service) waitQuiet(ps *pty.Session, cond func() bool) bool {
+	if s.waitFor(ps, s.cfg.NudgeConfirm, cond) {
+		return true
+	}
+	s.waitFor(ps, s.cfg.NudgeTimeout, func() bool { return cond() || ps.Liveness() == pty.Idle })
+	return cond()
 }
 
 // waitFor polls cond every 40 ms until it holds (true), the time is up or the session ends (false).
