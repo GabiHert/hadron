@@ -1,4 +1,9 @@
 import "@testing-library/jest-dom";
+import { configure } from "@testing-library/react";
+import { ASYNC_UTIL_TIMEOUT_MS, scaled } from "./waits";
+
+// findBy* and waitFor poll, so this only matters on a busy machine; see waits.ts.
+configure({ asyncUtilTimeout: scaled(ASYNC_UTIL_TIMEOUT_MS) });
 
 // jsdom has no ResizeObserver; the terminal uses one to refit.
 globalThis.ResizeObserver ??= class {

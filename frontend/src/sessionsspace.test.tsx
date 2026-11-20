@@ -81,7 +81,7 @@ describe("the Sessions space", () => {
     await user.clear(input);
     await user.type(input, "builds{Enter}");
     expect(mocks.free_session_update).toHaveBeenCalledWith({ session: "a", name: "builds" });
-    await waitFor(() => expect(mocks.settings_update).toHaveBeenCalledWith({ values: { "sessions.layout": expect.objectContaining({ tabs: [expect.objectContaining({ root: { pane: "a" } })] }) } }), { timeout: 2000 });
+    await waitFor(() => expect(mocks.settings_update).toHaveBeenCalledWith({ values: { "sessions.layout": expect.objectContaining({ tabs: [expect.objectContaining({ root: { pane: "a" } })] }) } }));
   });
 
   it("makes a card of a session without stopping it", async () => {
