@@ -223,13 +223,13 @@ function GroupRow({ item, selected, over, menuOpen, setMenuOpen, others, onOpen,
       >
         <span className="l1">
           <span className={`dot ${c.liveness}${c.liveness === "working" ? " pulse" : ""}`} title={c.liveness} />
-          <span className="nick">{c.nick}</span>
-          {c.key ? <span className="key">{c.key}</span> : null}
+          <span className="nick" title={c.nick}>{c.nick}</span>
+          {c.key ? <span className="key" title={c.key}>{c.key}</span> : null}
           <span className="spacer" />
           {item.needsYou ? <span className="pill bad">needs you</span> : <span className={"pill" + (c.liveness === "working" ? " ok" : c.liveness === "waiting" ? " warn" : "")}>{LIVE_LABEL[c.liveness] ?? c.liveness}</span>}
         </span>
         <span className="l2">
-          {item.column ? <span className="pill">{item.column}</span> : null}
+          {item.column ? <span className="pill" title={`Column: ${item.column}`}>{item.column}</span> : null}
           {c.stage ? <span className="pill acc" title={`Stage: ${c.stage}`}>{c.stage}</span> : null}
           <span className="last" title={item.question || last}>{item.question ? `Q: ${short(item.question, 120)}` : last ? short(last, 140) : <i>No reports yet</i>}</span>
         </span>
