@@ -12,6 +12,7 @@ for its "What's new" window.
 
 ### Fixed
 - Making the window small no longer hides both chats. They shrink first; then only the card panel folds to its rail, and a message says to click the rail to open it (the planner folds instead). The collapse buttons work as before.
+- After Hadron restarts, the "Continue where you left off" message to a session that was working is sent, not left typed in its message box. Hadron now waits for Claude to finish drawing, checks that the message left the box, and presses Enter again if it didn't.
 
 ## [0.2.38] - 2026-11-19
 
