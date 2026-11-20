@@ -50,7 +50,7 @@ export function PanelResizer({ panel, ctl, zoom = 1 }: { panel: PanelName; ctl: 
 
   return (
     <div
-      className={"presize " + panel}
+      className={"presize presize-" + panel}
       role="separator"
       aria-orientation="vertical"
       aria-label={LABEL[panel]}
