@@ -106,9 +106,10 @@ textarea.in.grow-max{overflow-y:auto;scrollbar-width:thin}
 .chips{display:flex;gap:5px;flex-wrap:wrap}
 .addcol{width:200px;flex:none;border:1px dashed var(--border);border-radius:10px;background:transparent;color:var(--fg3);height:44px}
 .addcol:hover{color:var(--fg);border-color:var(--fg3)}
-.rail{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;flex:1;min-height:120px;border:1px solid var(--border);border-radius:8px;background:transparent;padding:8px 0;color:var(--fg3);cursor:pointer}
-.rail:hover{color:var(--fg);border-color:var(--fg3)}
-.rail.needs{border-color:color-mix(in srgb,var(--bad) 55%,var(--border))}
+/* A folded board column. Only the column's button: the chat panels' rails (nav.rail) are plain strips. */
+button.rail{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;flex:1;min-height:120px;border:1px solid var(--border);border-radius:8px;background:transparent;padding:8px 0;color:var(--fg3);cursor:pointer}
+button.rail:hover{color:var(--fg);border-color:var(--fg3)}
+button.rail.needs{border-color:color-mix(in srgb,var(--bad) 55%,var(--border))}
 .rail .rname{writing-mode:vertical-rl;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 .rbadge{min-width:18px;padding:0 4px;border-radius:9px;background:var(--acc);color:#fff;font-size:10.5px;font-weight:600;line-height:18px;text-align:center}
 .rbadge.bad{background:var(--bad)}
@@ -189,8 +190,9 @@ textarea.in.grow-max{overflow-y:auto;scrollbar-width:thin}
 .pal li button{width:100%;text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:6px;display:flex;gap:10px;align-items:center}
 .pal li button.on,.pal li button:hover{background:var(--sel)}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:12.5px;z-index:60;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
-.rail{width:40px;flex:none;display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:8px;background:var(--side);border-right:1px solid var(--border)}
-.rail.r{border-right:0;border-left:1px solid var(--border);background:var(--card)}
+/* A folded chat panel: a plain strip with one straight divider toward the board, like the planner's open edge. */
+nav.rail{width:40px;flex:none;display:flex;flex-direction:column;align-items:center;gap:10px;padding:8px 0 0;background:var(--side);border:0;border-right:1px solid var(--border);border-radius:0}
+nav.rail.r{border-right:0;border-left:1px solid var(--border);background:var(--card)}
 .rail .vl{writing-mode:vertical-rl;border:0;background:transparent;color:var(--fg2);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:6px 0;display:flex;gap:8px;align-items:center}
 .rail .vl:hover{color:var(--fg)}
 .ppanel.full,.cpanel.full{position:fixed;top:44px;left:0;right:0;bottom:0;width:auto;z-index:45;border:0;box-shadow:none;display:flex}
@@ -808,8 +810,9 @@ html,body,#root,.win{overflow:clip}
 :where(.ppanel,.cpanel){position:relative}
 .ppanel,.cpanel{min-width:0}
 .presize{position:absolute;top:0;bottom:0;width:9px;z-index:6;cursor:col-resize;touch-action:none;outline:none}
-.presize.planner{right:-5px}
-.presize.card{left:-5px}
+/* The side is presize-planner or presize-card, never a bare class: "card" alone is the board's card tile. */
+.presize-planner{right:-5px}
+.presize-card{left:-5px}
 .presize::after{content:"";position:absolute;top:0;bottom:0;left:4px;width:1px;background:transparent;transition:background .12s,box-shadow .12s}
 .presize:hover::after,.presize:focus-visible::after,:root[data-resizing] .presize::after{background:var(--acc);box-shadow:0 0 0 1px color-mix(in srgb,var(--acc) 35%,transparent)}
 .presize:focus-visible::after{width:2px;left:3.5px}
@@ -818,8 +821,5 @@ html,body,#root,.win{overflow:clip}
 :root[data-resizing],:root[data-resizing] *{cursor:col-resize!important;user-select:none!important;-webkit-user-select:none!important}
 :root[data-resizing] :is(iframe,.xterm){pointer-events:none}
 :root[data-resizing] :is(.ppanel,.cpanel,.board,.shell>*){transition:none!important}
-/* A rail the window folded (not the user) says so with a dashed edge; its tooltip says how to open it. */
-nav.rail.auto{border-style:dashed}
-
 /* A long conversation holds its newest messages; this loads older ones above them. */
 .earlier{align-self:center;flex:none;margin:2px 0 6px}

@@ -7,6 +7,10 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Fixed
+- A folded card panel is a plain strip with a straight edge, like the planner's, instead of a tall rounded bar.
+- The open card panel meets the board with one thin divider, like the planner, instead of a white bar that covered the panel's left edge.
+
 ## [0.2.40] - 2026-11-20
 
 ### Changed
