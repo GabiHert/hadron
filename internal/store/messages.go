@@ -61,6 +61,28 @@ func (r *Messages) List(workspaceID, channel, since string) ([]domain.Message, e
 	return out, rows.Err()
 }
 
+// ListNewest is List keeping only the newest limit messages (all of them when limit is 0), oldest
+// first. The database does the cutting, so a long channel is not read in full for its tail.
+func (r *Messages) ListNewest(workspaceID, channel, since string, limit int) ([]domain.Message, error) {
+	if limit <= 0 {
+		return r.List(workspaceID, channel, since)
+	}
+	rows, err := r.s.q.Query(`SELECT `+msgCols+` FROM (SELECT rowid AS rid, * FROM messages WHERE workspace_id = ? AND channel = ? AND created_at > ? ORDER BY created_at DESC, rowid DESC LIMIT ?) ORDER BY created_at, rid`, workspaceID, channel, since, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []domain.Message{}
+	for rows.Next() {
+		m, err := scanMessage(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
 // Update writes the delivery fields and text of m.
 func (r *Messages) Update(m *domain.Message) error {
 	stamp(&m.Meta)

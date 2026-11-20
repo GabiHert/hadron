@@ -127,6 +127,7 @@ export function ChatView({ board, running }: { board: Board; running?: boolean }
         scope={`planner:${ws.id}`}
         messages={ch.messages}
         questions={ch.questions}
+        onEarlier={ch.hasEarlier ? ch.showEarlier : undefined}
         onAnswer={ch.answer}
         empty={ch.loaded ? <div className="empty">The planner runs every session in {ws.name}. Ask it to start one.</div> : null}
       />

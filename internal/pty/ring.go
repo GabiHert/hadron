@@ -65,5 +65,17 @@ func (r *ring) bytes() []byte {
 	return out
 }
 
+// tail returns a copy of the newest n bytes the ring holds (all of them when it holds fewer).
+func (r *ring) tail(n int) []byte {
+	if n >= r.size {
+		return r.bytes()
+	}
+	out := make([]byte, n)
+	from := (r.start + r.size - n) % len(r.buf)
+	k := copy(out, r.buf[from:min(from+n, len(r.buf))])
+	copy(out[k:], r.buf[:n-k])
+	return out
+}
+
 // wrapped reports whether older output has been dropped.
 func (r *ring) wrapped() bool { return r.total > int64(r.size) }

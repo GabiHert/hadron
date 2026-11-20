@@ -12,7 +12,11 @@ for its "What's new" window.
 ### Added
 - The planner and card chats are resizable: drag a chat's inner edge to make it wider or narrower, on the board and the dashboard. Hadron remembers each chat's width; double-click the edge to go back to the default. With the keyboard, focus the edge and use ← and → (⇧ for bigger steps), Home, End, and ↩ to reset.
 
+### Changed
+- A long chat shows its newest 200 messages; "Show earlier messages" at the top loads 200 more each time. A question still waiting for an answer shows even when it is older than that.
+
 ### Fixed
+- Hadron uses much less memory with many sessions running. Reading a session's screen no longer rebuilds its whole history, each session's terminal model keeps a smaller buffer, and long chats are no longer read and drawn in full on every new message.
 - Making the window small no longer hides both chats. They shrink first; then only the card panel folds to its rail, and a message says to click the rail to open it (the planner folds instead). The collapse buttons work as before.
 - After Hadron restarts, the "Continue where you left off" message to a session that was working is sent, not left typed in its message box. Hadron now waits for Claude to finish drawing, checks that the message left the box, and presses Enter again if it didn't.
 

@@ -526,7 +526,10 @@ const fns = {
   session_start: vi.fn(async (a: { card: string }) => clone(state.sessions[a.card] ?? running("sess-" + a.card))),
   session_restart: vi.fn(async (a: { card: string }) => clone(state.sessions[a.card] ?? running("sess-" + a.card))),
   session_stop: vi.fn(async (a: { card: string }) => clone(state.sessions[a.card] ?? running("sess-" + a.card, { running: false }))),
-  chat_read: vi.fn(async (a: { channel: string }) => clone(state.messages.filter((m) => m.channel === a.channel))),
+  chat_read: vi.fn(async (a: { channel: string; limit?: number }) => {
+    const all = state.messages.filter((m) => m.channel === a.channel);
+    return clone(a.limit && all.length > a.limit ? all.slice(-a.limit) : all);
+  }),
   chat_send: vi.fn(async (a: { workspace_id?: string; channel: string; text: string }) => {
     const m = message({ id: "m" + (state.messages.length + 1), workspace_id: a.workspace_id ?? "w1", channel: a.channel, author: "you", text: a.text });
     state.messages.push(m);
