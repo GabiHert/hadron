@@ -28,12 +28,13 @@ import { useGlass } from "./state/useGlass";
 import { cardEl, focusEl, whenReady } from "./commands";
 import type { Env, ModalName } from "./commands";
 import { startThemes, themeActions } from "./theme";
+import { OVERLAY_MAX, usePanelLayout } from "./state/panelLayout";
 
 type Modal = null | ModalName;
 
-/** True when the window is narrow enough (960px, as in app.css) for the panels to be overlays. */
+/** True when the window is narrow enough (OVERLAY_MAX, as in app.css) for the panels to be overlays. */
 function isNarrowWindow(): boolean {
-  return typeof window.matchMedia === "function" && window.matchMedia("(max-width: 960px)").matches;
+  return typeof window.matchMedia === "function" && window.matchMedia(`(max-width: ${OVERLAY_MAX}px)`).matches;
 }
 
 /** The tooltip of the "<tag> available" pill: the first highlights of the release's notes. */
@@ -249,6 +250,8 @@ export default function App() {
   // Picking a card opens the card overlay, but only on a narrow window, where the panels are
   // overlays. On a wide window "open" would also keep a collapsed card panel from collapsing.
   const selectedId = board.selected?.id;
+  const panels = usePanelLayout({ zoom, collapsed: ws?.ui.collapsed ?? {}, setCollapsed: actions.setCollapsed, toast: actions.toast, selectedId });
+  const fit = !panels.layout.overlay;
   useEffect(() => {
     if (selectedId && isNarrowWindow()) setMobile("card");
   }, [selectedId]);
@@ -284,9 +287,9 @@ export default function App() {
           <SessionsSpace board={board} viewSeg={<ViewSeg board={board} />} onNewIn={() => setModal("newfree")} confirm={env.confirm} />
         ) : (
           <>
-            <PlannerPanel board={board} view={plannerView} setView={setPlannerView} mobileOpen={mobile === "planner"} closeMobile={() => setMobile(null)} />
+            <PlannerPanel board={board} view={plannerView} setView={setPlannerView} mobileOpen={mobile === "planner"} closeMobile={() => setMobile(null)} ctl={fit ? panels.planner : undefined} zoom={zoom} />
             <Board board={board} onNewSession={() => setModal("newsession")} onNewWorkspace={() => setModal("newws")} />
-            <CardPanel board={board} view={cardView} setView={setCardView} tab={tab} setTab={setTab} mobileOpen={mobile === "card"} closeMobile={() => setMobile(null)} />
+            <CardPanel board={board} view={cardView} setView={setCardView} tab={tab} setTab={setTab} mobileOpen={mobile === "card"} closeMobile={() => setMobile(null)} ctl={fit ? panels.card : undefined} zoom={zoom} />
           </>
         )}
       </div>

@@ -13,6 +13,8 @@ import { closeOnEscape } from "./ui";
 import { AdoptPlanner } from "./AdoptPlanner";
 import { Icon } from "./ui";
 import { ModelOptions, useModels } from "./ModelsTab";
+import { PanelResizer } from "./PanelResizer";
+import type { PanelControls } from "../state/panelLayout";
 
 interface Props {
   board: Board;
@@ -20,10 +22,13 @@ interface Props {
   setView: (v: "chat" | "terminal") => void;
   mobileOpen: boolean;
   closeMobile: () => void;
+  /** the width, drag handle and folding the window allows; none while the panels are overlays */
+  ctl?: PanelControls;
+  zoom?: number;
 }
 
 /** The planner's panel: its chat or its terminal. */
-export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: Props) {
+export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile, ctl, zoom }: Props) {
   const { ws, actions } = board;
   const wsId = ws?.id ?? "";
   const [menu, setMenu] = useState(false);
@@ -48,16 +53,21 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
   // none (never started) reads as idle: there is nothing to pulse about.
   const dot = status && status.liveness !== "none" ? status.liveness : "idle";
   const isFull = ws.ui.full === "planner";
-  const collapsed = ws.ui.collapsed?.planner && !mobileOpen && !isFull;
-  if (collapsed)
+  const auto = !!ctl?.slot.auto;
+  const collapsed = (ws.ui.collapsed?.planner || auto) && !mobileOpen && !isFull;
+  if (collapsed) {
+    const expand = () => (ctl ? ctl.expand() : void actions.setCollapsed("planner", false));
+    const tip = withChord(auto ? "Expand the planner (the window is too narrow for both chats, so the card panel folds instead)" : "Expand the planner", "panel.planner.toggle");
     return (
-      <nav className="rail" aria-label="Planner, collapsed">
-        <button className="ibtn" onClick={() => void actions.setCollapsed("planner", false)} aria-label="Expand the planner" title={withChord("Expand the planner", "panel.planner.toggle")}><Icon name="fwd" /></button>
-        <button className="vl" onClick={() => void actions.setCollapsed("planner", false)} title={withChord("Expand the planner", "panel.planner.toggle")}><span className={`dot ${dot}`} />Planner</button>
+      <nav className={"rail" + (auto ? " auto" : "")} aria-label={auto ? "Planner, folded to fit the window" : "Planner, collapsed"}>
+        <button className="ibtn" onClick={expand} aria-label="Expand the planner" title={tip}><Icon name="fwd" /></button>
+        <button className="vl" onClick={expand} title={tip}><span className={`dot ${dot}`} />Planner</button>
       </nav>
     );
+  }
+  const sized = ctl && !isFull ? { width: ctl.slot.width } : undefined;
   return (
-    <aside ref={panel} className={"ppanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label="Planner" data-tour="planner" data-zone="planner" data-overlay={view === "chat" ? "" : undefined} tabIndex={-1}>
+    <aside ref={panel} className={"ppanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} style={sized} aria-label="Planner" data-tour="planner" data-zone="planner" data-overlay={view === "chat" ? "" : undefined} tabIndex={-1}>
       <div className="phead ghead">
         <span className={`dot ${dot}${dot === "working" ? " pulse" : ""}`} title={`Planner ${dot}`} />
         <h2>Planner{isFull ? ` · ${ws.name}` : ""}</h2>
@@ -98,6 +108,7 @@ export function PlannerPanel({ board, view, setView, mobileOpen, closeMobile }: 
         />
       )}
       {adoptOpen ? <AdoptPlanner board={board} onClose={() => setAdoptOpen(false)} /> : null}
+      {sized && ctl ? <PanelResizer panel="planner" ctl={ctl} zoom={zoom} /> : null}
     </aside>
   );
 }

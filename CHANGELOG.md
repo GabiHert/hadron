@@ -7,6 +7,12 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- The planner and card chats are resizable: drag a chat's inner edge to make it wider or narrower, on the board and the dashboard. Hadron remembers each chat's width; double-click the edge to go back to the default. With the keyboard, focus the edge and use ← and → (⇧ for bigger steps), Home, End, and ↩ to reset.
+
+### Fixed
+- Making the window small no longer hides both chats. They shrink first; then only the card panel folds to its rail, and a message says to click the rail to open it (the planner folds instead). The collapse buttons work as before.
+
 ## [0.2.38] - 2026-11-19
 
 ### Fixed

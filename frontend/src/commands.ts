@@ -1,3 +1,4 @@
+import { currentLayout, showAutoFolded } from "./state/panelLayout";
 import { showTutorial } from "./components/Tutorial";
 // What each command in keys.ts does. The dispatcher (keys.ts), the palette, the cheat sheet and the
 // native menus all run commands through runCommand, so a key press, a palette pick and a menu click
@@ -382,6 +383,11 @@ function focusComposer(zone: HTMLElement | null): boolean {
 const togglePanel = (panel: "planner" | "card"): Handler => (env) => {
   const ws = env.board.ws;
   if (!ws) return false;
+  // A panel the window folded (too narrow for both) opens, and the other one folds instead.
+  if (currentLayout()?.[panel].auto && showAutoFolded(panel)) {
+    focusZone(panel);
+    return true;
+  }
   const collapsed = !!ws.ui.collapsed?.[panel];
   void env.board.actions.setCollapsed(panel, !collapsed);
   if (collapsed) focusZone(panel);
