@@ -7,6 +7,9 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Fixed
+- After Hadron restarts, the "Continue where you left off" message to a session that was working is sent, not left typed in its message box. Hadron now waits for Claude to finish drawing, checks that the message left the box, and presses Enter again if it didn't.
+
 ## [0.2.38] - 2026-11-19
 
 ### Fixed

@@ -95,6 +95,7 @@ func newSessionHarnessReady(t *testing.T, silent bool, ready time.Duration, extr
 		},
 		FirstPromptDelay: 200 * time.Millisecond,
 		ReadyTimeout:     ready,
+		NudgeConfirm:     500 * time.Millisecond,
 		Window:           150 * time.Millisecond,
 	})
 	deps.Sessions = svc

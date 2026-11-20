@@ -59,6 +59,9 @@ type Config struct {
 	FirstPromptDelay time.Duration
 	// ReadyTimeout overrides DefaultReadyTimeout. Tests shorten it.
 	ReadyTimeout time.Duration
+	// NudgeTimeout and NudgeConfirm override DefaultNudgeTimeout and DefaultNudgeConfirm.
+	NudgeTimeout time.Duration
+	NudgeConfirm time.Duration
 	// MCPPort returns the port the MCP server listens on, or 0 while it is not listening. Nil or 0
 	// reads HADRON_MCP_PORT, then the setting, then the default.
 	MCPPort func() int
@@ -87,6 +90,12 @@ type Service struct {
 func New(cfg Config) *Service {
 	if cfg.FirstPromptDelay <= 0 {
 		cfg.FirstPromptDelay = DefaultFirstPromptDelay
+	}
+	if cfg.NudgeTimeout <= 0 {
+		cfg.NudgeTimeout = DefaultNudgeTimeout
+	}
+	if cfg.NudgeConfirm <= 0 {
+		cfg.NudgeConfirm = DefaultNudgeConfirm
 	}
 	if cfg.ReadyTimeout <= 0 {
 		cfg.ReadyTimeout = DefaultReadyTimeout
@@ -268,7 +277,8 @@ func (s *Service) Prepare(tx *store.Store, req Request) (domain.Session, func(),
 		OnLiveness: func(l string) { s.onLiveness(row, cardID, l) },
 		OnExit:     func(code int) { s.onExit(row, cardID, code) },
 	}
-	launch := func() { s.launch(row, cardID, prevID, old, opts, first) }
+	nudge := req.Restore && req.Nudge != ""
+	launch := func() { s.launch(row, cardID, prevID, old, opts, first, nudge) }
 	return row, launch, nil
 }
 
@@ -278,7 +288,7 @@ func (s *Service) data(id string, data []byte, end int64) {
 	}
 }
 
-func (s *Service) launch(row domain.Session, cardID, prevID string, old *pty.Session, opts pty.Options, first string) {
+func (s *Service) launch(row domain.Session, cardID, prevID string, old *pty.Session, opts pty.Options, first string, nudge bool) {
 	if old != nil {
 		old.Stop()
 		select {
@@ -315,7 +325,10 @@ func (s *Service) launch(row domain.Session, cardID, prevID string, old *pty.Ses
 		}
 	}
 	s.changed(row.WorkspaceID, "sessions")
-	if first != "" {
+	switch {
+	case first != "" && nudge:
+		go s.deliverNudge(row.ID, ps, first)
+	case first != "":
 		go s.deliverFirstPrompt(ps, first)
 	}
 }
