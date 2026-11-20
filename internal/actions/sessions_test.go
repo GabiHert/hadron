@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GabiHert/hadron/internal/testwait"
+
 	"github.com/GabiHert/hadron/internal/board"
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/prompts"
@@ -108,26 +110,10 @@ func (h *sessionHarness) file(suffix string) string {
 	return string(b)
 }
 
+// waitUntil polls cond until it holds, with the shared, load-tolerant deadline.
 func waitUntil(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	waitFor(t, what, 6*time.Second, cond)
-}
-
-// slowWait is the deadline for conditions that hang on processes exiting, which can take long
-// when the whole suite runs at once.
-const slowWait = 30 * time.Second
-
-// waitFor polls cond until it holds or the deadline passes.
-func waitFor(t *testing.T, what string, within time.Duration, cond func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(within)
-	for time.Now().Before(deadline) {
-		if cond() {
-			return
-		}
-		time.Sleep(15 * time.Millisecond)
-	}
-	t.Fatalf("timed out waiting for %s", what)
+	testwait.Until(t, what, cond)
 }
 
 func (h *sessionHarness) card(name string) domain.Card {
@@ -604,7 +590,7 @@ func TestDeletingACardHangsUpItsSession(t *testing.T) {
 	h.do("card_delete", m{"card_id": card.ID}, nil)
 	select {
 	case <-ps.Done():
-	case <-time.After(5 * time.Second):
+	case <-testwait.After():
 		t.Fatal("deleting the card left its process running")
 	}
 }

@@ -77,7 +77,7 @@ func TestFreeShellRunsSendsReadsRenamesStopsAndCloses(t *testing.T) {
 	h.do("free_session_restart", m{"session": f.ID}, nil)
 	waitUntil(t, "the restarted shell", func() bool { st, ok := h.free(f.ID); return ok && st.Running })
 	h.do("free_session_send", m{"session": f.ID, "text": "pwd"}, nil)
-	waitFor(t, "the restart to start in the shell's last folder", 3*time.Second, func() bool { st, _ := h.free(f.ID); return sameDirQuiet(st.Cwd, sub) })
+	waitUntil(t, "the restart to start in the shell's last folder", func() bool { st, _ := h.free(f.ID); return sameDirQuiet(st.Cwd, sub) })
 	if row, _ := h.reg.Deps().Store.FreeSessions.Get(f.ID); !sameDirQuiet(row.Cwd, sub) {
 		t.Fatalf("stored folder %q, want %q; screen:\n%s", row.Cwd, sub, h.screen(f.ID))
 	}
@@ -106,7 +106,7 @@ func TestAShellThatExitsCleanlyClosesItsTab(t *testing.T) {
 	h.do("free_session_start", m{"cwd": t.TempDir()}, &f)
 	waitUntil(t, "the shell to run", func() bool { st, ok := h.free(f.ID); return ok && st.Running })
 	h.do("free_session_send", m{"session": f.ID, "text": "exit 0"}, nil)
-	waitFor(t, "the exited shell to close", slowWait, func() bool { _, ok := h.free(f.ID); return !ok })
+	waitUntil(t, "the exited shell to close", func() bool { _, ok := h.free(f.ID); return !ok })
 }
 
 func TestFreeSessionsDefaultToTheLastFolder(t *testing.T) {
@@ -144,7 +144,7 @@ func TestFreeClaudeHasNoHadronPromptAndResumesAfterARestart(t *testing.T) {
 
 	// Hadron quits: the session is meant to come back.
 	h.svc.StopAll()
-	waitFor(t, "the claude to end", slowWait, func() bool {
+	waitUntil(t, "the claude to end", func() bool {
 		row, err := h.reg.Deps().Store.FreeSessions.Get(f.ID)
 		return err == nil && row.Status == "exited" && row.Restore
 	})
@@ -202,7 +202,7 @@ func TestMakeACardOfAFreeClaudeKeepsItsProcess(t *testing.T) {
 	h.do("session_send", m{"card": "billing-fix", "text": "hello card"}, nil)
 	waitUntil(t, "the text in the same claude", func() bool { return strings.Contains(h.file(".in"), "hello card") })
 	h.do("session_send", m{"card": "billing-fix", "text": "/exit"}, nil)
-	waitFor(t, "the card to see its session end", slowWait, func() bool { return h.card(out.Card.ID).Liveness == domain.LivenessEnded })
+	waitUntil(t, "the card to see its session end", func() bool { return h.card(out.Card.ID).Liveness == domain.LivenessEnded })
 }
 
 func TestCardSessionsCannotUseFreeSessions(t *testing.T) {

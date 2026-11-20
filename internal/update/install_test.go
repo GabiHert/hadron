@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/GabiHert/hadron/internal/testwait"
 )
 
 // TestMain lets a copy of the test binary stand in for the app: with UPDATER_TEST_SLEEP set it only sleeps.
@@ -44,7 +46,7 @@ func runInstall(t *testing.T, newApp, dest, open string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(20 * time.Second)
+	deadline := time.Now().Add(testwait.Deadline())
 	for time.Now().Before(deadline) {
 		b, _ := os.ReadFile(logPath)
 		if s := string(b); strings.Contains(s, "install: done") || strings.Contains(s, "restored the previous version") {

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GabiHert/hadron/internal/testwait"
+
 	"github.com/GabiHert/hadron/internal/domain"
 )
 
@@ -16,7 +18,7 @@ import (
 func gatedHarness(t *testing.T) (*sessionHarness, string) {
 	t.Helper()
 	gate := filepath.Join(t.TempDir(), "gate")
-	return newSessionHarnessReady(t, false, slowWait, "HADRON_TEST_BOX_GATE="+gate), gate
+	return newSessionHarnessReady(t, false, testwait.Deadline(), "HADRON_TEST_BOX_GATE="+gate), gate
 }
 
 func openGate(t *testing.T, gate string) {
@@ -32,7 +34,7 @@ func sendHeld(t *testing.T, h *sessionHarness, name string, args m, text string)
 	t.Helper()
 	done := make(chan error, 1)
 	go func() { done <- h.try(name, args, nil) }()
-	waitFor(t, "claude to start", slowWait, func() bool { return h.file(".started") != "" })
+	waitUntil(t, "claude to start", func() bool { return h.file(".started") != "" })
 	time.Sleep(100 * time.Millisecond) // a send that did not wait would have typed by now
 	select {
 	case err := <-done:
@@ -52,7 +54,7 @@ func sent(t *testing.T, done <-chan error, name string) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-	case <-time.After(slowWait):
+	case <-testwait.After():
 		t.Fatalf("%s did not return after the prompt showed", name)
 	}
 }

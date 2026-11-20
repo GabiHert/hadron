@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GabiHert/hadron/internal/testwait"
+
 	"github.com/GabiHert/hadron/internal/actions"
 )
 
@@ -43,7 +45,7 @@ func TestChangeEventsArriveAfterTheWindow(t *testing.T) {
 		if !reflect.DeepEqual(ev.Entities, []string{"cards", "questions"}) {
 			t.Fatalf("merged event = %+v", ev)
 		}
-	case <-time.After(2 * time.Second):
+	case <-testwait.After():
 		t.Fatal("the merged event never came")
 	}
 	select {
@@ -55,7 +57,7 @@ func TestChangeEventsArriveAfterTheWindow(t *testing.T) {
 	b.add(actions.ChangedEvent{WorkspaceID: "w1", Entities: []string{"cards"}})
 	select {
 	case <-done:
-	case <-time.After(2 * time.Second):
+	case <-testwait.After():
 		t.Fatal("a change after the window was lost")
 	}
 }

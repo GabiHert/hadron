@@ -4,7 +4,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
+
+	"github.com/GabiHert/hadron/internal/testwait"
 )
 
 func TestAppQuitIsTheUsersOnly(t *testing.T) {
@@ -24,13 +25,7 @@ func TestAppQuitIsTheUsersOnly(t *testing.T) {
 	if !out.Quitting {
 		t.Fatal("the user's quit was not done")
 	}
-	deadline := time.Now().Add(2 * time.Second)
-	for quits.Load() != 1 {
-		if time.Now().After(deadline) {
-			t.Fatal("Quit was not called")
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	testwait.Until(t, "Quit to be called", func() bool { return quits.Load() == 1 })
 }
 
 func TestQuitGuardIsOnUnlessTurnedOff(t *testing.T) {

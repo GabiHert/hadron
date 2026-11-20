@@ -15,11 +15,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GabiHert/hadron/internal/testwait"
+
+	"github.com/wailsapp/wails/v2/pkg/menu"
+
 	"github.com/GabiHert/hadron/internal/actions"
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/run"
 	"github.com/GabiHert/hadron/internal/store"
-	"github.com/wailsapp/wails/v2/pkg/menu"
 )
 
 var testGlobals sync.Once
@@ -113,13 +116,10 @@ func TestPtyBridgeAttachWriteResize(t *testing.T) {
 	if id == "" {
 		t.Fatal("no session id")
 	}
-	deadline := time.Now().Add(5 * time.Second)
-	for a.PtyWrite(id, base64.StdEncoding.EncodeToString([]byte("hello bridge\r"))) != nil {
-		if time.Now().After(deadline) {
-			t.Fatal("the session never accepted input")
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
+	deadline := time.Now().Add(testwait.Deadline())
+	testwait.Until(t, "the session to accept input", func() bool {
+		return a.PtyWrite(id, base64.StdEncoding.EncodeToString([]byte("hello bridge\r"))) == nil
+	})
 	var replay string
 	for time.Now().Before(deadline) {
 		end, b64, _ := strings.Cut(a.PtyAttach(id), ":")
@@ -253,7 +253,7 @@ func TestPlainProfileOnZshEchoesHi(t *testing.T) {
 		} `json:"session"`
 	}
 	_ = json.Unmarshal([]byte(inv("session_status", `{"card":"zsh-card"}`)), &st)
-	deadline := time.Now().Add(8 * time.Second)
+	deadline := time.Now().Add(testwait.Deadline())
 	time.Sleep(500 * time.Millisecond)
 	_ = a.PtyWrite(st.Session.ID, base64.StdEncoding.EncodeToString([]byte("echo hi\r")))
 	for time.Now().Before(deadline) {
@@ -368,10 +368,7 @@ func TestStartupRestoresFlaggedSessionsUnlessTheSettingIsOff(t *testing.T) {
 		}
 		a.startup(context.Background())
 		if on {
-			deadline := time.Now().Add(5 * time.Second)
-			for time.Now().Before(deadline) && a.sess.LiveSessions() == nil {
-				time.Sleep(20 * time.Millisecond)
-			}
+			testwait.Poll(testwait.Deadline(), func() bool { return a.sess.LiveSessions() != nil })
 			if live := a.sess.LiveSessions(); len(live) != 1 || live[0].CardID != card.ID {
 				t.Fatalf("setting on: the flagged card is running again, got %+v", live)
 			}
