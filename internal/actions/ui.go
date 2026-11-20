@@ -190,7 +190,7 @@ func registerUI(r *Registry) {
 			return c.Store.Settings.All()
 		})
 
-	Register(r, Spec{Name: "settings_update", Description: "Change global settings, such as ui.theme (a theme id from theme_list, or system to follow macOS with ui.theme.light and ui.theme.dark; theme_set does the same), keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like \"Mod+D\" or \"Shift+Mod+P\"; see hadron_guide keyboard) ui.zoom (the window zoom, 0.7 to 2, 1 is 100%), ui.glass_chats (true or false) or ui.glass_transparency (how see-through the glass is, 0 to 100, 60 by default; ui_display_get reads it back), or the sounds a card makes moving into and out of a needs-you column: sounds.enabled (true or false), sounds.volume (0 to 1) and sounds.muted_workspaces (workspace ids that stay silent). Returns all settings.", Mutates: true, Entities: []string{"settings"}},
+	Register(r, Spec{Name: "settings_update", Description: "Change global settings, such as ui.theme (a theme id from theme_list, or system to follow macOS with ui.theme.light and ui.theme.dark; theme_set does the same), keys.bindings (the keyboard shortcuts the user changed: {command id: [chords]}, chords like \"Mod+D\" or \"Shift+Mod+P\"; see hadron_guide keyboard) ui.zoom (the window zoom, 0.7 to 2, 1 is 100%), ui.glass_chats (true or false), ui.glass_transparency (how see-through the glass is, 0 to 100, 60 by default; ui_display_get reads it back), ui.panel_width.planner (260 to 720 px) or ui.panel_width.card (320 to 960 px), the chats' widths the user drags (null for the default; a narrow window shrinks them further), or the sounds a card makes moving into and out of a needs-you column: sounds.enabled (true or false), sounds.volume (0 to 1) and sounds.muted_workspaces (workspace ids that stay silent). Returns all settings.", Mutates: true, Entities: []string{"settings"}},
 		func(ctx context.Context, c *Call, in SettingsUpdateIn) (map[string]json.RawMessage, error) {
 			for k, v := range in.Values {
 				if !settingKeyRe.MatchString(k) {
@@ -245,6 +245,11 @@ func registerUI(r *Registry) {
 						return nil, fmt.Errorf("%s must be a number from 0 (the theme's own glass) to 100 (the most see-through), got %v", SettingGlassTransparency, v)
 					}
 				}
+				if lim, ok := PanelWidthLimits[k]; ok && v != nil {
+					if w, isNum := v.(float64); !isNum || w < lim[0] || w > lim[1] {
+						return nil, fmt.Errorf("%s must be a width in px from %g to %g, or null for the default, got %v", k, lim[0], lim[1], v)
+					}
+				}
 				if k == SettingZoom {
 					z, ok := v.(float64)
 					if !ok || z < 0.7 || z > 2 {
@@ -260,6 +265,14 @@ func registerUI(r *Registry) {
 			}
 			return c.Store.Settings.All()
 		})
+}
+
+// PanelWidthLimits are the widths (px, min and max) the planner and card panels may be dragged to;
+// frontend/src/state/panelLayout.ts has the same numbers. Null (or unset) is the default width, and
+// the window clamps the stored width further so the board keeps room.
+var PanelWidthLimits = map[string][2]float64{
+	"ui.panel_width.planner": {260, 720},
+	"ui.panel_width.card":    {320, 960},
 }
 
 // SettingZoom is the UI zoom, 0.7 to 2 (1 is 100%). ⌘= and ⌘- change it in steps of about 10%.

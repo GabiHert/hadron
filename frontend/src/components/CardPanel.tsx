@@ -17,6 +17,8 @@ import { effectiveModel } from "../state/useBoard";
 import { cardFolder, tildePath } from "../lib";
 import { CardTags } from "./TagColors";
 import { WatchInGroup } from "./CardGroup";
+import { PanelResizer } from "./PanelResizer";
+import type { PanelControls } from "../state/panelLayout";
 
 export type CardTab = "conv" | "links" | "ctx";
 
@@ -28,11 +30,14 @@ interface Props {
   setTab: (t: CardTab) => void;
   mobileOpen: boolean;
   closeMobile: () => void;
+  /** the width, drag handle and folding the window allows; none while the panels are overlays */
+  ctl?: PanelControls;
+  zoom?: number;
 }
 
 const LIVE: Record<string, [string, string]> = { working: ["ok", "working"], idle: ["", "idle"], waiting: ["warn", "waiting"], ended: ["", "ended"] };
 
-export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, closeMobile }: Props) {
+export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, closeMobile, ctl, zoom }: Props) {
   const { ws, selected: c, columns, actions } = board;
   const [menu, setMenu] = useState(false);
   const [nick, setNick] = useState("");
@@ -71,17 +76,24 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   }, [c?.id, c?.nick, c?.assignee, c?.cwd]);
   if (!ws) return null;
   const isFull = ws.ui.full === "card";
-  if (ws.ui.collapsed?.card && !mobileOpen && !isFull)
+  const auto = !!ctl?.slot.auto;
+  if ((ws.ui.collapsed?.card || auto) && !mobileOpen && !isFull) {
+    const expand = () => (ctl ? ctl.expand() : void actions.setCollapsed("card", false));
+    const tip = withChord(auto ? "Expand the card panel (the window is too narrow for both chats, so the planner folds instead)" : "Expand the card panel", "panel.card.toggle");
     return (
-      <nav className="rail r" aria-label="Card panel, collapsed">
-        <button className="ibtn" onClick={() => void actions.setCollapsed("card", false)} aria-label="Expand the card panel" title={withChord("Expand the card panel", "panel.card.toggle")}><Icon name="back" /></button>
-        <button className="vl" onClick={() => void actions.setCollapsed("card", false)} title={withChord("Expand the card panel", "panel.card.toggle")}>{c ? <span className={`dot ${c.liveness}`} /> : null}{c ? c.nick : "Card"}</button>
+      <nav className={"rail r" + (auto ? " auto" : "")} aria-label={auto ? "Card panel, folded to fit the window" : "Card panel, collapsed"}>
+        <button className="ibtn" onClick={expand} aria-label="Expand the card panel" title={tip}><Icon name="back" /></button>
+        <button className="vl" onClick={expand} title={tip}>{c ? <span className={`dot ${c.liveness}`} /> : null}{c ? c.nick : "Card"}</button>
       </nav>
     );
+  }
+  const sized = ctl && !isFull ? { width: ctl.slot.width } : undefined;
+  const handle = sized && ctl ? <PanelResizer panel="card" ctl={ctl} zoom={zoom} /> : null;
   if (!c)
     return (
-      <aside className={"cpanel" + (mobileOpen ? " open" : "")} data-zone="card" tabIndex={-1} aria-label="Card panel">
+      <aside className={"cpanel" + (mobileOpen ? " open" : "")} style={sized} data-zone="card" tabIndex={-1} aria-label="Card panel">
         <div className="empty" style={{ margin: "auto" }}><p style={{ margin: 0 }}>Pick a card to open its chat and terminal.</p><p className="hint">On the board: arrows or h j k l, then ↩.</p></div>
+        {handle}
       </aside>
     );
   const col = columns.find((x) => x.id === c.column_id);
@@ -92,7 +104,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
   const canResume = !!claudeId && !status?.running;
   const folder = cardFolder(c.cwd, ws.root);
   return (
-    <aside ref={panel} className={"cpanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} aria-label={`Card ${c.nick}`} data-zone="card" data-card={c.id} data-overlay={view === "chat" && tab === "conv" ? "" : undefined} tabIndex={-1}>
+    <aside ref={panel} className={"cpanel" + (mobileOpen ? " open" : "") + (isFull ? " full" : "")} style={sized} aria-label={`Card ${c.nick}`} data-zone="card" data-card={c.id} data-overlay={view === "chat" && tab === "conv" ? "" : undefined} tabIndex={-1}>
       <div className="cph ghead">
         <div className="l1">
           <button className="ibtn mclose" onClick={closeMobile} aria-label="Back to the board"><Icon name="back" /></button>
@@ -194,6 +206,7 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
           <CardPromptEditor key={c.id} board={board} />
         </div>
       )}
+      {handle}
     </aside>
   );
 }
