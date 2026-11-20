@@ -83,14 +83,7 @@ func registerChat(r *Registry) {
 			if in.Limit < 0 {
 				return nil, errors.New("limit must be 0 (all) or more")
 			}
-			msgs, err := c.Store.Messages.List(ch.workspaceID, ch.name, since)
-			if err != nil {
-				return nil, err
-			}
-			if in.Limit > 0 && len(msgs) > in.Limit {
-				msgs = msgs[len(msgs)-in.Limit:]
-			}
-			return msgs, nil
+			return c.Store.Messages.ListNewest(ch.workspaceID, ch.name, since, in.Limit)
 		})
 
 	Register(r, Spec{Name: "chat_send", Description: "Send a message as the user. On a card's channel it is typed into the planner as \"[KEY nick] text\"; on the planner channel as \"[planner] text\". User-only: see mcp.user_actions. The planner answers with chat_post.",

@@ -1,6 +1,7 @@
 package pty
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -132,8 +133,7 @@ func Start(o Options) (*Session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not start %s: %w", o.Command, err)
 	}
-	emu := vt.NewEmulator(o.Cols, o.Rows)
-	emu.SetScrollbackSize(liveScrollback)
+	emu := newEmulator(o.Cols, o.Rows, liveScrollback)
 	s := &Session{
 		opts: o, cmd: cmd, ptmx: ptmx, ring: newRing(ScrollbackBytes), modes: newDecModes(), emu: emu,
 		cols: o.Cols, rows: o.Rows, window: window,
@@ -462,15 +462,56 @@ func (s *Session) Screen(lines int, scrollback bool) string {
 		s.mu.Unlock()
 		return screenText(nil, text, lines)
 	}
-	data := s.ring.bytes()
-	if s.ring.wrapped() {
-		data = append(s.modes.preamble(), data...)
+	s.mu.Unlock()
+	// A read of the last N lines replays only the newest part of the ring, widening it until it
+	// holds N lines. Replaying the whole 2 MB ring for 60 lines made the emulator copy every one of
+	// its ~20,000 lines as it scrolled off: some 190 MB of garbage a read.
+	want := 0
+	if lines > 0 {
+		want = max(rebuildTailMin, lines*s.cols*4)
+	}
+	for {
+		older, text, cut := s.replay(want, lines)
+		out := screenText(older, text, lines)
+		if !cut || strings.Count(out, "\n")+1 >= lines {
+			return out
+		}
+		want *= 4
+	}
+}
+
+// rebuildTailMin is the least of the ring a scrollback read replays.
+const rebuildTailMin = 64 << 10
+
+// replay feeds the newest want bytes of the ring (all of it when want is 0 or the ring holds
+// less) into a scratch emulator, and returns the lines that scrolled off, the screen, and whether
+// older output was left out. A cut starts at a line break, after the mode preamble.
+func (s *Session) replay(want, lines int) (older []string, text string, cut bool) {
+	s.mu.Lock()
+	var data []byte
+	if want > 0 && want < s.ring.size {
+		data, cut = s.ring.tail(want), true
+	} else {
+		data = s.ring.bytes()
+	}
+	var pre []byte
+	if cut || s.ring.wrapped() {
+		pre = s.modes.preamble()
 	}
 	cols, rows := s.cols, s.rows
 	s.mu.Unlock()
+	if cut {
+		if i := bytes.IndexByte(data, '\n'); i >= 0 {
+			data = data[i+1:]
+		}
+	}
+	if pre != nil {
+		data = append(pre, data...)
+	}
 
-	emu := vt.NewEmulator(cols, rows)
-	emu.SetScrollbackSize(emuScrollback)
+	// The rebuild holds every scrolled-off line as cells (about 112 bytes each), so it keeps only
+	// as many as the caller asked for.
+	emu := newEmulator(cols, rows, rebuildScrollback(lines))
 	go func() {
 		buf := make([]byte, 1024)
 		for {
@@ -480,16 +521,24 @@ func (s *Session) Screen(lines int, scrollback bool) string {
 		}
 	}()
 	_, _ = emu.Write(data)
-	var older []string
 	for _, l := range emu.Scrollback().Lines() {
 		older = append(older, l.String())
 	}
-	text := emu.String()
+	text = emu.String()
 	// As in readLoop: close the pipe the drain reads, not the emulator, which would race with it.
 	if pw, ok := emu.InputPipe().(*io.PipeWriter); ok {
 		_ = pw.CloseWithError(io.EOF)
 	}
-	return screenText(older, text, lines)
+	return older, text, cut
+}
+
+// rebuildScrollback is how many scrolled-off lines a rebuild for `lines` lines keeps: all of them
+// (emuScrollback) when lines is 0, otherwise just enough to fill the request.
+func rebuildScrollback(lines int) int {
+	if lines <= 0 || lines >= emuScrollback {
+		return emuScrollback
+	}
+	return lines
 }
 
 // screenText joins scrolled-off lines and the screen, trims trailing blanks, and keeps the last lines.

@@ -226,6 +226,7 @@ function CardConversation({ board, running, onStart }: { board: Board; running?:
         scope={`card:${c.id}`}
         messages={ch.messages}
         questions={ch.questions}
+        onEarlier={ch.hasEarlier ? ch.showEarlier : undefined}
         onAnswer={ch.answer}
         empty={ch.loaded ? <div className="empty">Nothing yet. Reports and questions from {c.nick} appear here, and what you write goes to the planner.</div> : null}
       />

@@ -820,3 +820,6 @@ html,body,#root,.win{overflow:clip}
 :root[data-resizing] :is(.ppanel,.cpanel,.board,.shell>*){transition:none!important}
 /* A rail the window folded (not the user) says so with a dashed edge; its tooltip says how to open it. */
 nav.rail.auto{border-style:dashed}
+
+/* A long conversation holds its newest messages; this loads older ones above them. */
+.earlier{align-self:center;flex:none;margin:2px 0 6px}

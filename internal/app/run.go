@@ -43,6 +43,7 @@ func Run(assets embed.FS) error {
 	}
 	defer lock.Close()
 	a := New(st)
+	startPprof(a.log)
 	// Anything the app prints with the standard logger is an error worth keeping.
 	log.SetOutput(io.MultiWriter(os.Stderr, logWriter{a.log}))
 	defer func() {

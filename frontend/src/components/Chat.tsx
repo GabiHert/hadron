@@ -246,10 +246,12 @@ interface ThreadProps {
   workspaceId?: string;
   /** where a failed pin is reported */
   onError?: (text: string) => void;
+  /** older messages exist beyond those passed: shows "Show earlier messages", which calls this */
+  onEarlier?: () => void;
 }
 
 /** The scrolling list of lines. A question's report is drawn as its card, in place. */
-export function ChatThread({ messages, questions, onAnswer, empty, className, scope, workspaceId = "", onError }: ThreadProps) {
+export function ChatThread({ messages, questions, onAnswer, empty, className, scope, workspaceId = "", onError, onEarlier }: ThreadProps) {
   const hasWidget = messages.some((m) => m.kind === "widget");
   const scripts = useWidgetScripts(hasWidget);
   const pinnedFromDash = usePinnedIds(workspaceId, hasWidget);
@@ -287,6 +289,24 @@ export function ChatThread({ messages, questions, onAnswer, empty, className, sc
     if (newest?.author === "you") stick.current = true;
   }, [newest?.id, newest?.author]);
   useLayoutEffect(follow, [messages.length, questions.length, replying, scope]);
+  // Earlier messages arrive above the ones being read: keep those where they were on screen.
+  const anchor = useRef<number | null>(null);
+  const oldest = messages[0]?.id;
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (el && anchor.current !== null) {
+      el.scrollTop += el.scrollHeight - anchor.current;
+      last.current = { top: el.scrollTop, height: el.scrollHeight };
+    }
+    anchor.current = null;
+  }, [oldest]);
+  const earlier = () => {
+    anchor.current = box.current?.scrollHeight ?? null;
+    onEarlier?.();
+  };
+  // An open question whose report is older than the messages held still shows, at the top.
+  const held = new Set(messages.map((m) => m.question_id).filter(Boolean));
+  const openOlder = questions.filter((q) => q.status === "open" && !held.has(q.id));
   // Lines that grow after they render (a widget sizing itself, a font arriving) keep the view pinned.
   const grow = useRef<ResizeObserver | null>(null);
   useEffect(() => {
@@ -320,6 +340,12 @@ export function ChatThread({ messages, questions, onAnswer, empty, className, sc
           last.current = { top: el.scrollTop, height: el.scrollHeight };
         }}
       >
+        {onEarlier ? (
+          <button type="button" className="btn sm earlier" onClick={earlier}>
+            Show earlier messages
+          </button>
+        ) : null}
+        {openOlder.map((q) => <QuestionCard key={q.id} q={q} onAnswer={(sel, notes) => onAnswer(q.id, sel, notes)} />)}
         {messages.length === 0 ? empty : null}
         {messages.map((m) => {
           const q = m.question_id ? byId.get(m.question_id) : undefined;
