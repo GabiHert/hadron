@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.40] - 2026-11-20
+
 ### Changed
 - A long chat shows its newest 200 messages; "Show earlier messages" at the top loads 200 more each time. A question still waiting for an answer shows even when it is older than that.
 
