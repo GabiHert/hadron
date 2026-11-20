@@ -135,7 +135,7 @@ func TestAStoppedOrExitedSessionIsNotRestored(t *testing.T) {
 	h.do("card_create", m{"workspace_id": w.ID, "nick": "billing-fix"}, &a)
 	h.do("card_create", m{"workspace_id": w.ID, "nick": "invoice-sync"}, &b)
 	h.do("card_create", m{"workspace_id": w.ID, "nick": "ledger-audit"}, &c)
-	waitFor(t, "starts", slowWait, func() bool { return len(h.history()) == 3 })
+	waitUntil(t, "starts", func() bool { return len(h.history()) == 3 })
 	// The user stops one; another ends by itself (the user typed /exit: the process leaves).
 	h.do("session_stop", m{"card": "billing-fix"}, nil)
 	h.do("session_send", m{"card": "invoice-sync", "text": "/exit"}, nil)
@@ -146,7 +146,7 @@ func TestAStoppedOrExitedSessionIsNotRestored(t *testing.T) {
 		row, err := st.Sessions.Get(h.latest(w.ID, card.ID).ID)
 		return err == nil && row.Status == "exited" && !row.Restore
 	}
-	waitFor(t, "billing-fix and invoice-sync to end", slowWait, func() bool { return ended(a) && ended(b) })
+	waitUntil(t, "billing-fix and invoice-sync to end", func() bool { return ended(a) && ended(b) })
 	if n := len(h.svc.LiveSessions()); n != 1 {
 		t.Fatalf("live sessions = %d, want only ledger-audit", n)
 	}
@@ -156,7 +156,7 @@ func TestAStoppedOrExitedSessionIsNotRestored(t *testing.T) {
 	if n := svc.RestoreAll(context.Background(), 10*time.Millisecond); n != 1 {
 		t.Fatalf("only the session that was running comes back, got %d", n)
 	}
-	waitFor(t, "one restart", slowWait, func() bool { return len(h.history()) == before+1 })
+	waitUntil(t, "one restart", func() bool { return len(h.history()) == before+1 })
 	if got := h.history()[before]; !strings.HasPrefix(got, "card --session-id ") {
 		t.Errorf("history = %q", got)
 	}

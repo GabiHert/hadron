@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/GabiHert/hadron/internal/testwait"
 )
 
 func init() {
@@ -16,17 +18,10 @@ func init() {
 	stopGrace = 500 * time.Millisecond
 }
 
-// waitFor polls cond for up to five seconds.
+// waitFor polls cond until it holds, with the shared, load-tolerant deadline.
 func waitFor(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if cond() {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatalf("timed out waiting for %s", what)
+	testwait.Until(t, what, cond)
 }
 
 func start(t *testing.T, o Options) *Session {
@@ -262,7 +257,7 @@ func TestKeys(t *testing.T) {
 	}
 	select {
 	case <-s.Done():
-	case <-time.After(5 * time.Second):
+	case <-testwait.After():
 		t.Fatal("Ctrl-D did not end cat")
 	}
 }

@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/GabiHert/hadron/internal/testwait"
 )
 
 type rec struct {
@@ -53,13 +55,7 @@ func newGuard(on *atomic.Bool, hold time.Duration) (*Guard, *rec) {
 
 func waitFor(t *testing.T, what string, ok func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
-	for !ok() {
-		if time.Now().After(deadline) {
-			t.Fatalf("timed out waiting for %s", what)
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	testwait.Until(t, what, ok)
 }
 
 func on() *atomic.Bool {
@@ -97,7 +93,7 @@ func TestLettingGoEarlyCancels(t *testing.T) {
 	if r.quits.Load() != 0 {
 		t.Fatal("a tap must not quit")
 	}
-	if !r.has(EventHold+":cancel") {
+	if !r.has(EventHold + ":cancel") {
 		t.Fatalf("events = %v", r.events)
 	}
 	if g.Holding() {

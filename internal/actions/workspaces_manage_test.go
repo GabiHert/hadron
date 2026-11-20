@@ -148,5 +148,5 @@ func TestDeletingAWorkspaceStopsItsRunningSessions(t *testing.T) {
 		t.Fatalf("dry run counts %d running sessions, want 1", dry.Running)
 	}
 	h.do("workspace_delete", m{"workspace_id": b.ID}, nil)
-	waitFor(t, "the session to stop", slowWait, func() bool { return !h.runningIn(b.ID) })
+	waitUntil(t, "the session to stop", func() bool { return !h.runningIn(b.ID) })
 }
