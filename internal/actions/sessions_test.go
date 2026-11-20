@@ -21,7 +21,8 @@ import (
 // and a copy of the MCP config it was pointed at, draws Claude's input box unless HADRON_TEST_SILENT
 // is set, and appends every line typed into it to <out>.in. A typed /exit ends it, as it ends Claude.
 // With HADRON_TEST_BOX_GATE set it draws the box only once that file exists: it then removes the
-// file (so a restarted claude waits for a new one) and writes <out>.ready.
+// file (so a restarted claude waits for a new one) and writes <out>.ready. With HADRON_TEST_BUSY set
+// it starts a child that burns CPU for as long as that file exists (a test still running under it).
 const fakeClaude = `#!/bin/sh
 out="$HADRON_TEST_OUT"
 : > "$out.argv"
@@ -46,6 +47,7 @@ if [ -n "$HADRON_TEST_BOX_GATE" ]; then
   rm -f "$HADRON_TEST_BOX_GATE"
   : > "$out.ready"
 fi
+if [ -n "$HADRON_TEST_BUSY" ]; then ( while [ -e "$HADRON_TEST_BUSY" ]; do :; done ) & fi
 if [ -z "$HADRON_TEST_SILENT" ]; then printf '│ > \n'; fi
 while IFS= read -r line; do printf '%s\n' "$line" >> "$out.in"; [ "$line" = "/exit" ] && exit 0; done
 `
@@ -77,6 +79,12 @@ func newSessionHarnessEnv(t *testing.T, silent bool, extra ...string) *sessionHa
 // newSessionHarnessReady is newSessionHarnessEnv with its own ready timeout.
 func newSessionHarnessReady(t *testing.T, silent bool, ready time.Duration, extra ...string) *sessionHarness {
 	t.Helper()
+	return newSessionHarnessWith(t, silent, ready, nil, extra...)
+}
+
+// newSessionHarnessWith is newSessionHarnessReady with a hook that adjusts the service's config.
+func newSessionHarnessWith(t *testing.T, silent bool, ready time.Duration, tune func(*sessions.Config), extra ...string) *sessionHarness {
+	t.Helper()
 	deps, rec := testDeps(t)
 	bin := t.TempDir()
 	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(fakeClaude), 0o755); err != nil {
@@ -88,7 +96,7 @@ func newSessionHarnessReady(t *testing.T, silent bool, ready time.Duration, extr
 		env = append(env, "HADRON_TEST_SILENT=1")
 	}
 	env = append(env, extra...)
-	svc := sessions.New(sessions.Config{
+	cfg := sessions.Config{
 		Store: deps.Store, Home: deps.Home, Env: func() []string { return env },
 		Changed: func(ws string, entities ...string) {
 			rec.emit(EventChanged, ChangedEvent{WorkspaceID: ws, Entities: entities})
@@ -97,7 +105,11 @@ func newSessionHarnessReady(t *testing.T, silent bool, ready time.Duration, extr
 		ReadyTimeout:     ready,
 		NudgeConfirm:     testwait.Scaled(time.Second),
 		Window:           150 * time.Millisecond,
-	})
+	}
+	if tune != nil {
+		tune(&cfg)
+	}
+	svc := sessions.New(cfg)
 	deps.Sessions = svc
 	r := NewRegistry(deps)
 	RegisterAll(r)

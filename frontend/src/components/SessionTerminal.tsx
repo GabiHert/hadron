@@ -14,10 +14,12 @@ interface Props {
   startTitle?: string;
   onRestart: () => void;
   onShiftEscape?: () => void;
+  /** Wakes a sleeping session (card terminals). */
+  onWake?: () => void;
 }
 
-/** A session's terminal with its state: not started, never started, ended, or running. */
-export function SessionTerminal({ label, status, foot, banner, onStart, startLabel = "Start session", startTitle, onRestart, onShiftEscape }: Props) {
+/** A session's terminal with its state: not started, never started, asleep, ended, or running. */
+export function SessionTerminal({ label, status, foot, banner, onStart, startLabel = "Start session", startTitle, onRestart, onShiftEscape, onWake }: Props) {
   if (!status) return <div className="placeholder">Loading the {label} terminal…</div>;
   const row = status.session;
   if (!row)
@@ -36,6 +38,11 @@ export function SessionTerminal({ label, status, foot, banner, onStart, startLab
         <div className="tbanner bad" role="alert">
           <span style={{ flex: 1 }}>Could not start the session: {status.error}</span>
           <button className="btn sm" onClick={onRestart}>Try again</button>
+        </div>
+      ) : status.asleep ? (
+        <div className="tbanner" role="status">
+          <span style={{ flex: 1 }}>Asleep: Hadron stopped this session to save memory. Type here or send it a message and it wakes, resuming its conversation.</span>
+          {onWake ? <button className="btn sm pri" onClick={onWake}>Wake now</button> : null}
         </div>
       ) : !status.running ? (
         <div className="tbanner" role="status">

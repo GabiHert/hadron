@@ -8,6 +8,7 @@ func RegisterAll(r *Registry) {
 	registerColumns(r)
 	registerCards(r)
 	registerSessions(r)
+	registerSleep(r)
 	registerLaunchProfiles(r)
 	registerUI(r)
 	registerMCP(r)

@@ -372,7 +372,12 @@ func TestStartupRestoresFlaggedSessionsUnlessTheSettingIsOff(t *testing.T) {
 			if live := a.sess.LiveSessions(); len(live) != 1 || live[0].CardID != card.ID {
 				t.Fatalf("setting on: the flagged card is running again, got %+v", live)
 			}
-			msgs, _ := a.st.Messages.List(w.ID, "card:"+card.ID, "")
+			// The restore posts its line just after the process starts: wait for it.
+			var msgs []domain.Message
+			testwait.Poll(testwait.Deadline(), func() bool {
+				msgs, _ = a.st.Messages.List(w.ID, "card:"+card.ID, "")
+				return len(msgs) > 0
+			})
 			if len(msgs) == 0 || msgs[len(msgs)-1].Text != "Resumed after Hadron restarted." {
 				t.Errorf("event = %+v", msgs)
 			}

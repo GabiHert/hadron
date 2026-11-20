@@ -107,7 +107,7 @@ func registerChat(r *Registry) {
 			return postAndRoute(c, ch, domain.Message{Author: "you", Kind: "text", Text: text}, line)
 		})
 
-	Register(r, Spec{Name: "chat_command", Description: "Send a Claude Code slash command (such as /compact or /model sonnet) from a chat straight to the terminal of that channel's session: a card's channel types it into the card's session, the planner channel into the planner, then presses Enter, as session_send and planner_send do. It is never relayed to the planner as a chat line. The command is stored on the channel as a kind: command message. The text must start with one /; it fails, and stores nothing, when the session is not running. User-only: see mcp.user_actions.",
+	Register(r, Spec{Name: "chat_command", Description: "Send a Claude Code slash command (such as /compact or /model sonnet) from a chat straight to the terminal of that channel's session: a card's channel types it into the card's session, the planner channel into the planner, then presses Enter, as session_send and planner_send do. It is never relayed to the planner as a chat line. The command is stored on the channel as a kind: command message. The text must start with one /; it fails, and stores nothing, when the session is not running; a card session that sleeps is woken first. User-only: see mcp.user_actions.",
 		Mutates: true, Entities: []string{EntityMessages, "sessions"}},
 		func(ctx context.Context, c *Call, in ChatSendIn) (domain.Message, error) {
 			if err := c.UserOnly("chat_command"); err != nil {
@@ -130,6 +130,14 @@ func registerChat(r *Registry) {
 			m := domain.Message{WorkspaceID: ch.workspaceID, Channel: ch.name, Author: "you", Kind: domain.MessageCommand, Text: text, Delivered: true}
 			if err := c.Store.Messages.Create(&m); err != nil {
 				return m, err
+			}
+			if ch.card != nil {
+				// A sleeping card is woken after the commit, and gets the command once its prompt shows.
+				if t, err := target(c, ch.workspaceID, ch.card); err == nil && t.Asleep {
+					sv, ws, id := c.Deps.Sessions, ch.workspaceID, ch.card.ID
+					c.AfterCommit(func() { go sv.WakeAndSend(ws, id, text) })
+					return m, nil
+				}
 			}
 			if _, err := sendTo(c, ch.workspaceID, ch.card, text, nil); err != nil {
 				return domain.Message{}, err

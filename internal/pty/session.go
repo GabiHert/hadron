@@ -97,6 +97,8 @@ type Session struct {
 	cols     int
 	rows     int
 	lastOut  time.Time
+	lastIn   time.Time // the last input written (keystrokes, a sent message)
+	started  time.Time
 	waiting  bool
 	ended    bool
 	exitCode int
@@ -136,7 +138,7 @@ func Start(o Options) (*Session, error) {
 	emu := newEmulator(o.Cols, o.Rows, liveScrollback)
 	s := &Session{
 		opts: o, cmd: cmd, ptmx: ptmx, ring: newRing(ScrollbackBytes), modes: newDecModes(), emu: emu,
-		cols: o.Cols, rows: o.Rows, window: window,
+		cols: o.Cols, rows: o.Rows, window: window, started: time.Now(),
 		notify: make(chan struct{}, 1), done: make(chan struct{}),
 	}
 	// The emulator answers terminal queries (device attributes, cursor position) on a pipe that
@@ -280,6 +282,21 @@ func (s *Session) Liveness() string {
 	return Idle
 }
 
+// IdleFor is how long the session has been quiet: no output and no input since then. A session
+// that never printed counts from its start.
+func (s *Session) IdleFor() time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	last := s.started
+	if s.lastOut.After(last) {
+		last = s.lastOut
+	}
+	if s.lastIn.After(last) {
+		last = s.lastIn
+	}
+	return time.Since(last)
+}
+
 // SetWaiting marks the session as waiting on the user (an open question), or clears it. The chat
 // layer calls it.
 func (s *Session) SetWaiting(waiting bool) {
@@ -380,6 +397,9 @@ func (s *Session) writeFrames(frames []string) error {
 	if s.isEnded() {
 		return ErrEnded
 	}
+	s.mu.Lock()
+	s.lastIn = time.Now()
+	s.mu.Unlock()
 	for i, f := range frames {
 		if i > 0 {
 			time.Sleep(inputChunkGap)

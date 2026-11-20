@@ -409,12 +409,13 @@ export function CardFace({ card: c, question, chips, model, colors = EMPTY, sele
       </span>
       <span className="nick">{c.nick}</span>
       {question ? <span className="q">{short(question.text, 90)}</span> : null}
-      {c.liveness === "idle" || chips?.length || model || c.stage ? (
+      {c.liveness === "idle" || c.liveness === "asleep" || chips?.length || model || c.stage ? (
         <div className="chips">
           {c.stage ? <span className={tagClass(tagColor(colors, STAGE_PATH, c.stage))} title={`Stage: ${c.stage}`}>{c.stage}</span> : null}
           {chips?.map((ch) => <span key={ch.path} className={tagClass(tagColor(colors, ch.path, ch.value))} title={`${ch.label}: ${String(ch.value)}`}>{String(ch.value)}</span>)}
           {model ? <span className={tagClass(tagColor(colors, MODEL_PATH, model.id))} title={`Model: ${model.id} (${model.source})`}>{model.id}</span> : null}
           {c.liveness === "idle" ? <span className="pill">idle</span> : null}
+          {c.liveness === "asleep" ? <span className="pill asleep" title="Asleep: Hadron stopped this session to save memory. A message wakes it, resuming its conversation.">asleep</span> : null}
         </div>
       ) : null}
     </button>

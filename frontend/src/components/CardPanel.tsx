@@ -35,7 +35,7 @@ interface Props {
   zoom?: number;
 }
 
-const LIVE: Record<string, [string, string]> = { working: ["ok", "working"], idle: ["", "idle"], waiting: ["warn", "waiting"], ended: ["", "ended"] };
+const LIVE: Record<string, [string, string]> = { working: ["ok", "working"], idle: ["", "idle"], waiting: ["warn", "waiting"], ended: ["", "ended"], asleep: ["", "asleep"] };
 
 export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, closeMobile, ctl, zoom }: Props) {
   const { ws, selected: c, columns, actions } = board;
@@ -185,17 +185,18 @@ export function CardPanel({ board, view, setView, tab, setTab, mobileOpen, close
           startLabel={canResume ? "Resume" : undefined}
           startTitle={canResume ? `claude --resume ${claudeId.slice(0, 8)}` : undefined}
           onRestart={() => void actions.run(() => api.session_restart({ card: c.id }))}
+          onWake={() => void actions.run(() => api.session_wake({ card: c.id }))}
           onShiftEscape={isFull ? () => void actions.setFullscreen("") : undefined}
         />
       ) : tab === "conv" ? (
-        <CardConversation board={board} running={status ? status.running : undefined} onStart={() => actions.run(() => api.session_start({ card: c.id }))} />
+        <CardConversation board={board} running={status ? status.running || !!status.asleep : undefined} onStart={() => actions.run(() => api.session_start({ card: c.id }))} />
       ) : tab === "links" ? (
         <LinksTab board={board} links={links} reload={reloadLinks} />
       ) : (
         <div className="cbody">
           <div className="box">
             <div className="fg">
-              <label>Session</label><span className="mono" style={{ fontSize: 12 }}>{status?.session ? `${status.session.command} · ${status.running ? c.liveness : "ended"}` : "not started"} · {ws.root}</span>
+              <label>Session</label><span className="mono" style={{ fontSize: 12 }}>{status?.session ? `${status.session.command} · ${status.running ? c.liveness : status.asleep ? "asleep" : "ended"}` : "not started"} · {ws.root}</span>
               <label>Assignee</label><span>{c.assignee}</span>
               <label>Column</label><span>{col ? `${col.name} (${col.role || "no role"})` : ""}</span>
               <label>Work items</label><span>none yet</span>

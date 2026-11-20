@@ -71,6 +71,14 @@ type Config struct {
 	Log *dlog.Logger
 	// Shell overrides the login shell free sessions run. Tests set it.
 	Shell string
+	// ChildBusy overrides the check that processes under a session are working (a second's CPU
+	// sample). Tests set it.
+	ChildBusy func(pid int) bool
+	// Pressure overrides the system memory pressure reading. Tests set it.
+	Pressure func() int
+	// GuardSettle and GuardMinIdle override DefaultGuardSettle and GuardMinIdle. Tests shorten them.
+	GuardSettle  time.Duration
+	GuardMinIdle time.Duration
 }
 
 // Service owns the live sessions.
@@ -82,6 +90,13 @@ type Service struct {
 	failures map[string]string    // session id -> why it never started
 	ready    map[string]bool      // session id -> Claude's input box has been seen
 	free     map[string]*freeInfo // free session id -> what is known of its process
+	asleep   map[string]sleepNote // session id -> it is being put to sleep, and why
+	waking   map[string]*wakeOp   // card id -> a wake in progress
+	heldKeys map[string][]byte    // card id -> keys typed into its terminal while it wakes
+	// sweeping is set while the idle sleeper or the memory guard runs; guardWarned once the guard
+	// has warned that it could sleep nothing, until the pressure eases.
+	sweeping    atomic.Bool
+	guardWarned atomic.Bool
 	// closing is set when Hadron is quitting: sessions that end after that are meant to come back.
 	closing atomic.Bool
 }
@@ -100,7 +115,7 @@ func New(cfg Config) *Service {
 	if cfg.ReadyTimeout <= 0 {
 		cfg.ReadyTimeout = DefaultReadyTimeout
 	}
-	return &Service{cfg: cfg, pty: pty.NewManager(cfg.Env), failures: map[string]string{}, ready: map[string]bool{}, free: map[string]*freeInfo{}}
+	return &Service{cfg: cfg, pty: pty.NewManager(cfg.Env), failures: map[string]string{}, ready: map[string]bool{}, free: map[string]*freeInfo{}, asleep: map[string]sleepNote{}, waking: map[string]*wakeOp{}, heldKeys: map[string][]byte{}}
 }
 
 // Request says what to start.
@@ -382,6 +397,12 @@ func (s *Service) onLiveness(row domain.Session, cardID, liveness string) {
 	if s.closing.Load() {
 		return
 	}
+	s.mu.Lock()
+	_, sleeping := s.asleep[row.ID]
+	s.mu.Unlock()
+	if sleeping && liveness == domain.LivenessEnded {
+		return // markAsleep says asleep, not ended
+	}
 	_ = s.cfg.Store.Sessions.SetWorking(row.ID, liveness == domain.LivenessWorking)
 	if !s.isLatest(row, cardID) {
 		return
@@ -403,6 +424,9 @@ func (s *Service) markExited(row domain.Session, cardID string, code int) {
 	s.mu.Lock()
 	delete(s.ready, row.ID)
 	s.mu.Unlock()
+	if s.markAsleep(row, cardID) {
+		return
+	}
 	// A session that ends while Hadron runs ended on purpose or on its own, so it stays down.
 	// Quitting Hadron (and an update, which quits it) keeps the flag: those sessions come back.
 	if !s.closing.Load() {
@@ -440,6 +464,8 @@ type Target struct {
 	Live *pty.Session // nil unless running
 	// Err says why the session never started.
 	Err string
+	// Asleep is set when Hadron stopped the session to save memory: a message wakes it (Wake).
+	Asleep bool
 }
 
 // Find returns the latest session of a card or planner. ErrNoSession when there is none.
@@ -462,6 +488,7 @@ func (s *Service) Find(st *store.Store, workspaceID, cardID string) (Target, err
 	s.mu.Lock()
 	t.Err = s.failures[row.ID]
 	s.mu.Unlock()
+	t.Asleep = t.Live == nil && row.Asleep
 	return t, nil
 }
 
@@ -535,13 +562,45 @@ func (s *Service) Attach(sessionID string) ([]byte, int64) {
 	return nil, 0
 }
 
-// Write sends the user's keystrokes to a session.
+// Write sends the user's keystrokes to a session. Typing into a sleeping card's terminal wakes it:
+// the keys are held, in order, and typed once Claude's prompt shows.
 func (s *Service) Write(sessionID string, data []byte) error {
 	ps, ok := s.pty.Get(sessionID)
 	if !ok {
+		if row, err := s.cfg.Store.Sessions.Get(sessionID); err == nil && row.Asleep && row.CardID != "" {
+			s.wakeWithKeys(row.WorkspaceID, row.CardID, data)
+			return nil
+		}
 		return errors.New("that session is not running")
 	}
 	return ps.Write(data)
+}
+
+// wakeWithKeys holds keys typed into a sleeping card's terminal and wakes it; the first call starts
+// the wake, and every key held by the time the prompt shows is typed in the order it came.
+func (s *Service) wakeWithKeys(workspaceID, cardID string, data []byte) {
+	s.mu.Lock()
+	held, waking := s.heldKeys[cardID]
+	s.heldKeys[cardID] = append(held, data...)
+	s.mu.Unlock()
+	if waking {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), s.cfg.ReadyTimeout+time.Minute)
+		defer cancel()
+		t, err := s.Wake(ctx, workspaceID, cardID)
+		s.mu.Lock()
+		keys := s.heldKeys[cardID]
+		delete(s.heldKeys, cardID)
+		s.mu.Unlock()
+		if err == nil {
+			err = t.Live.Write(keys)
+		}
+		if err != nil {
+			s.cfg.Log.Warn("wake from the terminal", "card", cardID, "error", err.Error())
+		}
+	}()
 }
 
 // Resize sets a session's terminal size.

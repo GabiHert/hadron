@@ -29,7 +29,7 @@
 button.pill{cursor:pointer}
 .src{font-size:10px;font-weight:600;letter-spacing:.04em;padding:0 5px;border-radius:4px;background:var(--bg);border:1px solid var(--border);color:var(--fg2)}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--dot);flex:none;display:inline-block}
-.dot.working{background:var(--ok)}.dot.waiting{background:var(--warn)}.dot.blocked{background:var(--bad)}.dot.ended{background:var(--fg3)}
+.dot.working{background:var(--ok)}.dot.waiting{background:var(--warn)}.dot.blocked{background:var(--bad)}.dot.ended{background:var(--fg3)}.dot.asleep{background:transparent;box-shadow:inset 0 0 0 1.5px var(--fg3)}
 .dot.working.pulse{animation:pulse 1.6s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){.dot.working.pulse{animation:none}*{transition:none!important}}
@@ -823,3 +823,5 @@ html,body,#root,.win{overflow:clip}
 :root[data-resizing] :is(.ppanel,.cpanel,.board,.shell>*){transition:none!important}
 /* A long conversation holds its newest messages; this loads older ones above them. */
 .earlier{align-self:center;flex:none;margin:2px 0 6px}
+/* A card whose session sleeps (Hadron stopped it to save memory): quieter, not an error. */
+.pill.asleep{color:var(--fg3);border-style:dashed}
