@@ -25,6 +25,8 @@ const (
 	LivenessIdle    = "idle"
 	LivenessWaiting = "waiting"
 	LivenessEnded   = "ended"
+	// LivenessAsleep is a card whose session Hadron stopped to save memory; a message wakes it.
+	LivenessAsleep = "asleep"
 )
 
 // Meta is on every row.
@@ -111,6 +113,9 @@ type Session struct {
 	// Working is the last liveness Hadron saw: true when Claude was busy on a task. Hadron
 	// freezes it when it quits, so a restored session that was mid-task can be told to go on.
 	Working bool `json:"working"`
+	// Asleep means Hadron stopped the session to save memory; the next message resumes its
+	// conversation in a new session.
+	Asleep bool `json:"asleep"`
 }
 
 // Free session kinds.

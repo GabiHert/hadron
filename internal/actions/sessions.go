@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/GabiHert/hadron/internal/domain"
 	"github.com/GabiHert/hadron/internal/pty"
@@ -97,6 +98,10 @@ type SessionStatus struct {
 	Warnings []string `json:"warnings,omitempty"`
 	// LaunchProfile is the planner's own launch profile (planner_get only).
 	LaunchProfile string `json:"launch_profile,omitempty"`
+	// Asleep is set when Hadron stopped the session to save memory; a message wakes it.
+	Asleep bool `json:"asleep,omitempty"`
+	// IdleSeconds is how long a running session has been quiet (no output, no input).
+	IdleSeconds int `json:"idle_seconds,omitempty"`
 }
 
 // ScreenOut is what the read-screen actions return.
@@ -478,6 +483,10 @@ func statusOf(card *domain.Card, workspaceID string, t sessions.Target) SessionS
 	if t.Live != nil {
 		st.Running, st.Liveness = true, t.Live.Liveness()
 		st.Cols, st.Rows = t.Live.Size()
+		st.IdleSeconds = int(t.Live.IdleFor() / time.Second)
+	}
+	if t.Asleep {
+		st.Asleep, st.Liveness = true, domain.LivenessAsleep
 	}
 	if t.Row.ID == "" {
 		st.Liveness = "none"
@@ -586,6 +595,8 @@ func liveTarget(c *Call, workspaceID string, card *domain.Card) (sessions.Target
 	}
 	if t.Live == nil {
 		switch {
+		case t.Asleep:
+			return t, who, fmt.Errorf("%s is asleep: Hadron stopped its session to save memory. session_send or session_wake wakes it (it resumes its conversation)", who)
 		case t.Row.ID == "":
 			return t, who, fmt.Errorf("%s has no session yet. Start it with %s", who, start)
 		case t.Err != "":
@@ -611,6 +622,24 @@ func sendTo(c *Call, workspaceID string, card *domain.Card, text string, enter *
 // box first, so the text is not typed before Claude reads it and lost. It holds no transaction
 // while it waits (session_send and planner_send are NoTx).
 func sendWhenReady(ctx context.Context, c *Call, workspaceID string, card *domain.Card, text string, enter *bool) (SessionStatus, error) {
+	if card != nil {
+		// A sleeping session is woken first: its conversation is resumed and the text goes in once
+		// Claude's prompt shows, exactly once.
+		// A second message that comes while the first wakes it joins that wake.
+		if t, err := target(c, workspaceID, card); err == nil && t.Live == nil && t.Row.ID != "" {
+			woke, err := c.Deps.Sessions.Wake(ctx, workspaceID, card.ID)
+			if errors.Is(err, sessions.ErrNotAsleep) {
+				return sendTo(c, workspaceID, card, text, enter) // says why it is not running
+			}
+			if err != nil {
+				return SessionStatus{}, fmt.Errorf("nothing was typed into card %q: %v", card.Nick, err)
+			}
+			if err := woke.Live.Send(text, enter == nil || *enter); err != nil {
+				return SessionStatus{}, err
+			}
+			return statusOf(card, workspaceID, woke), nil
+		}
+	}
 	t, who, err := liveTarget(c, workspaceID, card)
 	if err != nil {
 		return SessionStatus{}, err
@@ -660,6 +689,9 @@ func readScreen(c *Call, workspaceID string, card *domain.Card, lines int, scrol
 		who := "the planner"
 		if card != nil {
 			who = fmt.Sprintf("card %q", card.Nick)
+		}
+		if t.Asleep {
+			return ScreenOut{Liveness: domain.LivenessAsleep}, fmt.Errorf("%s is asleep, so it has no screen: Hadron stopped its session to save memory. session_wake brings it back", who)
 		}
 		return ScreenOut{}, fmt.Errorf("%s has no screen to read: its session has not run in this app session", who)
 	}

@@ -5,7 +5,7 @@ import { ChooseFolder, Invoke } from "../wailsjs/go/app/App";
 import { EventsOn } from "../wailsjs/runtime/runtime";
 
 export type Role = "needs-you" | "active" | "blocked" | "done" | "backlog" | "";
-export type Liveness = "working" | "idle" | "waiting" | "ended";
+export type Liveness = "working" | "idle" | "waiting" | "ended" | "asleep";
 
 export interface Workspace {
   id: string;
@@ -211,6 +211,8 @@ export interface Session {
   claude_session_id: string;
   started_at: string;
   ended_at: string | null;
+  /** Hadron stopped it to save memory; the next message resumes its conversation */
+  asleep?: boolean;
 }
 export interface SessionStatus {
   workspace_id: string;
@@ -225,6 +227,10 @@ export interface SessionStatus {
   cols: number;
   rows: number;
   error: string;
+  /** the session sleeps: Hadron stopped it to save memory, and a message wakes it */
+  asleep?: boolean;
+  /** how long a running session has been quiet */
+  idle_seconds?: number;
 }
 export interface ScreenOut {
   running: boolean;
@@ -254,6 +260,27 @@ export const session_keys = (a: { card: string; keys: string[] }) => call<Sessio
 export const session_interrupt = (a: { card: string }) => call<SessionStatus>("session_interrupt", a);
 export const session_read_screen = (a: { card: string; lines?: number; scrollback?: boolean }) => call<ScreenOut>("session_read_screen", a);
 export const session_status = (a: { card: string }) => call<SessionStatus>("session_status", a);
+/** Puts a card's idle session to sleep now (its process stops; the conversation is kept). */
+export const session_sleep = (a: { card: string }) => call<SessionStatus>("session_sleep", a);
+/** Wakes a card's sleeping session: resumes its conversation and returns once Claude's prompt shows. */
+export const session_wake = (a: { card: string }) => call<SessionStatus>("session_wake", a);
+export interface SleepEntry {
+  workspace_id: string;
+  card_id: string;
+  nick: string;
+  liveness: string;
+  idle_seconds?: number;
+  blocker?: string;
+}
+export interface SleepStatus {
+  sleep_after_minutes: number;
+  memory_guard: boolean;
+  pressure: "normal" | "warning" | "critical" | "unknown";
+  awake: SleepEntry[];
+  asleep: SleepEntry[];
+}
+/** The sleep settings, the Mac's memory pressure, and every card session awake or asleep. */
+export const session_sleep_status = (a: { children?: boolean } = {}) => call<SleepStatus>("session_sleep_status", a);
 export const planner_get = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_get", a);
 export const planner_set_profile = (a: { workspace_id?: string; launch_profile?: string }) => call<SessionStatus>("planner_set_profile", a);
 export const planner_start = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_start", a);

@@ -99,7 +99,7 @@ export const fieldEntry = (path: string, label: string, over: Partial<FieldEntry
 export const defaultSchema = (): FieldEntry[] => [
   fieldEntry("card.column", "Column", { editable: true }),
   fieldEntry("card.assignee", "Assignee", { type: "user", editable: true }),
-  fieldEntry("card.liveness", "Liveness", { type: "enum", options: ["working", "idle", "waiting", "ended"] }),
+  fieldEntry("card.liveness", "Liveness", { type: "enum", options: ["working", "idle", "waiting", "ended", "asleep"] }),
   fieldEntry("card.key", "Key", { editable: true }),
   fieldEntry("card.nick", "Nickname", { editable: true }),
   fieldEntry("card.stage", "Stage", { editable: true }),
@@ -526,6 +526,9 @@ const fns = {
   session_start: vi.fn(async (a: { card: string }) => clone(state.sessions[a.card] ?? running("sess-" + a.card))),
   session_restart: vi.fn(async (a: { card: string }) => clone(state.sessions[a.card] ?? running("sess-" + a.card))),
   session_stop: vi.fn(async (a: { card: string }) => clone(state.sessions[a.card] ?? running("sess-" + a.card, { running: false }))),
+  session_sleep: vi.fn(async (a: { card: string }) => clone(running("sess-" + a.card, { card_id: a.card, running: false, liveness: "asleep", asleep: true }))),
+  session_wake: vi.fn(async (a: { card: string }) => clone(running("sess-" + a.card + "-awake", { card_id: a.card }))),
+  session_sleep_status: vi.fn(async () => ({ sleep_after_minutes: 30, memory_guard: true, pressure: "normal", awake: [], asleep: [] })),
   chat_read: vi.fn(async (a: { channel: string; limit?: number }) => {
     const all = state.messages.filter((m) => m.channel === a.channel);
     return clone(a.limit && all.length > a.limit ? all.slice(-a.limit) : all);

@@ -137,7 +137,7 @@ func Native() []Entry {
 	return []Entry{
 		{Path: "card.column", Label: "Column", Type: TypeText, Filterable: true, Editable: true, Source: "native"},
 		{Path: "card.assignee", Label: "Assignee", Type: TypeUser, Filterable: true, Editable: true, CardChip: true, Source: "native"},
-		{Path: "card.liveness", Label: "Liveness", Type: TypeEnum, Options: []string{domain.LivenessWorking, domain.LivenessIdle, domain.LivenessWaiting, domain.LivenessEnded}, Filterable: true, Source: "native"},
+		{Path: "card.liveness", Label: "Liveness", Type: TypeEnum, Options: []string{domain.LivenessWorking, domain.LivenessIdle, domain.LivenessWaiting, domain.LivenessEnded, domain.LivenessAsleep}, Filterable: true, Source: "native"},
 		{Path: "card.key", Label: "Key", Type: TypeText, Filterable: true, Editable: true, CardChip: true, Source: "native"},
 		{Path: "card.nick", Label: "Nickname", Type: TypeText, Filterable: true, Editable: true, Source: "native"},
 		{Path: "card.stage", Label: "Stage", Type: TypeText, Filterable: true, Editable: true, CardChip: true, Source: "native"},

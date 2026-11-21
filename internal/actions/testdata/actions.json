@@ -3470,6 +3470,28 @@
     ]
   },
   {
+    "name": "session_sleep",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "session_sleep_status",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "children",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
     "name": "session_start",
     "mutates": true,
     "fields": [
@@ -3498,6 +3520,17 @@
   },
   {
     "name": "session_stop",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "session_wake",
     "mutates": true,
     "fields": [
       {

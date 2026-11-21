@@ -870,6 +870,12 @@ func deliverAnswer(c *Call, card domain.Card, q domain.Question, labels []string
 	}
 	line := chat.SessionAnswerLine(q.Seq, labels, notes, by)
 	t, err := target(c, card.WorkspaceID, &card)
+	if err == nil && t.Asleep {
+		// The asking session went to sleep: it is woken, then gets the answer.
+		sv, ws, id := c.Deps.Sessions, card.WorkspaceID, card.ID
+		c.AfterCommit(func() { go sv.WakeAndSend(ws, id, line) })
+		return nil
+	}
 	if err == nil && t.Live != nil {
 		live, log := t.Live, c.Deps.Log
 		c.AfterCommit(func() {

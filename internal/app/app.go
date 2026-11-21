@@ -257,6 +257,7 @@ func (a *App) startup(ctx context.Context) {
 	// Check for a new release a minute after launch, then every six hours.
 	go a.upd.Watch(watchCtx, time.Minute, 6*time.Hour)
 	go a.ruleTimer(watchCtx)
+	go a.sleepTimer(watchCtx)
 	go a.restoreSessions(ctx)
 }
 
@@ -311,6 +312,40 @@ func (a *App) reportNudged(nudged []sessions.Nudged) {
 		_ = a.st.Messages.Create(&msg)
 		a.emit(actions.EventChanged, actions.ChangedEvent{WorkspaceID: g.WorkspaceID, Entities: []string{"messages"}})
 		a.chat.Enqueue(g.WorkspaceID, "[Hadron] "+line, nil)
+	}
+}
+
+// sleepTimer runs the memory guard every 15 seconds and, every minute, puts to sleep the card
+// sessions that have been idle for the sessions.sleep_after_minutes setting.
+func (a *App) sleepTimer(ctx context.Context) {
+	tick := time.NewTicker(15 * time.Second)
+	defer tick.Stop()
+	for n := 1; ; n++ {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+		}
+		a.reportGuard(a.sess.GuardTick())
+		if n%4 == 0 {
+			if slept := a.sess.SleepIdle(); len(slept) > 0 {
+				a.log.Info("idle sessions asleep", "count", len(slept))
+			}
+		}
+	}
+}
+
+// reportGuard tells each workspace's planner, and the user in the planner chat, which sessions
+// the memory guard put to sleep, or that it could put none to sleep.
+func (a *App) reportGuard(res sessions.GuardResult) {
+	for ws, line := range sessions.GuardNotices(res) {
+		msg := domain.Message{WorkspaceID: ws, Channel: "planner", Author: "system", Kind: "event", Text: line, Delivered: true}
+		_ = a.st.Messages.Create(&msg)
+		a.emit(actions.EventChanged, actions.ChangedEvent{WorkspaceID: ws, Entities: []string{"messages"}})
+		a.chat.Enqueue(ws, "[Hadron] "+line, nil)
+	}
+	if len(res.Slept) > 0 || res.Warn {
+		a.log.Warn("memory guard", "pressure", pty.PressureName(res.Level), "slept", len(res.Slept), "warned", res.Warn)
 	}
 }
 

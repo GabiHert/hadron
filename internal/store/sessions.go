@@ -10,18 +10,19 @@ import (
 // Sessions is the repo for PTY sessions.
 type Sessions struct{ s *Store }
 
-const sessCols = `id, created_at, updated_at, workspace_id, card_id, kind, command, cwd, pid, status, exit_code, claude_session_id, started_at, ended_at, restore, working`
+const sessCols = `id, created_at, updated_at, workspace_id, card_id, kind, command, cwd, pid, status, exit_code, claude_session_id, started_at, ended_at, restore, working, asleep`
 
 func scanSession(r scanner) (domain.Session, error) {
 	var x domain.Session
 	var cr, up, st string
 	var card, ended sql.NullString
-	var restore, working int
-	err := r.Scan(&x.ID, &cr, &up, &x.WorkspaceID, &card, &x.Kind, &x.Command, &x.Cwd, &x.PID, &x.Status, &x.ExitCode, &x.ClaudeSessionID, &st, &ended, &restore, &working)
+	var restore, working, asleep int
+	err := r.Scan(&x.ID, &cr, &up, &x.WorkspaceID, &card, &x.Kind, &x.Command, &x.Cwd, &x.PID, &x.Status, &x.ExitCode, &x.ClaudeSessionID, &st, &ended, &restore, &working, &asleep)
 	x.CreatedAt, x.UpdatedAt, x.StartedAt = parseTS(cr), parseTS(up), parseTS(st)
 	x.CardID = card.String
 	x.Restore = restore == 1
 	x.Working = working == 1
+	x.Asleep = asleep == 1
 	x.EndedAt = scanTSPtr(ended)
 	return x, err
 }
@@ -35,8 +36,8 @@ func (r *Sessions) Create(x *domain.Session) error {
 	if x.Status == "" {
 		x.Status = "running"
 	}
-	_, err := r.s.q.Exec(`INSERT INTO sessions (`+sessCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		x.ID, ts(x.CreatedAt), ts(x.UpdatedAt), x.WorkspaceID, nullable(x.CardID), x.Kind, x.Command, x.Cwd, x.PID, x.Status, x.ExitCode, x.ClaudeSessionID, ts(x.StartedAt), tsPtr(x.EndedAt), b2i(x.Restore), b2i(x.Working))
+	_, err := r.s.q.Exec(`INSERT INTO sessions (`+sessCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		x.ID, ts(x.CreatedAt), ts(x.UpdatedAt), x.WorkspaceID, nullable(x.CardID), x.Kind, x.Command, x.Cwd, x.PID, x.Status, x.ExitCode, x.ClaudeSessionID, ts(x.StartedAt), tsPtr(x.EndedAt), b2i(x.Restore), b2i(x.Working), b2i(x.Asleep))
 	return mapErr(err)
 }
 
@@ -81,6 +82,12 @@ func (r *Sessions) Update(x *domain.Session) error {
 	stamp(&x.Meta)
 	return affected(r.s.q.Exec(`UPDATE sessions SET updated_at=?, command=?, cwd=?, pid=?, status=?, exit_code=?, claude_session_id=?, ended_at=? WHERE id=?`,
 		ts(x.UpdatedAt), x.Command, x.Cwd, x.PID, x.Status, x.ExitCode, x.ClaudeSessionID, tsPtr(x.EndedAt), x.ID))
+}
+
+// SetAsleep marks a session as asleep (Hadron stopped it to save memory) or not.
+func (r *Sessions) SetAsleep(id string, asleep bool) error {
+	_, err := r.s.q.Exec(`UPDATE sessions SET asleep=?, updated_at=? WHERE id=?`, b2i(asleep), ts(now()), id)
+	return err
 }
 
 // MarkRunningExited marks sessions left "running" by a previous run as exited, and returns how

@@ -12,7 +12,7 @@ export const GROUP_DRAG = "application/x-hadron-group-card";
 
 type Drag = { card: string; from: string };
 
-const LIVE_LABEL: Record<string, string> = { working: "working", idle: "idle", waiting: "waiting", ended: "ended" };
+const LIVE_LABEL: Record<string, string> = { working: "working", idle: "idle", waiting: "waiting", ended: "ended", asleep: "asleep" };
 
 /** One card of a group as the dashboard shows it: the board's live card, plus the server's last line. */
 export interface GroupItem {
