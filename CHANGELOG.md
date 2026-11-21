@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.42] - 2026-11-21
+
 ### Added
 - Idle card sessions go to sleep to save memory. After 30 minutes idle (Settings → General; 10 minutes to 2 hours, or never), Hadron stops the session's claude process and the card says asleep. Any message to it (from the planner, an answer to its question, a key in its Terminal) wakes it first by resuming the same conversation, then delivers the message once. A session that is working, has a question open, shows a dialog, or has a test or build still running under it stays awake. The planner never sleeps.
 - Memory guard: when macOS reports memory pressure, Hadron puts the longest-idle sessions to sleep, one at a time, until it eases, and says which in the planner chat. It never stops a working session; if every session is busy it only warns. Turn it off in Settings → General.
