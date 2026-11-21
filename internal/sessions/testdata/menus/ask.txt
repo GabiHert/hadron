@@ -1,0 +1,20 @@
+ ▐▛███▛█   Claude Code v2.1.330
+▝▜██████▀  Opus 5.5 · Claude Max
+ ▝▝   ▝▝   ~/projects/billing-fix
+
+❯ Ask me which database to use.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ ☐ Database
+
+Which database should we use?
+
+❯ 1. Postgres
+     Relational and mature
+  2. SQLite
+     Embedded, one file
+  3. Type something.
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  4. Chat about this
+
+Enter to select · ↑/↓ to navigate · Esc to cancel

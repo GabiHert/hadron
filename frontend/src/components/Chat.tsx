@@ -124,7 +124,7 @@ interface QCProps {
  * approval details, a Notes field and the Answer button. Answered or withdrawn, it shrinks to a line.
  */
 export function QuestionCard({ q, onAnswer }: QCProps) {
-  const [picked, setPicked] = useState<number[]>(q.multi || q.options.length === 0 ? [] : [0]);
+  const [picked, setPicked] = useState<number[]>(() => initialPick(q));
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const label = `Q-${String(q.seq).padStart(2, "0")}`;
@@ -137,6 +137,8 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
         <Markdown className="qtext" text={q.text} />
         {q.status === "withdrawn" ? (
           <span className="hint">Withdrawn.</span>
+        ) : a?.via === "terminal" ? (
+          <span className="hint">Answered in the Terminal.</span>
         ) : a ? (
           <span className="hint">
             Answered{a.via && a.via !== "you" && a.via !== "planner-relay" ? ` by the ${a.via}` : ""}: <b style={{ fontWeight: 500 }}>{a.selections.length ? a.selections.join(", ") : "see notes"}</b>
@@ -150,7 +152,9 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
 
   const toggle = (i: number) =>
     setPicked((cur) => (q.multi ? (cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i].sort((a, b) => a - b)) : [i]));
-  const canAnswer = picked.length > 0 || nonEmpty(notes);
+  const menu = q.menu;
+  // A menu without a free-text row needs a row picked; notes then go to Claude after it.
+  const canAnswer = picked.length > 0 || (nonEmpty(notes) && (!menu || !!menu.free_text));
   const answer = async () => {
     if (!canAnswer || busy) return;
     setBusy(true);
@@ -167,7 +171,7 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
   const rev = ap ? (ap.reversible === true || ap.reversible === "yes" ? "yes" : ap.reversible === "partial" ? "partial" : "no") : "no";
   return (
     <div className={"qbox" + (q.kind === "approval" ? " appr" : "")} role="group" aria-label={`Question ${label}`} data-msg="" tabIndex={-1}>
-      <span className="cap">{label} · {q.kind}</span>
+      <span className="cap">{label} · {menu ? `Claude Code menu in the Terminal · ${menuKindName(menu.kind)}` : q.kind}</span>
       <Markdown className="qtext" text={q.text} />
       {q.context ? <Markdown className="hint" text={q.context} attachments /> : null}
       {nonEmpty(q.meanwhile) ? <span className="hint" aria-label="Meanwhile">While you decide: {q.meanwhile}</span> : null}
@@ -193,14 +197,15 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
           <span className="kbd" title={i < 9 ? `Press ${i + 1}` : undefined}>{i + 1}</span>
           <span>
             <b style={{ fontWeight: 500 }}>{o.label}</b>
+            {menu && o.default ? <span className="hint" data-testid="menu-default"> · {q.multi ? "ticked" : "highlighted"} in the Terminal</span> : null}
             {o.description ? <><br /><span className="hint">{o.description}</span></> : null}
           </span>
         </button>
       ))}
       {q.multi ? <span className="hint">You can pick more than one.</span> : null}
       <label className="field">
-        <span>Notes <span className="hint" style={{ fontWeight: 400 }}>(optional, sent with your answer)</span></span>
-        <AutoText id={`q-notes-${q.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Context, conditions, or what to do differently" />
+        <span>Notes <span className="hint" style={{ fontWeight: 400 }}>{menu ? (menu.free_text ? "(your own answer: typed into the menu)" : "(optional, sent to Claude after the menu)") : "(optional, sent with your answer)"}</span></span>
+        <AutoText id={`q-notes-${q.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={menu?.free_text ? "Answer in your own words" : "Context, conditions, or what to do differently"} />
       </label>
       <div className="inline" style={{ justifyContent: "flex-end" }}>
         <span className="hint" style={{ flex: 1 }}>{q.kind === "approval" ? "The planner may also answer this under the planner policy." : ""}</span>
@@ -209,6 +214,26 @@ export function QuestionCard({ q, onAnswer }: QCProps) {
     </div>
   );
 }
+
+/** What a question preselects: a terminal menu's highlighted (or ticked) rows, else the first option. */
+function initialPick(q: Question): number[] {
+  if (q.menu) {
+    const d = q.options.flatMap((o, i) => (o.default ? [i] : []));
+    return q.multi ? d : d.slice(0, 1);
+  }
+  return q.multi || q.options.length === 0 ? [] : [0];
+}
+
+const MENU_KINDS: Record<string, string> = {
+  mcp: "MCP server",
+  trust: "trust this folder",
+  permission: "permission",
+  plan: "plan approval",
+  question: "question",
+  review: "review answers",
+  select: "choice",
+};
+const menuKindName = (k: string) => MENU_KINDS[k] ?? k;
 
 /** True while the planner is probably writing: the newest message is yours, was delivered, and is under two minutes old. */
 export function plannerIsReplying(messages: Message[], now: number): boolean {

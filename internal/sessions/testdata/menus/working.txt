@@ -1,0 +1,4 @@
+❯ Use the AskUserQuestion tool to ask me
+  which database to use.
+
+✻ Pondering… (3s · esc to interrupt)

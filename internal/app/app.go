@@ -258,6 +258,7 @@ func (a *App) startup(ctx context.Context) {
 	go a.upd.Watch(watchCtx, time.Minute, 6*time.Hour)
 	go a.ruleTimer(watchCtx)
 	go a.sleepTimer(watchCtx)
+	go a.menuWatcher(watchCtx)
 	go a.restoreSessions(ctx)
 }
 
@@ -332,6 +333,25 @@ func (a *App) sleepTimer(ctx context.Context) {
 				a.log.Info("idle sessions asleep", "count", len(slept))
 			}
 		}
+	}
+}
+
+// menuWatch is how often the card sessions' screens are read for Claude Code's menus.
+const menuWatch = 700 * time.Millisecond
+
+// menuWatcher turns the menus Claude Code shows in card sessions (an MCP server approval, a
+// permission prompt, an AskUserQuestion) into questions on their cards, and closes those questions
+// when the menu is answered in the Terminal.
+func (a *App) menuWatcher(ctx context.Context) {
+	tick := time.NewTicker(menuWatch)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+		}
+		a.reg.SyncMenus(ctx)
 	}
 }
 

@@ -529,6 +529,8 @@ const fns = {
   session_sleep: vi.fn(async (a: { card: string }) => clone(running("sess-" + a.card, { card_id: a.card, running: false, liveness: "asleep", asleep: true }))),
   session_wake: vi.fn(async (a: { card: string }) => clone(running("sess-" + a.card + "-awake", { card_id: a.card }))),
   session_sleep_status: vi.fn(async () => ({ sleep_after_minutes: 30, memory_guard: true, pressure: "normal", awake: [], asleep: [] })),
+  session_menu: vi.fn(async () => ({ open: false })),
+  session_menu_answer: vi.fn(async () => ({ keys: [] })),
   chat_read: vi.fn(async (a: { channel: string; limit?: number }) => {
     const all = state.messages.filter((m) => m.channel === a.channel);
     return clone(a.limit && all.length > a.limit ? all.slice(-a.limit) : all);

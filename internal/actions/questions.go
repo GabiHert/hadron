@@ -227,7 +227,7 @@ func registerQuestions(r *Registry) {
 			return getQuestion(c, in.QuestionID)
 		})
 
-	Register(r, Spec{Name: "question_answer", Description: "Answer an open question with the labels of the chosen options and optional notes. The user may always answer. The planner may answer under the planner policy. A session can never answer a question, least of all its own.",
+	Register(r, Spec{Name: "question_answer", Description: "Answer an open question with the labels of the chosen options and optional notes. A question that stands for Claude Code's menu in the card's terminal (it has menu set) is answered by pressing the menu's keys; its notes go into the menu's free-text row, or to Claude after the menu closes. The user may always answer. The planner may answer under the planner policy. A session can never answer a question, least of all its own.",
 		Mutates: true, Entities: attentionEntities},
 		func(ctx context.Context, c *Call, in QuestionAnswerIn) (domain.Question, error) {
 			q, err := getQuestion(c, in.QuestionID)
@@ -253,6 +253,9 @@ func registerQuestions(r *Registry) {
 			labels, notes, err := checkAnswer(q, in)
 			if err != nil {
 				return q, err
+			}
+			if q.Menu != nil && len(labels) == 0 && !q.Menu.FreeText {
+				return q, fmt.Errorf("Q-%02d is Claude Code's menu, which has no row to type into. Pick one of its options: %s (notes go to Claude as a message after it)", q.Seq, optionLabels(q))
 			}
 			via := c.Actor.Kind
 			result := map[string]any{"selections": labels, "notes": notes}
@@ -294,7 +297,9 @@ func registerQuestions(r *Registry) {
 					return q, err
 				}
 			}
-			if err := deliverAnswer(c, card, q, labels, notes, via); err != nil {
+			if q.Menu != nil {
+				answerMenuLater(c, card, q, labels, notes)
+			} else if err := deliverAnswer(c, card, q, labels, notes, via); err != nil {
 				return q, err
 			}
 			return q, reconcile(c, card)
