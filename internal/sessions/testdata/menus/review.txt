@@ -1,0 +1,12 @@
+❯ Ask me which checks to run.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+←  ☒ Checks  ✔ Submit  →
+
+Review your answers
+
+ ● Which checks should run?
+   → Lint
+
+❯ 1. Submit answers
+  2. Cancel

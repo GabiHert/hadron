@@ -79,6 +79,10 @@ type Config struct {
 	// GuardSettle and GuardMinIdle override DefaultGuardSettle and GuardMinIdle. Tests shorten them.
 	GuardSettle  time.Duration
 	GuardMinIdle time.Duration
+	// MenuHold is how long the menu watcher leaves a session alone after Hadron answered its menu,
+	// so the answered question is recorded before the watcher could call it answered in the
+	// Terminal. Zero means DefaultMenuHold.
+	MenuHold time.Duration
 }
 
 // Service owns the live sessions.
@@ -93,6 +97,7 @@ type Service struct {
 	asleep   map[string]sleepNote // session id -> it is being put to sleep, and why
 	waking   map[string]*wakeOp   // card id -> a wake in progress
 	heldKeys map[string][]byte    // card id -> keys typed into its terminal while it wakes
+	menus    menuState
 	// sweeping is set while the idle sleeper or the memory guard runs; guardWarned once the guard
 	// has warned that it could sleep nothing, until the pressure eases.
 	sweeping    atomic.Bool
@@ -115,7 +120,10 @@ func New(cfg Config) *Service {
 	if cfg.ReadyTimeout <= 0 {
 		cfg.ReadyTimeout = DefaultReadyTimeout
 	}
-	return &Service{cfg: cfg, pty: pty.NewManager(cfg.Env), failures: map[string]string{}, ready: map[string]bool{}, free: map[string]*freeInfo{}, asleep: map[string]sleepNote{}, waking: map[string]*wakeOp{}, heldKeys: map[string][]byte{}}
+	if cfg.MenuHold <= 0 {
+		cfg.MenuHold = DefaultMenuHold
+	}
+	return &Service{cfg: cfg, pty: pty.NewManager(cfg.Env), failures: map[string]string{}, ready: map[string]bool{}, free: map[string]*freeInfo{}, asleep: map[string]sleepNote{}, waking: map[string]*wakeOp{}, heldKeys: map[string][]byte{}, menus: newMenuState()}
 }
 
 // Request says what to start.
@@ -352,8 +360,12 @@ func (s *Service) launch(row domain.Session, cardID, prevID string, old *pty.Ses
 // prompt arrow. A numbered menu choice ("❯ 1. Yes") is a dialog, not the prompt.
 var inputBox = regexp.MustCompile(`^\s*[│|]?\s*[>❯](\s*[│|]?\s*$|\s+[^\d\s])`)
 
-// ScreenShowsInput reports whether a screen looks like Claude's input box.
+// ScreenShowsInput reports whether a screen looks like Claude's input box. A menu's highlighted
+// row ("❯ Use this MCP server") is not the input box.
 func ScreenShowsInput(screen string) bool {
+	if ParseMenu(screen, 0) != nil {
+		return false
+	}
 	for _, line := range strings.Split(screen, "\n") {
 		if inputBox.MatchString(line) {
 			return true

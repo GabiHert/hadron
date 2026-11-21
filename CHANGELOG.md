@@ -7,6 +7,14 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+### Added
+- Claude Code's own menus in a card's Terminal become questions on the card: an MCP server approval, trust this folder, a tool permission prompt, an AskUserQuestion (one choice or several), the plan approval, or a list such as /model. The card moves to Needs you and the planner hears about it. The question shows the menu's text and rows, marks the highlighted (or ticked) row, and takes your own words when the menu has a row to type into.
+- Answering such a question, from the card chat or by the planner, presses the menu's keys in the Terminal and checks that it closed, trying once more if not; a failure is reported in the card chat and to the planner. Answer the menu in the Terminal instead and the question closes by itself. The same menu never asks twice.
+- MCP tools session_menu (read the menu open on a card's terminal) and session_menu_answer (answer it by row, text or Esc).
+
+### Fixed
+- An MCP server approval no longer looks like Claude's input box, so a session showing one does not count as ready for a message or for sleep.
+
 ## [0.2.42] - 2026-11-21
 
 ### Added

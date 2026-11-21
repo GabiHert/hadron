@@ -281,6 +281,45 @@ export interface SleepStatus {
 }
 /** The sleep settings, the Mac's memory pressure, and every card session awake or asleep. */
 export const session_sleep_status = (a: { children?: boolean } = {}) => call<SleepStatus>("session_sleep_status", a);
+/** One row of a Claude Code menu on a card's terminal. */
+export interface MenuOption {
+  number?: number;
+  label: string;
+  description?: string;
+  checked?: boolean;
+  free_text?: boolean;
+  submit?: boolean;
+  box?: boolean;
+}
+/** A Claude Code menu as a card's terminal shows it. */
+export interface TerminalMenu {
+  kind: string;
+  header?: string;
+  title: string;
+  body?: string;
+  options: MenuOption[];
+  cursor: number;
+  multi: boolean;
+  footer?: string;
+  cancel: boolean;
+  sig: string;
+}
+export interface SessionMenuOut {
+  open: boolean;
+  menu?: TerminalMenu;
+  question_id?: string;
+}
+export interface SessionMenuAnswerOut {
+  keys: string[];
+  next?: TerminalMenu;
+  text_sent?: boolean;
+  question_id?: string;
+}
+/** The Claude Code menu open on a card's terminal, if any. */
+export const session_menu = (a: { card: string }) => call<SessionMenuOut>("session_menu", a);
+/** Answer the menu open on a card's terminal by pressing its keys. */
+export const session_menu_answer = (a: { card: string; choices?: string[]; text?: string; cancel?: boolean }) =>
+  call<SessionMenuAnswerOut>("session_menu_answer", a);
 export const planner_get = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_get", a);
 export const planner_set_profile = (a: { workspace_id?: string; launch_profile?: string }) => call<SessionStatus>("planner_set_profile", a);
 export const planner_start = (a: { workspace_id?: string } = {}) => call<SessionStatus>("planner_start", a);
@@ -457,6 +496,16 @@ export type QuestionKind = "decision" | "unblock" | "approval";
 export interface QuestionOption {
   label: string;
   description: string;
+  /** What a terminal menu has highlighted, or ticked when several may be picked. */
+  default?: boolean;
+}
+/** The Claude Code menu in a card's terminal that a question stands for. */
+export interface QuestionMenu {
+  sig: string;
+  /** mcp, trust, permission, plan, question, review or select */
+  kind: string;
+  /** The menu has a row to type into: the notes go there. */
+  free_text?: boolean;
 }
 /** Can an approved operation be undone? Older stored questions hold true or false. */
 export type Reversible = "yes" | "no" | "partial";
@@ -497,6 +546,8 @@ export interface Question {
   answered_at: string | null;
   /** What the session does while the question waits. */
   meanwhile: string;
+  /** Set when the question stands for Claude Code's menu in the card's terminal. */
+  menu?: QuestionMenu;
 }
 export type GateKind = "merge" | "promote" | "deploy-confirm" | "close";
 export interface Gate {

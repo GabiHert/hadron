@@ -167,6 +167,18 @@ type Message struct {
 type QuestionOption struct {
 	Label       string `json:"label"`
 	Description string `json:"description"`
+	// Default marks what a terminal menu has highlighted (or ticked, when several may be picked).
+	Default bool `json:"default,omitempty"`
+}
+
+// QuestionMenu ties a question to the Claude Code menu on its card's terminal that it stands for.
+type QuestionMenu struct {
+	// Sig identifies the menu while it stays up; Kind is mcp, trust, permission, plan, question,
+	// review or select.
+	Sig  string `json:"sig"`
+	Kind string `json:"kind"`
+	// FreeText is true when the menu has a row to type an answer into: the notes go there.
+	FreeText bool `json:"free_text,omitempty"`
 }
 
 // Question is a decision, unblock or approval a session asks about its own card.
@@ -186,6 +198,9 @@ type Question struct {
 	AnsweredAt  *time.Time       `json:"answered_at"`
 	// Meanwhile is what the session does while the question waits.
 	Meanwhile string `json:"meanwhile"`
+	// Menu is set when the question stands for a menu on the card's terminal: answering it presses
+	// the keys, and it closes by itself when the menu is answered in the Terminal.
+	Menu *QuestionMenu `json:"menu,omitempty"`
 }
 
 // Gate is a merge, promote, deploy-confirm or close waiting on the user.

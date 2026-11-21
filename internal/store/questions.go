@@ -10,19 +10,23 @@ import (
 // Questions is the repo for questions.
 type Questions struct{ s *Store }
 
-const qCols = `id, created_at, updated_at, workspace_id, card_id, seq, kind, text, context, options, multi, approval, status, answer, answered_at, meanwhile`
+const qCols = `id, created_at, updated_at, workspace_id, card_id, seq, kind, text, context, options, multi, approval, status, answer, answered_at, meanwhile, menu`
 
 func scanQuestion(r scanner) (domain.Question, error) {
 	var q domain.Question
-	var cr, up, opts, appr, ans string
+	var cr, up, opts, appr, ans, menu string
 	var multi int
 	var at sql.NullString
-	err := r.Scan(&q.ID, &cr, &up, &q.WorkspaceID, &q.CardID, &q.Seq, &q.Kind, &q.Text, &q.Context, &opts, &multi, &appr, &q.Status, &ans, &at, &q.Meanwhile)
+	err := r.Scan(&q.ID, &cr, &up, &q.WorkspaceID, &q.CardID, &q.Seq, &q.Kind, &q.Text, &q.Context, &opts, &multi, &appr, &q.Status, &ans, &at, &q.Meanwhile, &menu)
 	q.CreatedAt, q.UpdatedAt, q.Multi = parseTS(cr), parseTS(up), multi == 1
 	q.Options = []domain.QuestionOption{}
 	fromJSON(opts, &q.Options)
 	q.Approval, q.Answer = json.RawMessage(appr), json.RawMessage(ans)
 	q.AnsweredAt = scanTSPtr(at)
+	if menu != "" {
+		q.Menu = &domain.QuestionMenu{}
+		fromJSON(menu, q.Menu)
+	}
 	return q, err
 }
 
@@ -38,10 +42,35 @@ func (r *Questions) Create(q *domain.Question) error {
 	if err := r.s.q.QueryRow(`SELECT COALESCE(MAX(seq), 0) + 1 FROM questions WHERE card_id = ?`, q.CardID).Scan(&q.Seq); err != nil {
 		return err
 	}
-	_, err := r.s.q.Exec(`INSERT INTO questions (`+qCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+	_, err := r.s.q.Exec(`INSERT INTO questions (`+qCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		q.ID, ts(q.CreatedAt), ts(q.UpdatedAt), q.WorkspaceID, q.CardID, q.Seq, q.Kind, q.Text, q.Context, toJSON(q.Options), b2i(q.Multi),
-		rawOrDefault(q.Approval, "null"), q.Status, rawOrDefault(q.Answer, "null"), tsPtr(q.AnsweredAt), q.Meanwhile)
+		rawOrDefault(q.Approval, "null"), q.Status, rawOrDefault(q.Answer, "null"), tsPtr(q.AnsweredAt), q.Meanwhile, menuJSON(q.Menu))
 	return mapErr(err)
+}
+
+func menuJSON(m *domain.QuestionMenu) string {
+	if m == nil {
+		return ""
+	}
+	return toJSON(m)
+}
+
+// ListOpenMenus returns the open questions, in every workspace, that stand for a terminal menu.
+func (r *Questions) ListOpenMenus() ([]domain.Question, error) {
+	rows, err := r.s.q.Query(`SELECT ` + qCols + ` FROM questions WHERE status = 'open' AND menu != '' ORDER BY created_at, rowid`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []domain.Question{}
+	for rows.Next() {
+		q, err := scanQuestion(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, q)
+	}
+	return out, rows.Err()
 }
 
 // Get returns one question.

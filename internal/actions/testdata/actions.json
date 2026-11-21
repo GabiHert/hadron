@@ -3407,6 +3407,43 @@
     ]
   },
   {
+    "name": "session_menu",
+    "mutates": false,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "name": "session_menu_answer",
+    "mutates": true,
+    "fields": [
+      {
+        "name": "card",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "name": "choices",
+        "required": false,
+        "type": "array"
+      },
+      {
+        "name": "text",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "cancel",
+        "required": false,
+        "type": "boolean"
+      }
+    ]
+  },
+  {
     "name": "session_read_screen",
     "mutates": false,
     "fields": [
