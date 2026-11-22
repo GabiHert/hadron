@@ -3,7 +3,7 @@ import type { DragEvent, KeyboardEvent } from "react";
 import * as api from "../api";
 import type { BlockView, Card, GroupCardRow } from "../api";
 import { focusEl, requestUI, whenReady } from "../commands";
-import { short } from "../lib";
+import { edgeScroll, short } from "../lib";
 import type { Board as BoardState } from "../state/useBoard";
 import { Icon, closeOnEscape } from "./ui";
 
@@ -148,7 +148,7 @@ export function GroupBody({ b, board, groups, mutate, startPicking }: Props) {
       data-group={b.id}
     >
       {items.length ? (
-        <div ref={listRef} role="list" aria-label={`Cards in ${b.title}`} className="grpl" style={b.source?.height ? { maxHeight: b.source.height, overflowY: "auto" } : undefined}>
+        <div ref={listRef} role="list" aria-label={`Cards in ${b.title}`} className="grpl" onDragOver={(e) => edgeScroll(e.currentTarget, e.clientY)} style={b.source?.height ? { maxHeight: b.source.height, overflowY: "auto" } : undefined}>
           {items.map((it, i) => (
             <GroupRow
               key={it.card.id}
