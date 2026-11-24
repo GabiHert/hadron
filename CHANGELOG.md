@@ -7,6 +7,8 @@ for its "What's new" window.
 
 ## [Unreleased]
 
+## [0.2.44] - 2026-11-24
+
 ### Fixed
 - A board column with more cards than fit scrolls instead of squeezing its cards: each card keeps its full height, the list scrolls with the trackpad, wheel or keys, and dragging a card near the top or bottom of a column scrolls it.
 
