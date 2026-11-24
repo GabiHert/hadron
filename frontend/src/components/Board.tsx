@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import type { Card, Column, Question } from "../api";
-import { ROLES, short } from "../lib";
+import { ROLES, edgeScroll, short } from "../lib";
 import { effectiveModel } from "../state/useBoard";
 import type { Board as BoardState } from "../state/useBoard";
 import { useFilters } from "../state/useFilters";
@@ -281,7 +281,7 @@ export function ColumnView(p: ColProps) {
         </button>
         {p.menuOpen ? <ColumnMenu {...p} /> : null}
       </div>
-      <div className="clist">
+      <div className="clist" data-testid={`list-${col.id}`} onDragOver={(e) => edgeScroll(e.currentTarget, e.clientY)}>
         {shown.map((c) => (
           <CardFace
             key={c.id}

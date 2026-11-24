@@ -56,3 +56,23 @@ export function cardFolder(cwd: string | undefined, root: string | undefined): s
   if (!cwd || clean(cwd) === clean(root ?? "")) return "";
   return cwd;
 }
+
+/** How near a list's top or bottom edge (px) a drag scrolls it, and the most it scrolls per dragover. */
+export const EDGE_ZONE = 48;
+const EDGE_STEP = 18;
+
+/**
+ * edgeScroll scrolls a list while a card is dragged near its top or bottom edge, faster the nearer
+ * the pointer is, so a drop can reach cards out of view. dragover fires every few dozen milliseconds
+ * while the pointer is held there, so each call moves the list a step. It returns the step taken.
+ */
+export function edgeScroll(el: HTMLElement | null, clientY: number): number {
+  if (!el || el.scrollHeight <= el.clientHeight) return 0;
+  const r = el.getBoundingClientRect();
+  const zone = Math.min(EDGE_ZONE, r.height / 3);
+  let step = 0;
+  if (clientY < r.top + zone) step = -Math.ceil(EDGE_STEP * (1 - Math.max(0, clientY - r.top) / zone));
+  else if (clientY > r.bottom - zone) step = Math.ceil(EDGE_STEP * (1 - Math.max(0, r.bottom - clientY) / zone));
+  if (step) el.scrollTop += step;
+  return step;
+}

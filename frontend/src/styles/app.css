@@ -792,6 +792,10 @@ html,body,#root,.win{overflow:clip}
    ends in an ellipsis (the chip's title keeps the full text), and the column list scrolls only up and down. */
 .clist{overflow-x:hidden}
 .card{min-width:0;overflow:hidden}
+/* A card keeps its natural height: clipping the face (overflow:hidden) drops a flex item's minimum
+   height to zero, so a full column squeezed its cards instead of scrolling. The list scrolls instead. */
+.clist>*,.grpl>*{flex:none}
+.clist{overscroll-behavior:contain}
 .card>*{min-width:0;max-width:100%}
 .card .l1>.key{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card .l1>.pill,.card .l1>.dot{flex:none}
